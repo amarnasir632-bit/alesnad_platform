@@ -1,23 +1,24 @@
-__pycache__/
-*.py[cod]
-*.egg-info/
-build/
-dist/
-.venv/
-venv/
-env/
-db.sqlite3
-db.sqlite3-journal
-staticfiles/
-media/
+# Local configuration and secrets
 .env
 .env.*
 !.env.example
-.vscode/
-.idea/
+
+# Private uploads and local database backups
+/storage/private/*
+/storage/backups/*
+!/storage/private/.gitkeep
+!/storage/backups/.gitkeep
+*.dump
+*.dump.gz
+*.sql.gz
+
+# Dependencies and generated files
+/vendor/
+/.phpunit.cache/
+/coverage/
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
 .~lock.*#
-
-# Editor backup files
 *.bkp

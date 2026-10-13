@@ -1,0 +1,1 @@
+<section class="section page-section"><div class="empty-state"><h1>الصفحة غير موجودة</h1><p>تحقق من الرابط أو ارجع إلى الصفحة الرئيسية.</p><a class="button" href="<?= e(url('home')) ?>">الرئيسية</a></div></section>

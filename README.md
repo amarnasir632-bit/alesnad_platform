@@ -1,102 +1,96 @@
-<<<<<<< HEAD
 # منصة الإسناد الأكاديمي
 
-تطوير وإشراف شركة **AL WARITH**.
+منصة تعليمية عربية تطورها وتشرف عليها شركة **AL WARITH**. تعرض الواجهة العربية من اليمين إلى اليسار، وتستهدف المنهج السوداني. شعار الشركة موجود في `public/assets/brand/al-warith-logo.jpg`.
 
-![شعار AL WARITH](assets/brand/al-warith-logo.jpg)
+تشرح [وثيقة سياق المشروع](docs/PROJECT_CONTEXT.md) المتطلبات والأدوار وحالة التنفيذ. يشرح [دليل المساهمة](CONTRIBUTING.md) تقسيم العمل بين فريقي الواجهة والخلفية.
 
-منصة ويب تعليمية عربية تجمع المحتوى والتقييم والتعلم المباشر والمسجل والتواصل بين الطالب والمعلم. راجع [سياق المشروع للفرق والمساعدات البرمجية](docs/PROJECT_CONTEXT.md) لفهم المتطلبات وحالة التنفيذ والفجوات، وراجع [دليل المساهمة](CONTRIBUTING.md) لسير العمل بين الفريقين.
+## التقنية
 
-## Technology Stack
-
-The target stack below is specified by the project requirements. The current repository is a Django/SQLite prototype and does not yet match the target backend and database. See [PROJECT_CONTEXT.md](docs/PROJECT_CONTEXT.md) for the full analysis.
-
-### Core Technologies
-
-| Layer | Technology | Purpose |
+| الطبقة | التقنية | الاستخدام |
 | --- | --- | --- |
-| Frontend | HTML5 | Page structure |
-| Frontend | CSS3 | Styling, responsive layouts, and RTL support |
-| Frontend | JavaScript (ES6+) | Client-side interactions |
-| Backend | PHP 8.4+ | Server-side business logic |
-| Database | PostgreSQL | Persistent data storage |
-| Database queries | SQL | Data definition and manipulation |
-| Database connectivity | PHP PDO | Secure database access with prepared statements |
-| Data exchange | JSON where APIs are required | API request and response format |
-| Version control | Git | Source code versioning |
-| Documentation | Markdown | Project documentation |
+| Frontend | HTML5 وCSS3 وJavaScript ES6+ | صفحات متجاوبة ودعم RTL |
+| Backend | PHP 8.4+ | منطق الخادم والجلسات والتحقق والصلاحيات |
+| Database | PostgreSQL | تخزين البيانات العلائقية |
+| الاتصال | PDO مع `pdo_pgsql` | استعلامات محضرة واتصال PostgreSQL |
+| كلمات المرور | `password_hash` و`password_verify` | تجزئة والتحقق من كلمات المرور |
+| تبادل البيانات | JSON عند إضافة API | الطلبات والاستجابات البرمجية |
 
-### Architecture
+يستخدم التطبيق PHP دون إطار عمل حاليًا. يعتمد على HTML وCSS وJavaScript للواجهة وPHP/PDO للخادم. يشرح `database/migrations/` مخطط قاعدة البيانات القابل للتطبيق. لا تحفظ أي نسخة من قاعدة البيانات أو أسرار الاتصال في Git.
 
-The target application follows a client–server architecture:
+## المتطلبات
 
-- **Frontend:** Provides the responsive Arabic user interface and client-side interactions.
-- **Backend:** Processes requests, enforces business rules, authenticates users, and checks authorization on the server.
-- **Database:** PostgreSQL stores persistent application data.
-- **Data exchange:** JSON is used where API-based communication is required.
+- PHP 8.4 أو أحدث.
+- إضافتا PHP `pdo_pgsql` و`PDO`.
+- PostgreSQL، وعميل `psql` لإعداد مستخدم وقاعدة محليين.
+- Git.
 
-### Development Principles
+## إعداد قاعدة البيانات والتشغيل محليًا
 
-- Prioritize performance under low-bandwidth network conditions.
-- Support Arabic interfaces and right-to-left (RTL) layouts.
-- Validate user input on the server side.
-- Use parameterized database queries and secure password hashing.
-- Enforce role-based access control on the server.
-- Keep presentation, business logic, and data access appropriately separated.
-- Document required software versions, PHP extensions, and environment configuration.
-
-### Target Runtime Requirements
-
-- PHP 8.4 or a newer compatible release.
-- PostgreSQL and the PHP `pdo_pgsql` extension.
-- A compatible web server, such as Apache or Nginx.
-- Git for development and version control.
-
-Exact runtime versions and configuration must be verified before deployment. The target PHP/PostgreSQL runtime is not configured in the current repository.
-
-## Current Repository Prototype
-
-The code currently in this repository is a Django application using SQLite. It supports account registration and login, a basic course catalog, course details, enrollment, and lessons. It does not yet implement the full platform described in the BRD/SRS or the target PHP/PostgreSQL stack.
-
-### Run the current Django prototype locally
-
-Requirements: Python 3.12 or a compatible version for the pinned Django release, and Git.
+أنشئ مستخدم وقاعدة فارغين في PostgreSQL. من طرفية Fedora مثلًا:
 
 ```bash
-git clone <repository-url>
-cd alesnad_platform
-python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-python -m pip install -r requirements.txt
-cp .env.example .env      # Windows: copy .env.example .env
-python manage.py migrate
-python manage.py runserver
+sudo -u postgres psql
 ```
 
-Set a random local key in `.env`. Do not commit `.env` or the local `db.sqlite3` database. This run guide applies only to the current prototype, not the target PHP/PostgreSQL deployment.
+ثم داخل `psql`:
 
-## تقسيم العمل بين الفريقين
+```sql
+CREATE ROLE alesnad_app LOGIN;
+\password alesnad_app
+CREATE DATABASE alesnad_platform OWNER alesnad_app;
+\q
+```
 
-- **الخلفية:** منطق الخادم، الحسابات والصلاحيات، البيانات والترحيلات، المسارات وواجهات API، التكاملات والأمان.
-- **الواجهة:** صفحات الويب والقوالب وHTML وCSS وJavaScript، والتجاوب وRTL وإتاحة الاستخدام.
-- **مشترك:** عقود البيانات والواجهات، وتغييرات القوالب المعتمدة على بيانات الخادم، والتوثيق والتغييرات التي تمس الطرفين.
+سيطلب `\password` كلمة مرور المستخدم دون إدخالها في نص SQL. أنشئ ملف إعداد محليًا، واكتب كلمة المرور التي اخترتها فيه:
 
-المشروع مستودع واحد. اتفقوا على شكل البيانات والمدخلات والمخرجات والصلاحيات وحالات الخطأ قبل تنفيذ ميزة عابرة للفريقين. استخدموا فرعًا لكل مهمة وافتحوا Pull Request إلى الفرع الافتراضي. عند إنشاء المستودع على GitHub، اجعلوا `main` الفرع الافتراضي، ولا تدفعوا التغييرات إليه مباشرة.
+```bash
+cp .env.example .env
+```
 
-## هيكل المشروع
+عدّل `DB_PASSWORD` في `.env` ثم طبّق ترحيلات المخطط والبذور الأولية للأدوار والصلاحيات:
+
+```bash
+php database/migrate.php
+```
+
+أنشئ حساب مدير النظام الأول من طرفية تفاعلية. لا يوجد حساب افتراضي أو كلمة مرور ثابتة:
+
+```bash
+php database/create_admin.php
+```
+
+شغّل خادم PHP المحلي:
+
+```bash
+php -S 127.0.0.1:8000 -t public
+```
+
+افتح `http://127.0.0.1:8000`. لكل مطور قاعدة محلية مستقلة؛ يطبق الجميع ملفات الترحيل نفسها. لا ترفع `.env` أو النسخ الاحتياطية أو ملفات المحتوى الخاصة. تُحفظ ملفات المستخدمين خارج مجلد `public/`.
+
+## قاعدة البيانات
+
+يحتوي `database/migrations/001_initial_schema.sql` الجداول والعلاقات والقيود والفهارس الأساسية، ويزرع `002_seed_access_control.sql` أدوار المستخدمين وصلاحياتهم، ويضيف `003_seed_initial_academic_structure.sql` المراحل الأساسية والصف السادس والثالث الثانوي. لا يضيف المشروع موادًا أو أسعار اشتراك؛ يجب اعتمادها قبل إدخالها. يُسجّل مشغل الترحيلات الملفات المطبقة في جدول `schema_migrations` ولا يعيد تطبيقها.
+
+الاشتراك الشهري مدعوم في المخطط. بوابة الدفع لم تُختَر ولم تُنفذ؛ لا تخزن بيانات البطاقة البنكية في قاعدة المنصة. جدول المدفوعات يحفظ معرف المزود والحالة والمرجع والبيانات الوصفية غير الحساسة فقط.
+
+## ما يعمل حاليًا
+
+- اتصال PDO بإعدادات `.env`.
+- ترحيل مخطط PostgreSQL وبذور الأدوار والصلاحيات.
+- واجهة عربية RTL لعرض المواد الدراسية المدخلة في القاعدة.
+- إنشاء حساب طالب وتسجيل الدخول والخروج، مع تجزئة كلمة المرور ورمز CSRF.
+- إدارة الوصول للأدوار والجداول مجهزة في قاعدة البيانات؛ لوحات الإدارة وإدارة المحتوى والاشتراكات والدفع والحصص والاختبارات والرسائل ما زالت تحتاج واجهات وخدمات تطبيقية.
+
+## هيكل المستودع
 
 ```text
-accounts/   الحسابات في نموذج Django الحالي
-courses/    الدورات والدروس والتسجيل في نموذج Django الحالي
-core/       الصفحة الرئيسية
-config/     إعدادات Django ومسارات المشروع الحالية
-templates/  قوالب HTML
-assets/     CSS وJavaScript والصور والخطوط
-docs/       وثائق BRD وSRS وسياق المشروع
-SqlDigram/  مخطط قاعدة البيانات التصوري
+app/                    اتصال PDO والمصادقة وعروض PHP
+database/migrations/    مخطط PostgreSQL وبذور الوصول
+public/                 نقطة الدخول وأصول الواجهة العامة
+storage/private/        مساحة محلية للملفات الخاصة، خارج web root
+storage/backups/        مساحة محلية للنسخ الاحتياطية، غير متتبعة
+docs/                   BRD وSRS وسياق المشروع
+SqlDigram/              مخطط ERD المصدر والنسخ المصدرة
 ```
 
-المخطط في `SqlDigram/` تصور أولي، ولا يمثل قاعدة البيانات الحالية. لا تعتبر أسماء الكيانات أو المتطلبات دليلًا على وجود تنفيذ؛ راجع [سياق المشروع](docs/PROJECT_CONTEXT.md) لتفاصيل الفجوات والقرارات المفتوحة.
-=======
-# alesnad_platform
->>>>>>> 302ddcf56fe6deb2c84384be044ea86d1ff29025
+لا تضع أسرارًا في الشيفرة أو GitHub. عند النشر، استخدم HTTPS، واجعل `SESSION_SECURE=1`، واضبط مستخدم قاعدة البيانات بأقل صلاحيات لازمة، وأمّن `storage/` والنسخ الاحتياطية.
