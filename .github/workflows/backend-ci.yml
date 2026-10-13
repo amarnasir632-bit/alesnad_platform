@@ -1,0 +1,106 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'codex/phase-*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: alesnad_test_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d alesnad_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      APP_ENV: test
+      APP_DEBUG: '0'
+      SESSION_IDLE_TIMEOUT_SECONDS: '900'
+      LOGIN_MAX_ATTEMPTS: '20'
+      LOGIN_WINDOW_SECONDS: '300'
+      LOGIN_LOCKOUT_SECONDS: '60'
+      AUTH_THROTTLE_KEY: github-actions-only-test-secret-0000000000000000
+      DB_CONNECTION: pgsql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '5432'
+      DB_DATABASE: alesnad_test_ci
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_SSLMODE: disable
+      PGPASSWORD: postgres
+      PRIVATE_STORAGE_PATH: storage/private
+      UPLOAD_MAX_BYTES: '1048576'
+      QUIZ_MAX_ATTEMPTS: '4'
+      QUIZ_DURATION_MINUTES: '30'
+      QUIZ_RESULT_VISIBILITY: IMMEDIATE
+      QUIZ_INCOMPLETE_ATTEMPT_POLICY: CANCEL_FREE
+      MESSAGING_RATE_LIMIT_COUNT: '20'
+      MESSAGING_RATE_LIMIT_WINDOW_SECONDS: '60'
+    steps:
+      - name: Check out repository and history
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: fileinfo, mbstring, pdo_pgsql
+          coverage: none
+
+      - name: Install PostgreSQL client tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+
+      - name: Check PostgreSQL and apply migrations
+        run: |
+          pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -d "$DB_DATABASE"
+          php database/migrate.php
+
+      - name: Run PHP syntax checks
+        run: find app public database tests -name '*.php' -print0 | xargs -0 -n1 php -l
+
+      - name: Run unit and static requirement checks
+        run: |
+          php tests/password_policy.php
+          php tests/content_range_unit.php
+          php tests/quiz_policy_unit.php
+          for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done
+
+      - name: Run account and academic integration tests
+        run: |
+          php tests/phase1_integration.php
+          php tests/phase2_academic_integration.php
+
+      - name: Run HTTP permissions, health, and private-file integration tests
+        run: |
+          php -S 127.0.0.1:8000 -t public public/router.php > /tmp/alesnad-php-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --silent --fail http://127.0.0.1:8000/health >/dev/null; then break; fi
+            sleep 1
+          done
+          curl --silent --show-error --fail http://127.0.0.1:8000/health
+          php tests/protected_endpoints_integration.php
+
+      - name: Run pg_dump and isolated restore integration test
+        run: php tests/backup_restore_integration.php
