@@ -25,3 +25,8 @@ function database_connection(): PDO
 
     return $connection;
 }
+
+function database_boolean(mixed $value): bool
+{
+    return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
+}
