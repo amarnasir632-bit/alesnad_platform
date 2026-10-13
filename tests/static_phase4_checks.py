@@ -4,7 +4,10 @@ from pathlib import Path
 import subprocess
 import sys
 ROOT = Path(__file__).resolve().parents[1]
-BASE = "origin/codex/phase-3-content-files"
+# Pin the baseline commit instead of a remote branch ref. GitHub Actions checks
+# out the PR head and does not guarantee that every stacked feature branch ref
+# exists in its remote-tracking namespace; this commit is an ancestor of phase 4.
+BASE = "f3ed7967c4d1a1b377ded32c836f1d2b507923d9"
 def git(*args: str) -> subprocess.CompletedProcess:
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, check=False)
 checks: list[tuple[str, bool]] = []
