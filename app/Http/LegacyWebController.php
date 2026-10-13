@@ -30,9 +30,9 @@ function handle_web_request(): void
                     redirect(url('home'));
                 } catch (PDOException $error) {
                     if ($error->getCode() === '23505') $errors[] = 'هذا البريد الإلكتروني مسجل بالفعل.';
-                    else { error_log('Registration database error SQLSTATE ' . $error->getCode()); $errors[] = 'تعذر إنشاء الحساب الآن. حاول مرة أخرى لاحقًا.'; }
+                    else { app_log_error('registration_database_failed', $error); $errors[] = 'تعذر إنشاء الحساب الآن. حاول مرة أخرى لاحقًا.'; }
                 } catch (Throwable $error) {
-                    error_log('Registration error: ' . $error->getMessage());
+                    app_log_error('registration_failed', $error);
                     $errors[] = 'تعذر إنشاء الحساب الآن. تأكد من إعداد قاعدة البيانات.';
                 }
             }
@@ -49,7 +49,7 @@ function handle_web_request(): void
                     }
                     $errors[] = 'البريد الإلكتروني أو كلمة المرور غير صحيحة.';
                 } catch (Throwable $error) {
-                    error_log('Login database error: ' . $error->getMessage());
+                    app_log_error('login_database_failed', $error);
                     $errors[] = 'تعذر تسجيل الدخول الآن. حاول مرة أخرى لاحقًا.';
                 }
             }
@@ -85,7 +85,7 @@ function handle_web_request(): void
         elseif ($page === 'login') { $title = 'تسجيل الدخول'; $contentView = PROJECT_ROOT . '/app/Views/login.php'; }
         else { http_response_code(404); $title = 'الصفحة غير موجودة'; $contentView = PROJECT_ROOT . '/app/Views/not_found.php'; }
     } catch (Throwable $error) {
-        error_log('Page database error: ' . $error->getMessage());
+        app_log_error('page_database_failed', $error);
         http_response_code(503); $title = 'الخدمة غير متاحة'; $contentView = PROJECT_ROOT . '/app/Views/unavailable.php';
     }
     extract($data, EXTR_SKIP);

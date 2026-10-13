@@ -15,10 +15,19 @@ function dispatch_request(): void
     send_security_headers();
     $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
     $method = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+    if ($method === 'GET' && $path === '/health') {
+        try {
+            database_connection()->query('SELECT 1')->fetchColumn();
+            json_response(200, ['status' => 'ok']);
+        } catch (Throwable $error) {
+            app_log_error('health_database_check_failed', $error);
+            json_response(503, ['status' => 'unavailable']);
+        }
+    }
     try {
         refresh_authenticated_user();
     } catch (Throwable $error) {
-        error_log('Session refresh failed: ' . $error->getMessage());
+        app_log_error('session_refresh_failed', $error);
         if (str_starts_with($path, '/api/v1/')) {
             json_response(503, ['error' => ['code' => 'service_unavailable', 'message' => 'الخدمة غير متاحة الآن.']]);
         }
@@ -117,7 +126,7 @@ function dispatch_request(): void
     } catch (InvalidArgumentException $error) {
         json_response(422, ['error' => ['code' => 'validation_failed', 'message' => $error->getMessage()]]);
     } catch (Throwable $error) {
-        error_log('API request failed: ' . $error->getMessage());
+        app_log_error('api_request_failed', $error);
         json_response(500, ['error' => ['code' => 'internal_error', 'message' => 'تعذر تنفيذ الطلب الآن.']]);
     }
 }

@@ -379,7 +379,7 @@ function content_update_asset(array $actor, string $kind, int $id, array $input,
         throw $error;
     }
     if ($newFile !== null && preg_match('/^[a-f0-9]{64}$/D', $oldKey)) {
-        try { discard_private_file($oldKey); } catch (Throwable $error) { error_log('Old private file cleanup failed: ' . $error->getMessage()); }
+        try { discard_private_file($oldKey); } catch (Throwable $error) { app_log_error('old_private_file_cleanup_failed', $error); }
     }
     return content_public_record($updated);
 }
