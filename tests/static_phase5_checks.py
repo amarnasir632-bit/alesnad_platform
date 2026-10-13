@@ -4,6 +4,10 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# Pin the phase-4 baseline commit. CI checks out the PR history, but GitHub does
+# not guarantee that the original stacked feature branch remains available as
+# an origin/* remote-tracking ref.
+BASELINE = "c960a2bddbd7647797a54c00a501e209323d00d1"
 failures = []
 checks = 0
 
@@ -43,7 +47,7 @@ check("API contract includes phase-5 routes and policies", "المرحلة ال�
 check("project context describes phase 5", "حالة المرحلة الخامسة" in context and "008_sessions_messaging.sql" in context)
 
 try:
-    baseline = subprocess.check_output(["git", "rev-parse", "origin/codex/phase-4-assessments"], cwd=ROOT, text=True).strip()
+    baseline = subprocess.check_output(["git", "rev-parse", f"{BASELINE}^{{commit}}"], cwd=ROOT, text=True).strip()
     changed = subprocess.check_output(["git", "diff", "--name-only", baseline, "--", "app/Views", "public/assets"], cwd=ROOT, text=True).strip()
     check("frontend scope untouched", changed == "")
     for i in range(1, 8):
@@ -51,7 +55,7 @@ try:
         same = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{name}"], cwd=ROOT).returncode == 0
         check(f"prior migration unchanged: {name}", same)
 except (subprocess.CalledProcessError, StopIteration):
-    check("phase-4 baseline available", False)
+    check("pinned phase-4 baseline available", False)
 
 print(f"{checks} checks, {len(failures)} failures")
 sys.exit(1 if failures else 0)
