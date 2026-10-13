@@ -99,7 +99,7 @@ function api_download_content(string $kind, int $id, ?int $variantId = null): ne
     if ($record === null) throw new ApiException(404, 'not_found', 'المحتوى غير متاح للتنزيل.');
     if (database_boolean($record['requires_subscription'])
         && in_array('student', $actor['roles'] ?? [], true)
-        && !content_has_active_subscription((int) $actor['id'])) {
+        && !has_active_subscription((int) $actor['id'])) {
         throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لتنزيل هذا المحتوى.');
     }
     $path = resolve_private_file((string) $record['storage_key']);

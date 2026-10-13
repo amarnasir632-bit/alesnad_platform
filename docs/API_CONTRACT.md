@@ -191,3 +191,27 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `POST /api/v1/messages` يتطلب `messages.use` وCSRF. المدخل `{ "receiver_id": 12, "message_body": "..." }`. يسمح فقط برسائل بين طالب وأستاذ تربطهما مادة مسندة في صف الطالب عبر `students.class_id` و`teaching_assignments` النشطة. يعيد `201` الرسالة، أو `403 message_peer_not_linked`, `429 message_rate_limited`, أو `503 messaging_not_configured`.
 - `PATCH /api/v1/messages/{id}/read` يعلّم الرسالة الواردة للمستخدم الحالي مقروءة (`read_at`). `DELETE /api/v1/messages/{id}` يخفي الرسالة للمشارك الذي طلب الحذف، دون حذفها عند الطرف الآخر.
 - لا توجد مجموعات. الرسائل لا تظهر إلا لطرفيها؛ يحفظ الإخفاء لكل طرف في `sender_deleted_at` أو `receiver_deleted_at`.
+
+## الاشتراكات (المرحلة السادسة)
+
+لا توجد بوابة دفع أو نقطة API لتسجيل دفع إلكتروني. لا يحدد النظام سعرًا أو عملة افتراضيين؛ السعر والعملة قرارات OD-06، وقواعد أهلية كل محتوى قرار OD-05. يستخدم التطبيق `has_active_subscription(user_id)` مركزيًا في كل فحص وصول يعتمد على الاشتراك، ويحوّل السجل المنتهي إلى `EXPIRED` داخل معاملة مع سجل تدقيق.
+
+### الخطط
+
+- `GET /api/v1/subscription-plans` يتطلب `subscriptions.read_own` ويعيد الخطط النشطة فقط، بما فيها `duration_days` و`price` و`currency` كما أدخلها المدير. السعر والعملة قد يكونان `null`.
+- `GET /api/v1/admin/subscription-plans` يتطلب `subscriptions.manage` ويعيد كل الخطط.
+- `POST /api/v1/admin/subscription-plans` يتطلب `subscriptions.manage` وCSRF. الحقول المطلوبة: `code`, `name`, `duration_days`. `description`, `price`, `currency`, `is_active` اختيارية؛ السعر والعملة إما أن يدخلا معًا أو يتركا غير محددين. الحالة الافتراضية للخطة الجديدة غير نشطة.
+- `PATCH /api/v1/admin/subscription-plans/{id}` يتطلب `subscriptions.manage` وCSRF، ويقبل الحقول نفسها لتعديلها. لا يوجد حذف صلب؛ عطّل الخطة عبر `is_active=false`.
+
+### الاشتراكات اليدوية والانتهاء
+
+- `GET /api/v1/subscriptions/me` يتطلب `subscriptions.read_own`، ويعرض سجلات صاحب الجلسة فقط.
+- `GET /api/v1/admin/subscriptions?student_id={id}&status={status}&limit=50&offset=0` يتطلب `subscriptions.manage`، ويعرض الاسم والبريد والحالة والفترة والمبلغ/العملة المسجلة. الحالات `PENDING|ACTIVE|EXPIRED|CANCELLED|REFUNDED`.
+- `POST /api/v1/admin/subscriptions` يتطلب `subscriptions.manage` وCSRF. الحقول: `student_id` من جدول الطلاب، `plan_id` لخطة نشطة، `starts_at` بصيغة ISO-8601، `amount_paid`, `currency`, `status` (`PENDING|ACTIVE`) مطلوبة؛ `ends_at` اختيارية وتحسب عند غيابها بإضافة `duration_days` للخطة المختارة إلى البداية. المبلغ والعملة قيم يدوّنها المدير صراحة؛ لا يتم إنشاء سجل في `payments`.
+- `PATCH /api/v1/admin/subscriptions/{id}` يتطلب `subscriptions.manage` وCSRF، ويقبل `status`, `starts_at`, `ends_at`, `amount_paid`, `currency`. يُنشأ سجل جديد عند تجديد الاشتراك للحفاظ على سجل الفترات السابقة.
+- `POST /api/v1/admin/subscriptions/expire` يتطلب `subscriptions.manage` وCSRF، ويعالج كل سجل `ACTIVE` انتهت فترته؛ يعيد `expired_count`.
+- عند طلب مورد أو اختبار أو حصة/تسجيل يشترط اشتراكًا، يتحقق الخادم من حساب المستخدم وسجلاته النشطة. إذا انتهت جميع اشتراكاته، تعاد `403 active_subscription_required`. انتهاء الاشتراك يحفظ الحالة `EXPIRED` حتى لو عُرض المورد لاحقًا.
+- يمكن تشغيل المعالجة الدورية خارج الويب عبر `php database/expire_subscriptions.php` بعد ضبط اتصال `.env`؛ لا يحدد المشروع جدول cron. يسجل النظام أحداث إدارة الخطط والاشتراكات والانتهاء في `audit_events`.
+- الأخطاء تشمل `403 forbidden`, `404 not_found`, `409 subscription_conflict`, `422 invalid_student|inactive_plan|invalid_subscription_period|plan_price_currency_pair_required`, و`419 csrf_failed`.
+
+ترحيل `009_subscription_management.sql` يضيف فهرسًا جزئيًا لتسريع البحث عن المنتهي فقط. التراجع `database/rollback/009_subscription_management.sql` يحذف هذا الفهرس دون المساس ببيانات الخطط والاشتراكات.

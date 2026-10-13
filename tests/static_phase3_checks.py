@@ -35,7 +35,7 @@ check("provenance required before submission", "provenance_required" in svc and 
 check("review and publish are transactional", "beginTransaction()" in svc and "INSERT INTO content_reviews" in svc and "published_at = CASE" in svc)
 check("self-review is rejected", "self_review_forbidden" in svc and "reviewers cannot review their own content" in mig)
 check("approval requires approved review record", "require_content_review_before_publication" in mig and "has_approved_review" in mig)
-check("subscription and downloadable variant are enforced", "content_has_active_subscription" in ctrl and "is_downloadable = TRUE" in svc)
+check("subscription and downloadable variant are enforced", "has_active_subscription" in ctrl and "is_downloadable = TRUE" in svc)
 check("private keys are excluded from public records", "unset($record['storage_key']" in svc)
 check("content and exam routes are dispatched", all(p in router for p in ("/api/v1/content/resources", "/api/v1/content/past-exams", "/api/v1/content/questions", "/download")))
 check("API contract covers upload, review, download, and Range", all(p in contract for p in ("POST /api/v1/content/resources", "PENDING_REVIEW", "active_subscription_required", "Range: bytes")))

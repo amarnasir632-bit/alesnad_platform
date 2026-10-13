@@ -505,15 +505,7 @@ function content_download_record(string $kind, int $id, ?int $variantId = null):
 
 function content_has_active_subscription(int $userId): bool
 {
-    $statement = database_connection()->prepare(
-        "SELECT EXISTS (
-            SELECT 1 FROM students st JOIN subscriptions sub ON sub.student_id = st.id
-            WHERE st.user_id = :user_id AND sub.status = 'ACTIVE'
-              AND sub.starts_at <= CURRENT_TIMESTAMP AND sub.ends_at > CURRENT_TIMESTAMP
-        )"
-    );
-    $statement->execute(['user_id' => $userId]);
-    return database_boolean($statement->fetchColumn());
+    return has_active_subscription($userId);
 }
 
 function content_audit_download(array $actor, string $kind, int $id, ?int $variantId, bool $partial): void

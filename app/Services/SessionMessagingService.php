@@ -170,7 +170,7 @@ function sm_join_session(array $actor, int $sessionId): array
     $start = new DateTimeImmutable($session['scheduled_at']);
     if ($now < $start) throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
     if ($session['duration_minutes'] === null || $now > $start->modify('+' . (int) $session['duration_minutes'] . ' minutes')) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
-    if (in_array('student', $actor['roles'] ?? [], true) && !content_has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط للانضمام إلى الحصة.');
+    if (in_array('student', $actor['roles'] ?? [], true) && !has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط للانضمام إلى الحصة.');
     $joinUrl = is_string($session['meeting_url']) && trim($session['meeting_url']) !== ''
         ? $session['meeting_url']
         : live_meeting_provider()->joinUrl($session, $actor);
@@ -209,7 +209,7 @@ function sm_list_recordings(array $actor, int $sessionId): array
     $session = sm_session($actor, $sessionId);
     if (in_array('student', $actor['roles'] ?? [], true)) {
         if ($session['status'] !== 'COMPLETED' && new DateTimeImmutable($session['scheduled_at'] . ' +' . (int) ($session['duration_minutes'] ?? 0) . ' minutes') > new DateTimeImmutable('now')) return [];
-        if (!content_has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
+        if (!has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
     }
     $stmt = database_connection()->prepare('SELECT id, session_id, title, duration_seconds, file_size_bytes, status, available_from, created_at FROM session_recordings WHERE session_id = :session_id AND status = \'READY\' AND (available_from IS NULL OR available_from <= CURRENT_TIMESTAMP) ORDER BY created_at');
     $stmt->execute(['session_id' => $sessionId]);
@@ -225,7 +225,7 @@ function sm_recording_download(array $actor, int $recordingId): array
     $session = sm_session($actor, (int) $recording['session_id']);
     $end = (new DateTimeImmutable($session['scheduled_at']))->modify('+' . (int) ($session['duration_minutes'] ?? 0) . ' minutes');
     if ($session['status'] !== 'COMPLETED' && $end > new DateTimeImmutable('now')) throw new ApiException(403, 'recording_not_available', 'يتاح التسجيل بعد انتهاء الحصة.');
-    if (in_array('student', $actor['roles'] ?? [], true) && !content_has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
+    if (in_array('student', $actor['roles'] ?? [], true) && !has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
     if ($recording['storage_key'] === null) {
         $provider = live_meeting_provider();
         $source = $provider->recordingSource($recording, $actor);
