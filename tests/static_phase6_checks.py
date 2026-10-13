@@ -4,6 +4,9 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# Pin the phase-5 baseline. GitHub Actions does not guarantee that the original
+# stacked feature branch still exists as an origin/* remote-tracking ref.
+BASELINE = "b563855f04e181b89947efd2c04166bab24e640b"
 checks = []
 
 
@@ -40,15 +43,14 @@ check("project and API docs map phase 6", "حالة المرحلة السادس�
 check("price and entitlement decisions remain documented", "OD-05" in trace and "OD-06" in trace and "لا أسعار" in trace)
 check("no subscription policy values added to environment", "SUBSCRIPTION_PRICE=" not in env and "SUBSCRIPTION_CURRENCY=" not in env)
 
-baseline = "origin/codex/phase-5-live-sessions-messaging"
 for i in range(1, 9):
     file = next((ROOT / "database/migrations").glob(f"{i:03d}_*.sql"), None)
     if file is None:
         check(f"migration {i:03d} exists", False)
         continue
-    proc = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{file.name}"], cwd=ROOT)
+    proc = subprocess.run(["git", "diff", "--quiet", BASELINE, "--", f"database/migrations/{file.name}"], cwd=ROOT)
     check(f"prior migration unchanged: {file.name}", proc.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
+frontend = subprocess.run(["git", "diff", "--quiet", BASELINE, "--", "app/Views", "public/assets"], cwd=ROOT)
 check("frontend ownership preserved", frontend.returncode == 0)
 
 failed = [name for name, passed in checks if not passed]
