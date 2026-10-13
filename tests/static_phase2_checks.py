@@ -5,7 +5,11 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# The phase-1 branch may be removed after merge. Fall back to the repository's
+# current default branch so this check remains usable in later stacked phases.
 BASE = "codex/phase-1-foundation-security"
+if subprocess.run(["git", "show-ref", "--verify", "--quiet", f"refs/heads/{BASE}"], cwd=ROOT).returncode != 0:
+    BASE = "origin/main"
 checks: list[tuple[str, bool]] = []
 
 def check(name: str, ok: bool) -> None:

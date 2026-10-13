@@ -36,12 +36,25 @@ function dispatch_request(): void
         $isContentUpload = str_starts_with($path, '/api/v1/content/')
             && in_array($method, ['POST', 'PATCH'], true)
             && $contentType === 'multipart/form-data';
+        $isSessionUpload = preg_match('#^/api/v1/teacher/sessions/[1-9][0-9]*/recordings$#', $path) === 1
+            && $method === 'POST' && $contentType === 'multipart/form-data';
         $body = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)
-            ? ($isContentUpload ? $_POST : read_json_body())
+            ? (($isContentUpload || $isSessionUpload) ? $_POST : read_json_body())
             : [];
         if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) require_api_csrf($body);
         $route = $method . ' ' . rtrim($path, '/');
         if ($route === 'GET /api/v1/csrf') api_csrf();
+        if ($route === 'GET /api/v1/sessions') api_list_sessions();
+        if ($route === 'POST /api/v1/teacher/sessions') api_create_session($body);
+        if (preg_match('#^PATCH /api/v1/teacher/sessions/([1-9][0-9]*)$#', $route, $match)) api_update_session((int) $match[1], $body);
+        if (preg_match('#^POST /api/v1/sessions/([1-9][0-9]*)/join$#', $route, $match)) api_join_session((int) $match[1]);
+        if (preg_match('#^GET /api/v1/sessions/([1-9][0-9]*)/recordings$#', $route, $match)) api_list_session_recordings((int) $match[1]);
+        if (preg_match('#^POST /api/v1/teacher/sessions/([1-9][0-9]*)/recordings$#', $route, $match)) api_add_session_recording((int) $match[1], $_FILES['file'] ?? [], $body);
+        if (preg_match('#^GET /api/v1/session-recordings/([1-9][0-9]*)/download$#', $route, $match)) api_download_session_recording((int) $match[1]);
+        if ($route === 'GET /api/v1/messages') api_list_messages();
+        if ($route === 'POST /api/v1/messages') api_send_message($body);
+        if (preg_match('#^PATCH /api/v1/messages/([1-9][0-9]*)/read$#', $route, $match)) api_read_message((int) $match[1]);
+        if (preg_match('#^DELETE /api/v1/messages/([1-9][0-9]*)$#', $route, $match)) api_delete_message((int) $match[1]);
         if ($route === 'GET /api/v1/auth/me') api_current_user();
         if ($route === 'POST /api/v1/auth/login') api_login($body);
         if ($route === 'POST /api/v1/auth/register') api_register_student($body);

@@ -65,7 +65,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `Content-Type: application/json` مطلوب لطلبات JSON؛ JSON غير الصحيح يعيد `400 invalid_json` والنوع الخطأ `415 content_type_required`. نقاط رفع الملفات تقبل `multipart/form-data` كما هو موضح أعلاه.
 - جميع مدخلات SQL مربوطة عبر PDO prepared statements. رسائل الخادم لا تعرض تفاصيل استثناء قاعدة البيانات.
 - أخطاء غير متوقعة تعيد `500 internal_error` مع تسجيل التفاصيل في سجل الخادم.
-- الحصص المباشرة والرسائل وبوابة الدفع ما زالت خارج التنفيذ في هذه المرحلة. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
+- بوابة الدفع ما زالت خارج التنفيذ. ربط مزود البث غير موجود؛ واجهة المزود مجردة بلا تنفيذ حتى يعتمد المالك مزودًا. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
 
 ## الترحيل والتراجع
 
@@ -170,3 +170,24 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `POST /api/v1/teacher/attempts/{attempt_id}/questions/{question_id}/grade` يقبل `{ "awarded_mark": 4, "teacher_feedback": "..." }`، ويتطلب `quizzes.manage` وإسناد مادة الاختبار. الدرجة لا تتجاوز علامة السؤال.
 - `GET /api/v1/attempts/{attempt_id}/result` يسمح للطالب بقراءة محاولته فقط بعد تحقق سياسة إظهار النتيجة. `GET /api/v1/teacher/quizzes/{id}/results` يعرض محاولات ودرجات مادة الأستاذ المسندة فقط.
 - حالات الأخطاء تشمل `403 attempt_owner_required|quiz_class_forbidden|active_subscription_required|result_not_available`, `409 quiz_not_open|quiz_closed|attempt_limit_reached|attempt_time_expired|attempt_not_active`, `422 question_not_approved|question_not_in_quiz|question_options_invalid`, و`503 quiz_not_configured`.
+
+## الحصص والرسائل (المرحلة الخامسة)
+
+تتطلب العمليات المغيرة جلسة ورمز CSRF. لا يعيد أي مسار قراءة `meeting_url`؛ الرابط يظهر فقط من endpoint الانضمام بعد التحقق من المستخدم والموعد والاشتراك للطالب. مزود البث غير محدد، و`LiveMeetingProvider` عقد مجرد بلا تنفيذ. تتطلب الرسائل `MESSAGING_RATE_LIMIT_COUNT` و`MESSAGING_RATE_LIMIT_WINDOW_SECONDS`؛ غيابهما يرفض الإرسال بـ`503 messaging_not_configured` حتى يعتمد مالك البيئة القيم (OD-23).
+
+### الحصص والتسجيلات
+
+- `GET /api/v1/sessions` يتطلب `sessions.join` للطالب و`sessions.manage` للأستاذ/الأدمن. يعرض الحصص المتاحة للمستخدم دون `meeting_url` أو مراجع المزود.
+- `POST /api/v1/teacher/sessions` يتطلب `sessions.manage` وCSRF. مدخل الأستاذ: `{ "class_subject_id": 1, "title": "...", "description": "...", "scheduled_at": "ISO-8601", "duration_minutes": 60 }`. الأدمن يضيف `teacher_id` لأستاذ ذي إسناد فعّال. يعيد `201` ببيانات الحصة.
+- `PATCH /api/v1/teacher/sessions/{id}` يتطلب `sessions.manage` وCSRF، ويقبل `title`, `description`, `scheduled_at`, `duration_minutes`, `status` (`LIVE|COMPLETED|CANCELLED`), و`meeting_url` يدويًا. الرابط HTTPS فقط ولا يظهر في الاستجابة.
+- `POST /api/v1/sessions/{id}/join` يتطلب دور الطالب مع `sessions.join`، أو صلاحية إدارة الحصص للأستاذ. يتحقق الخادم من أن الحصة ليست ملغاة وأن الوقت ضمن الموعد والمدة؛ الطالب يحتاج صف الحصة واشتراكًا نشطًا. يعيد الرابط عند الإتاحة فقط؛ قبل الموعد/بعده يعيد `409 session_not_started|session_ended`, والطالب غير المشترك `403 active_subscription_required`. عند غياب الرابط/المزود يعيد `503 broadcast_provider_not_configured`.
+- `POST /api/v1/teacher/sessions/{id}/recordings` يرفع `multipart/form-data` بحقل `file` من نوع فيديو، أو يستقبل `provider_recording_ref` دون ملف. الحقول: `title`, و`duration_seconds` و`available_from` اختياريان. يتطلب `sessions.manage` وإسناد الأستاذ؛ لا يعاد مفتاح التخزين.
+- `GET /api/v1/sessions/{id}/recordings` و`GET /api/v1/session-recordings/{id}/download` يتطلبان الوصول للحصة؛ الطالب يحتاج اشتراكًا نشطًا. التسجيل لا يظهر إلا بعد نهاية الحصة وبلوغ `available_from` وحالة `READY`. الملفات المحلية خاصة وتدعم `Range`. مرجع المزود الخارجي لا يعمل قبل تركيب adapter معتمد.
+- الترحيل `008_sessions_messaging.sql` يجعل `storage_key` اختياريًا ويشترط `storage_key` أو `provider_recording_ref`. يضيف حذفًا منفصلًا لكل طرف وفهارس للمعدل والجدولة ومحفزًا يتحقق من إسناد الأستاذ. التراجع في `database/rollback/008_sessions_messaging.sql` يعيد `storage_key NOT NULL`؛ يفشل إذا وجدت تسجيلات مزود بلا ملف، ويحذف حقول الحذف المنفصل.
+
+### الرسائل الفردية
+
+- `GET /api/v1/messages?peer_id={user_id}&before_id={message_id}` يتطلب `messages.use`، ويعيد حتى 50 رسالة للمحادثة المرتبطة فقط. ترتيب النتائج تصاعدي و`before_id` للترقيم.
+- `POST /api/v1/messages` يتطلب `messages.use` وCSRF. المدخل `{ "receiver_id": 12, "message_body": "..." }`. يسمح فقط برسائل بين طالب وأستاذ تربطهما مادة مسندة في صف الطالب عبر `students.class_id` و`teaching_assignments` النشطة. يعيد `201` الرسالة، أو `403 message_peer_not_linked`, `429 message_rate_limited`, أو `503 messaging_not_configured`.
+- `PATCH /api/v1/messages/{id}/read` يعلّم الرسالة الواردة للمستخدم الحالي مقروءة (`read_at`). `DELETE /api/v1/messages/{id}` يخفي الرسالة للمشارك الذي طلب الحذف، دون حذفها عند الطرف الآخر.
+- لا توجد مجموعات. الرسائل لا تظهر إلا لطرفيها؛ يحفظ الإخفاء لكل طرف في `sender_deleted_at` أو `receiver_deleted_at`.
