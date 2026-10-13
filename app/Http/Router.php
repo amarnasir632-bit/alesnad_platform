@@ -32,7 +32,13 @@ function dispatch_request(): void
     }
 
     try {
-        $body = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true) ? read_json_body() : [];
+        $contentType = strtolower(trim(explode(';', $_SERVER['CONTENT_TYPE'] ?? '')[0]));
+        $isContentUpload = str_starts_with($path, '/api/v1/content/')
+            && in_array($method, ['POST', 'PATCH'], true)
+            && $contentType === 'multipart/form-data';
+        $body = in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)
+            ? ($isContentUpload ? $_POST : read_json_body())
+            : [];
         if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) require_api_csrf($body);
         $route = $method . ' ' . rtrim($path, '/');
         if ($route === 'GET /api/v1/csrf') api_csrf();
@@ -48,6 +54,23 @@ function dispatch_request(): void
         if ($route === 'GET /api/v1/academics/lessons') api_academic_lessons();
         if ($route === 'GET /api/v1/academics/my-teaching-assignments') api_my_teaching_assignments();
         if ($route === 'GET /api/v1/content/search') api_search_academic_content();
+        if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1]);
+        if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/variants/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1], (int) $match[2]);
+        if (preg_match('#^GET /api/v1/content/past-exams/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('past_exam', (int) $match[1]);
+        if ($route === 'POST /api/v1/content/resources') api_upload_resource($body);
+        if ($route === 'POST /api/v1/content/past-exams') api_upload_past_exam($body);
+        if ($route === 'POST /api/v1/content/questions') api_create_question($body);
+        if (preg_match('#^PATCH /api/v1/content/resources/([1-9][0-9]*)$#', $route, $match)) api_update_content('resource', (int) $match[1], $body);
+        if (preg_match('#^PATCH /api/v1/content/past-exams/([1-9][0-9]*)$#', $route, $match)) api_update_content('past_exam', (int) $match[1], $body);
+        if (preg_match('#^PATCH /api/v1/content/questions/([1-9][0-9]*)$#', $route, $match)) api_update_content('question', (int) $match[1], $body);
+        if (preg_match('#^POST /api/v1/content/resources/([1-9][0-9]*)/replace-file$#', $route, $match)) api_update_content('resource', (int) $match[1], $body, true);
+        if (preg_match('#^POST /api/v1/content/past-exams/([1-9][0-9]*)/replace-file$#', $route, $match)) api_update_content('past_exam', (int) $match[1], $body, true);
+        if (preg_match('#^POST /api/v1/content/resources/([1-9][0-9]*)/submit$#', $route, $match)) api_submit_content('resource', (int) $match[1]);
+        if (preg_match('#^POST /api/v1/content/past-exams/([1-9][0-9]*)/submit$#', $route, $match)) api_submit_content('past_exam', (int) $match[1]);
+        if (preg_match('#^POST /api/v1/content/questions/([1-9][0-9]*)/submit$#', $route, $match)) api_submit_content('question', (int) $match[1]);
+        if (preg_match('#^POST /api/v1/admin/content/resources/([1-9][0-9]*)/review$#', $route, $match)) api_review_content('resource', (int) $match[1], $body);
+        if (preg_match('#^POST /api/v1/admin/content/past-exams/([1-9][0-9]*)/review$#', $route, $match)) api_review_content('past_exam', (int) $match[1], $body);
+        if (preg_match('#^POST /api/v1/admin/content/questions/([1-9][0-9]*)/review$#', $route, $match)) api_review_content('question', (int) $match[1], $body);
         if ($route === 'POST /api/v1/admin/users') api_create_account($body);
         if (preg_match('#^POST /api/v1/admin/academics/(stages|classes|subjects|class-subjects|lessons)$#', $route, $match)) api_admin_academic_create($match[1], $body);
         if (preg_match('#^PATCH /api/v1/admin/academics/(stages|classes|subjects|class-subjects|lessons)/([1-9][0-9]*)$#', $route, $match)) api_admin_academic_update($match[1], (int) $match[2], $body);

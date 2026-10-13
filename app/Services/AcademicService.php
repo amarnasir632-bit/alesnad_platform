@@ -272,7 +272,7 @@ function academic_search_resources(array $filters): array
 {
     $limit = max(1, min(100, $filters['limit'] ?? 25));
     $offset = max(0, $filters['offset'] ?? 0);
-    $where = ["lr.status = 'APPROVED'", 'lr.published_at IS NOT NULL', '(l.id IS NULL OR l.is_published = TRUE)', 'st.is_active = TRUE', 'c.is_active = TRUE', 'cs.is_active = TRUE', 's.is_active = TRUE'];
+    $where = ["lr.status = 'APPROVED'", 'lr.published_at IS NOT NULL', 'st.is_active = TRUE', 'c.is_active = TRUE', 'cs.is_active = TRUE', 's.is_active = TRUE', "EXISTS (SELECT 1 FROM content_reviews cr WHERE cr.resource_id = lr.id AND cr.status = 'APPROVED')"];
     $params = [];
     foreach (['stage_id' => 'st.id', 'class_id' => 'c.id', 'class_subject_id' => 'cs.id', 'subject_id' => 's.id', 'lesson_id' => 'l.id'] as $key => $column) {
         if (isset($filters[$key])) { $where[] = $column . ' = :' . $key; $params[$key] = $filters[$key]; }
@@ -285,7 +285,8 @@ function academic_search_resources(array $filters): array
     $sql = 'SELECT lr.id, lr.title, lr.description, lr.resource_type, lr.lesson_id,
                    st.id AS stage_id, st.name AS stage_name, c.id AS class_id, c.name AS class_name,
                    s.id AS subject_id, s.name AS subject_name, cs.id AS class_subject_id,
-                   l.title AS lesson_title, lr.requires_subscription, lr.published_at
+                   CASE WHEN l.is_published THEN l.title ELSE NULL END AS lesson_title,
+                   lr.requires_subscription, lr.published_at
             FROM learning_resources lr
             JOIN class_subjects cs ON cs.id = lr.class_subject_id
             JOIN subjects s ON s.id = cs.subject_id
