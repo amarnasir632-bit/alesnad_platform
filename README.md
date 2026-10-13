@@ -104,14 +104,14 @@ php -S 127.0.0.1:8000 -t public public/router.php
 - الخطط والاشتراكات يمكن إدارتها يدويًا من المدير، وتنتهي حالة الاشتراك آليًا عند انتهاء الفترة. لا توجد أسعار افتراضية ولا بوابة دفع. يمكن تشغيل معالجة الانتهاء يدويًا أو دوريًا عبر `php database/expire_subscriptions.php`.
 - تشغيل قاعدة البيانات يشمل قفلًا وبصمة SHA-256 للترحيلات، ونسخًا احتياطية خاصة عبر `pg_dump`، واستعادةً تتحقق من البصمة، ونقطة فحص الصحة `/health`.
 
-عقد النقاط في `docs/API_CONTRACT.md`، والقرارات التي لا تزال بلا قيمة في `docs/OPEN_DECISIONS.md`. مصفوفات التتبع واختبارات المراحل في `docs/TRACEABILITY_PHASE_*.md` و`tests/`. تكامل الاختبار لا يعمل إلا على قاعدة يبدأ اسمها بـ`alesnad_test_`.
+عقد النقاط في `docs/API_CONTRACT.md`، والقرارات التي لا تزال بلا قيمة في `docs/OPEN_DECISIONS.md`. مصفوفة التتبع المجمعة في `docs/TRACEABILITY.md`، واختبارات المراحل في `tests/`. تكامل الاختبار لا يعمل إلا على قاعدة يبدأ اسمها بـ`alesnad_test_`.
 
 ## الاختبارات والتحقق
 
 - شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/quiz_policy_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
 - اختبارات PostgreSQL التكاملية ترفض العمل ما لم يبدأ اسم `DB_DATABASE` بـ`alesnad_test_`. شغّل `php database/migrate.php` قبل `tests/phase1_integration.php` و`tests/phase2_academic_integration.php`.
 - GitHub Actions في `.github/workflows/backend-ci.yml` يوفر PostgreSQL 16 وPHP 8.4، ويشغّل الترحيلات واختبارات DB وHTTP وصلاحيات endpoints والوصول المباشر للملفات وتجربة النسخ والاستعادة.
-- `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. عند كتابة هذا التغيير لم يعمل workflow بعد؛ لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.
+- `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. آخر تشغيل للـ workflow فشل في مقارنة baseline للمرحلة الرابعة؛ ثبتنا commit المقارنة محليًا ويحتاج الفرع إلى رفع وإعادة تشغيل. لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.
 
 ## هيكل المستودع
 

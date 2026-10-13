@@ -211,6 +211,16 @@ try {
     $anonymous = ['cookie' => '', 'csrf' => ''];
     [$anonymousMe] = $httpRequest($anonymous, 'GET', '/api/v1/auth/me');
     $assert($anonymousMe === 401, 'GET /api/v1/auth/me rejects an anonymous request');
+    $anonymousLogout = ['cookie' => '', 'csrf' => ''];
+    [$logoutCsrfStatus, $logoutCsrfBody] = $httpRequest($anonymousLogout, 'GET', '/api/v1/csrf');
+    $logoutCsrf = $logoutCsrfBody['data']['csrf_token'] ?? '';
+    $anonymousLogout['csrf'] = is_string($logoutCsrf) ? $logoutCsrf : '';
+    [$anonymousLogoutStatus] = $httpRequest($anonymousLogout, 'POST', '/api/v1/auth/logout', []);
+    $assert($logoutCsrfStatus === 200 && $anonymousLogoutStatus === 401,
+        'POST /api/v1/auth/logout rejects an anonymous request after CSRF validation');
+    $logoutClient = $clients['admin'];
+    [$logoutStatus] = $httpRequest($logoutClient, 'POST', '/api/v1/auth/logout', []);
+    $assert($logoutStatus === 200, 'POST /api/v1/auth/logout accepts an authenticated request');
     [$healthStatus] = $httpRequest($anonymous, 'GET', '/health');
     $assert($healthStatus === 200, 'GET /health returns healthy for a reachable PostgreSQL service');
 

@@ -38,7 +38,33 @@ check("each trace row names implementation, test, and an explicit result", "| ا
 check("every requirement row has all four populated columns", all(req in matrix_rows and len(matrix_rows[req]) == 4 and all(matrix_rows[req][i] for i in range(1, 4)) for req in required_ids))
 test_paths = set(re.findall(r"`(tests/[A-Za-z0-9_./-]+)`", trace))
 check("all test paths named in the matrix exist", bool(test_paths) and all((ROOT / path).is_file() for path in test_paths))
-check("protected endpoint integration manifest has positive and negative role probes", len(re.findall(r"^\s*\['(?:GET|POST|PATCH|PUT|DELETE)',", endpoint_test, re.M)) >= 65 and "receives 403" in endpoint_test and "reaches endpoint" in endpoint_test)
+probe_pattern = re.compile(r"\['(GET|POST|PATCH|PUT|DELETE)',\s*'([^']+)'(\s*\.\s*\$[A-Za-z_]\w*)?")
+probes = []
+for match in probe_pattern.finditer(endpoint_test):
+    path = match.group(2).split("?", 1)[0]
+    if match.group(3) and path.endswith("/"):
+        path += "1"
+    probes.append((match.group(1), path))
+route_specs = []
+for match in re.finditer(r"\$route\s*===\s*'((?:GET|POST|PUT|PATCH|DELETE) /api/v1/[^']+)'", (ROOT / "app/Http/Router.php").read_text()):
+    route_specs.append((match.group(1), False))
+for match in re.finditer(r"preg_match\('#\^((?:GET|POST|PUT|PATCH|DELETE)) (.*?)\$#',\s*\$route", (ROOT / "app/Http/Router.php").read_text()):
+    route_specs.append((match.group(1) + " " + match.group(2), True))
+missing_probes = []
+for spec, is_pattern in route_specs:
+    method, path = spec.split(" ", 1)
+    if spec in ("GET /api/v1/csrf", "POST /api/v1/auth/login", "POST /api/v1/auth/register"):
+        continue
+    if spec in ("GET /api/v1/auth/me", "POST /api/v1/auth/logout"):
+        if spec == "GET /api/v1/auth/me" and "GET /api/v1/auth/me rejects an anonymous request" in endpoint_test:
+            continue
+        if spec == "POST /api/v1/auth/logout" and "POST /api/v1/auth/logout rejects an anonymous request" in endpoint_test:
+            continue
+        missing_probes.append(spec)
+    elif not any(m == method and (re.fullmatch(path, p) if is_pattern else path == p) for m, p in probes):
+        missing_probes.append(spec)
+check("every protected router endpoint has an authorization rejection probe", not missing_probes and "receives 403" in endpoint_test and "foreach ($cases as $case)" in endpoint_test)
+check("authorized and denied HTTP role probes cover the endpoint manifest", len(probes) >= 65 and "receives 403" in endpoint_test and "reaches endpoint" in endpoint_test)
 check("authentication endpoint and health endpoint are exercised over HTTP", "GET /api/v1/auth/me accepts" in endpoint_test and "GET /health returns healthy" in endpoint_test)
 check("direct access to private storage is tested over HTTP", "private file cannot be fetched by direct public URL" in endpoint_test)
 check("backup and restore integration test invokes both commands and verifies restored state", "database/backup.php" in backup_test and "database/restore.php" in backup_test and "RESTORED" in backup_test)
@@ -51,6 +77,20 @@ check("deferred and unimplemented requirement statuses are explicit", all(any(to
 check("Arabic RTL layout declaration is covered", 'lang="ar" dir="rtl"' in layout and "NFR-008" in trace)
 check("stale claims that backups and restore are not implemented were removed", all(stale not in context for stale in ("لا يوجد بعد رفع ملفات أو تدفق نسخ احتياطي", "النسخ الاحتياطي والاستعادة ما زال بحاجة إلى اعتماد وتنفيذ", "الاستعادة لم تنفذ")))
 check("README documents the test command and CI limitations", "GitHub Actions" in readme and "TRACEABILITY.md" in readme and "لا يشمل اختبارًا فعليًا" in readme)
+pr_template = ROOT / ".github/pull_request_template.md"
+check("pull request template requires implemented work, remaining work, and open decisions", pr_template.is_file() and all(section in pr_template.read_text() for section in ("ما نُفذ", "ما بقي", "القرارات المعلقة")))
+
+tracked = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, capture_output=True, check=True).stdout.decode().split("\0")
+tracked = [path for path in tracked if path]
+private_or_secret = []
+for path in tracked:
+    name = Path(path).name.lower()
+    if (path == ".env" or (path.startswith(".env.") and path != ".env.example")
+            or (path.startswith(("storage/private/", "storage/backups/")) and name != ".gitkeep")
+            or name.endswith((".dump", ".dump.gz", ".sql.gz", ".bkp", ".backup"))
+            or name in {"id_rsa", "id_ed25519", "credentials.json", "service-account.json"}):
+        private_or_secret.append(path)
+check("Git index contains no environment secrets, private files, or database dumps", not private_or_secret)
 
 baseline = "origin/codex/phase-7-operations"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):
