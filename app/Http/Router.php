@@ -54,6 +54,17 @@ function dispatch_request(): void
         if ($route === 'GET /api/v1/academics/lessons') api_academic_lessons();
         if ($route === 'GET /api/v1/academics/my-teaching-assignments') api_my_teaching_assignments();
         if ($route === 'GET /api/v1/content/search') api_search_academic_content();
+        if ($route === 'GET /api/v1/teacher/questions') api_teacher_questions();
+        if ($route === 'GET /api/v1/quizzes') api_student_quizzes();
+        if ($route === 'POST /api/v1/teacher/quizzes') api_teacher_create_quiz($body);
+        if (preg_match('#^PATCH /api/v1/teacher/quizzes/([1-9][0-9]*)$#', $route, $match)) api_teacher_update_quiz((int) $match[1], $body);
+        if (preg_match('#^GET /api/v1/teacher/quizzes/([1-9][0-9]*)/results$#', $route, $match)) api_teacher_quiz_results((int) $match[1]);
+        if (preg_match('#^GET /api/v1/quizzes/([1-9][0-9]*)$#', $route, $match)) api_student_quiz((int) $match[1]);
+        if (preg_match('#^POST /api/v1/quizzes/([1-9][0-9]*)/attempts$#', $route, $match)) api_student_start_attempt((int) $match[1]);
+        if (preg_match('#^PUT /api/v1/attempts/([1-9][0-9]*)/answers/([1-9][0-9]*)$#', $route, $match)) api_student_save_answer((int) $match[1], (int) $match[2], $body);
+        if (preg_match('#^POST /api/v1/attempts/([1-9][0-9]*)/submit$#', $route, $match)) api_student_submit_attempt((int) $match[1]);
+        if (preg_match('#^GET /api/v1/attempts/([1-9][0-9]*)/result$#', $route, $match)) api_attempt_result((int) $match[1]);
+        if (preg_match('#^POST /api/v1/teacher/attempts/([1-9][0-9]*)/questions/([1-9][0-9]*)/grade$#', $route, $match)) api_teacher_grade_essay((int) $match[1], (int) $match[2], $body);
         if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1]);
         if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/variants/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1], (int) $match[2]);
         if (preg_match('#^GET /api/v1/content/past-exams/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('past_exam', (int) $match[1]);

@@ -62,10 +62,10 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ## قواعد عامة
 
-- `Content-Type: application/json` مطلوب لكل طلب ذي جسم؛ JSON غير الصحيح يعيد `400 invalid_json`، والنوع الخطأ `415 content_type_required`.
+- `Content-Type: application/json` مطلوب لطلبات JSON؛ JSON غير الصحيح يعيد `400 invalid_json` والنوع الخطأ `415 content_type_required`. نقاط رفع الملفات تقبل `multipart/form-data` كما هو موضح أعلاه.
 - جميع مدخلات SQL مربوطة عبر PDO prepared statements. رسائل الخادم لا تعرض تفاصيل استثناء قاعدة البيانات.
 - أخطاء غير متوقعة تعيد `500 internal_error` مع تسجيل التفاصيل في سجل الخادم.
-- الاختبارات القابلة للتقديم والحصص المباشرة والرسائل والاشتراكات/الدفع الإلكتروني ما زالت خارج التنفيذ في هذه المرحلة. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
+- الحصص المباشرة والرسائل وبوابة الدفع ما زالت خارج التنفيذ في هذه المرحلة. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
 
 ## الترحيل والتراجع
 
@@ -123,7 +123,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 - `POST /api/v1/content/resources` يتطلب `content.upload` وملفًا، ويقبل `title`, `resource_type` (`PDF|VIDEO|AUDIO|DOCUMENT`), `class_subject_id`, `lesson_id` اختياري، `description`, `source_reference`, `source_owner`, `copyright_license`. يعود 201 بمورد في حالة `DRAFT`.
 - `POST /api/v1/content/past-exams` يتطلب `content.upload` وملفًا، ويقبل `title`, `class_subject_id`, `academic_year` اختياري وحقول المصدر والمالك والترخيص. يعود 201 في `DRAFT`.
-- `POST /api/v1/content/questions` يتطلب `questions.manage` ويقبل `class_subject_id`, `lesson_id` اختياري، `question_text`, `question_type` (`MCQ|TRUE_FALSE|ESSAY`), `difficulty` اختياري، `explanation`, حقول المصدر، و`options` الاختيارية كمصفوفة `{option_text,is_correct}`. لا تفرض المنصة قواعد إضافية لعدد الخيارات أو الإجابات الصحيحة.
+- `POST /api/v1/content/questions` يتطلب `questions.manage` ويقبل `class_subject_id`, `lesson_id` اختياري، `question_text`, `question_type` (`MCQ|TRUE_FALSE|ESSAY`), `difficulty` اختياري، `explanation`, حقول المصدر، و`options` الاختيارية كمصفوفة `{option_text,is_correct}`. قواعد الإرسال للمراجعة: MCQ بخيارين على الأقل وإجابة صحيحة واحدة، وصح/خطأ بخيارين وإجابة صحيحة واحدة، والمقالي بلا خيارات.
 - `PATCH /api/v1/content/{resources|past-exams|questions}/{id}` يحرر مسودة أو محتوى مرفوض يملكه المستخدم أو مدير النظام. تعديل المحتوى المرفوض يعيده إلى `DRAFT`. الصلاحية المطلوبة `content.upload` للملفات و`questions.manage` للسؤال.
 - `POST /api/v1/content/{resources|past-exams}/{id}/replace-file` يستبدل ملف المسودة/المرفوض. يحذف الملف القديم بعد نجاح معاملة تحديث قاعدة البيانات.
 
@@ -142,3 +142,31 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - يشترط أن يكون المحتوى `APPROVED` وله `published_at` وسجل مراجعة موافق. الطالب يحتاج اشتراكًا نشطًا ساريًا إذا كان المورد يتطلب اشتراكًا. تنزيل النسخ البديلة يتطلب `resource_variants.is_downloadable=true`.
 - يدعم `Range: bytes=start-end` وطلبات suffix، ويعيد `206` مع `Content-Range` و`Accept-Ranges`. النطاق غير الصحيح يعيد `416` و`Content-Range: bytes */size`. النطاقات المتعددة غير مدعومة. يسجل التنزيل `content.download.started` في `audit_events`.
 - لا يعاد مفتاح التخزين ولا ينشأ رابط عام. أخطاء الوصول: `401 unauthenticated`, `403 forbidden|active_subscription_required`, `404 not_found`, `416 range_not_satisfiable`.
+
+## الأسئلة والاختبارات (المرحلة الرابعة)
+
+إعدادات التشغيل المطلوبة بلا قيم افتراضية:
+
+- `QUIZ_MAX_ATTEMPTS`: عدد المحاولات المحتسبة المسموح به، عدد صحيح موجب.
+- `QUIZ_DURATION_MINUTES`: مدة افتراضية بالدقائق عند عدم تحديد `duration_minutes` للاختبار.
+- `QUIZ_INCOMPLETE_ATTEMPT_POLICY`: `AUTO_SUBMIT` يصحح المحاولة المنتهية بإجاباتها المحفوظة؛ `CANCEL_COUNTED` يغلقها ويلتزم احتسابها؛ `CANCEL_FREE` يغلقها ولا يحتسبها من الحد. قبل انتهاء المهلة، يعيد بدء الاختبار المحاولة نفسها وإجاباتها المحفوظة.
+- `QUIZ_RESULT_VISIBILITY`: `IMMEDIATE` يعرض نتيجة المرسل مباشرة؛ `AFTER_WINDOW` يعرضها بعد `ends_at` ويتطلب تاريخ إغلاق؛ `AFTER_MANUAL_GRADING` ينتظر اكتمال تصحيح الإجابات المقالية.
+
+أي إعداد مطلوب مفقود أو غير صالح يعيد `503 quiz_not_configured`. يجب اعتماد قيم البيئة والسياسات قبل إتاحة الاختبارات للطلاب (OD-20 وOD-22).
+
+### إدارة الأسئلة والاختبارات
+
+- الأسئلة في `GET /api/v1/teacher/questions?stage_id=&class_id=&subject_id=&lesson_id=&question_type=&difficulty=&class_subject_id=` تتطلب `quizzes.manage`؛ الأستاذ يرى المواد المسندة إليه فقط. تعاد الأسئلة المعتمدة وخياراتها مع الإجابة الصحيحة للأستاذ المخول.
+- قبل إرسال السؤال للمراجعة: سؤال `MCQ` يحتاج خيارين على الأقل وإجابة صحيحة واحدة؛ `TRUE_FALSE` يحتاج خيارين بالضبط وإجابة صحيحة واحدة؛ السؤال المقالي لا يقبل خيارات. خيار إجابة واحدة هو المتوافق مع نموذج الإجابة الحالي (`selected_option_id`). يفرض التطبيق وقاعدة البيانات هذه القواعد.
+- `POST /api/v1/teacher/quizzes` يتطلب `quizzes.manage` وإسناد المادة، ويقبل `class_subject_id`, `title`, `description` اختياري، `duration_minutes` اختياري، `passing_marks` اختياري، `starts_at`, `ends_at` اختياريان، `requires_subscription` اختياري، و`questions` مصفوفة `{question_id,question_mark}`. لا يقبل إلا أسئلة `APPROVED` من المادة نفسها. ينشأ الاختبار غير منشور.
+- `PATCH /api/v1/teacher/quizzes/{id}` يعدل البيانات و`is_published`. النشر يحتاج سؤالًا معتمدًا واحدًا على الأقل. لا يمكن تعديل البيانات بعد بدء محاولة. الأستاذ لا يعدل إلا اختبار مادة مسندة إليه؛ المدير يستطيع إدارة كل المواد.
+- `GET /api/v1/quizzes` و`GET /api/v1/quizzes/{id}` للطالب ذي `quizzes.attempt`، ويعرضان الاختبارات المنشورة لصفه وخيارات الأسئلة دون مفاتيح الإجابة. يتطلب الاختبار اشتراكًا فعالًا إذا كان `requires_subscription=true`.
+
+### المحاولات والتصحيح والنتائج
+
+- `POST /api/v1/quizzes/{id}/attempts` يبدأ محاولة أو يعيد المحاولة غير المنتهية وإجاباتها المحفوظة. يرفض الخادم الاختبار غير المنشور أو خارج `starts_at`/`ends_at` أو عند تجاوز العدد. يعيد `attempt.deadline_at` المحسوب من مدة الاختبار ونهاية نافذته.
+- `PUT /api/v1/attempts/{attempt_id}/answers/{question_id}` يحفظ `{ "selected_option_id": 12 }` للسؤال الموضوعي أو `{ "essay_answer": "..." }` للمقالي. الإجابة تتبع سؤال الاختبار والمحاولة، ولا يمكن تعديلها بعد الإرسال أو انتهاء الوقت. احفظ الإجابات أثناء الاختبار لتمكين الاستئناف.
+- `POST /api/v1/attempts/{attempt_id}/submit` يرسل المحاولة. يحسب الخادم درجات MCQ وصح/خطأ؛ تبقى المحاولة بانتظار التصحيح اليدوي إذا وُجدت إجابات مقالية مجابة.
+- `POST /api/v1/teacher/attempts/{attempt_id}/questions/{question_id}/grade` يقبل `{ "awarded_mark": 4, "teacher_feedback": "..." }`، ويتطلب `quizzes.manage` وإسناد مادة الاختبار. الدرجة لا تتجاوز علامة السؤال.
+- `GET /api/v1/attempts/{attempt_id}/result` يسمح للطالب بقراءة محاولته فقط بعد تحقق سياسة إظهار النتيجة. `GET /api/v1/teacher/quizzes/{id}/results` يعرض محاولات ودرجات مادة الأستاذ المسندة فقط.
+- حالات الأخطاء تشمل `403 attempt_owner_required|quiz_class_forbidden|active_subscription_required|result_not_available`, `409 quiz_not_open|quiz_closed|attempt_limit_reached|attempt_time_expired|attempt_not_active`, `422 question_not_approved|question_not_in_quiz|question_options_invalid`, و`503 quiz_not_configured`.
