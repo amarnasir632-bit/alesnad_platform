@@ -44,6 +44,15 @@ function dispatch_request(): void
         if (in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) require_api_csrf($body);
         $route = $method . ' ' . rtrim($path, '/');
         if ($route === 'GET /api/v1/csrf') api_csrf();
+        if ($route === 'GET /api/v1/subscription-plans') api_list_subscription_plans();
+        if ($route === 'GET /api/v1/subscriptions/me') api_current_subscriptions();
+        if ($route === 'GET /api/v1/admin/subscription-plans') api_admin_subscription_plans();
+        if ($route === 'POST /api/v1/admin/subscription-plans') api_admin_create_subscription_plan($body);
+        if (preg_match('#^PATCH /api/v1/admin/subscription-plans/([1-9][0-9]*)$#', $route, $match)) api_admin_update_subscription_plan((int) $match[1], $body);
+        if ($route === 'GET /api/v1/admin/subscriptions') api_admin_subscriptions();
+        if ($route === 'POST /api/v1/admin/subscriptions') api_admin_create_subscription($body);
+        if (preg_match('#^PATCH /api/v1/admin/subscriptions/([1-9][0-9]*)$#', $route, $match)) api_admin_update_subscription((int) $match[1], $body);
+        if ($route === 'POST /api/v1/admin/subscriptions/expire') api_admin_expire_subscriptions();
         if ($route === 'GET /api/v1/sessions') api_list_sessions();
         if ($route === 'POST /api/v1/teacher/sessions') api_create_session($body);
         if (preg_match('#^PATCH /api/v1/teacher/sessions/([1-9][0-9]*)$#', $route, $match)) api_update_session((int) $match[1], $body);

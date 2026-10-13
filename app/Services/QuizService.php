@@ -287,7 +287,7 @@ function quiz_student_can_access(PDO $db, array $student, array $quiz, int $user
 {
     if (!database_boolean($quiz['class_subject_active']) || !database_boolean($quiz['class_active']) || !database_boolean($quiz['stage_active']) || !database_boolean($quiz['subject_active'])) throw new ApiException(404, 'not_found', 'الاختبار غير متاح.');
     if ($student['class_id'] === null || (int) $student['class_id'] !== (int) $quiz['class_id']) throw new ApiException(403, 'quiz_class_forbidden', 'الاختبار غير مخصص لصفك.');
-    if (database_boolean($quiz['requires_subscription']) && !content_has_active_subscription($userId)) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لأداء هذا الاختبار.');
+    if (database_boolean($quiz['requires_subscription']) && !has_active_subscription($userId)) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لأداء هذا الاختبار.');
 }
 
 function quiz_student_list(int $userId): array
@@ -295,19 +295,20 @@ function quiz_student_list(int $userId): array
     $db = database_connection();
     $student = quiz_student_id($db, $userId);
     if ($student['class_id'] === null) return [];
+    $hasSubscription = has_active_subscription($userId);
     $statement = $db->prepare(
         "SELECT qz.id, qz.class_subject_id, qz.title, qz.description, qz.duration_minutes, qz.total_marks, qz.passing_marks,
                 qz.starts_at, qz.ends_at, qz.requires_subscription,
-                EXISTS (SELECT 1 FROM subscriptions sub JOIN students st2 ON st2.id = sub.student_id
-                        WHERE st2.user_id = :user_id AND sub.status = 'ACTIVE' AND sub.starts_at <= CURRENT_TIMESTAMP AND sub.ends_at > CURRENT_TIMESTAMP) AS has_active_subscription,
+                :has_subscription AS has_active_subscription,
                 (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.quiz_id = qz.id) AS question_count
          FROM quizzes qz JOIN class_subjects cs ON cs.id = qz.class_subject_id
          JOIN classes c ON c.id = cs.class_id JOIN stages st ON st.id = c.stage_id JOIN subjects s ON s.id = cs.subject_id
          WHERE qz.is_published = TRUE AND cs.class_id = :class_id AND cs.is_active = TRUE AND c.is_active = TRUE AND st.is_active = TRUE AND s.is_active = TRUE
            AND (qz.ends_at IS NULL OR qz.ends_at > CURRENT_TIMESTAMP)
+           AND (qz.requires_subscription = FALSE OR :can_access = TRUE)
          ORDER BY qz.starts_at NULLS FIRST, qz.id"
     );
-    $statement->execute(['user_id' => $userId, 'class_id' => $student['class_id']]);
+    $statement->execute(['has_subscription' => $hasSubscription, 'can_access' => $hasSubscription, 'class_id' => $student['class_id']]);
     return $statement->fetchAll();
 }
 
