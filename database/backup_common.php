@@ -47,7 +47,11 @@ function backup_pgpass_file(?string $additionalDatabase = null): string
 
 function backup_run_pg_tool(array $arguments, string $pgpassFile): void
 {
-    $environment = array_merge(getenv() ?: [], ['PGPASSFILE' => $pgpassFile, 'LC_ALL' => 'C']);
+    $environment = array_merge(getenv() ?: [], [
+        'PGPASSFILE' => $pgpassFile,
+        'PGSSLMODE' => env_value('DB_SSLMODE', 'prefer') ?? 'prefer',
+        'LC_ALL' => 'C',
+    ]);
     $process = proc_open($arguments, [
         0 => ['file', '/dev/null', 'r'],
         1 => ['file', '/dev/null', 'a'],

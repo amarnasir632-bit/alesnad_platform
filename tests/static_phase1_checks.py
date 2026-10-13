@@ -34,7 +34,8 @@ check("all runtime policy settings are blank in sample env", len(policy_lines) =
 check("new auth migration creates attempt table", "CREATE TABLE auth_login_attempts" in (ROOT / "database/migrations/004_auth_security.sql").read_text())
 check("API contract and traceability are documented", (ROOT / "docs/API_CONTRACT.md").exists() and (ROOT / "docs/TRACEABILITY_PHASE_1.md").exists())
 check("frontend views and static assets remain untouched", subprocess.run(["git", "diff", "--quiet", "origin/main", "--", "app/Views", "public/assets"], cwd=ROOT).returncode == 0)
-check("application SQL avoids direct PDO query calls", "->query(" not in "\n".join(p.read_text() for p in (ROOT / "app").rglob("*.php")))
+app_sql = "\n".join(p.read_text() for p in (ROOT / "app").rglob("*.php"))
+check("only the fixed health probe uses PDO query; application input uses prepared statements", app_sql.count("->query(") == 1 and "database_connection()->query('SELECT 1')" in app_sql)
 
 failed = [name for name, passed in checks if not passed]
 print(f"{len(checks)} static checks, {len(failed)} failures")

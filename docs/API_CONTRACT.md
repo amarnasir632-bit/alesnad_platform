@@ -215,3 +215,10 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - الأخطاء تشمل `403 forbidden`, `404 not_found`, `409 subscription_conflict`, `422 invalid_student|inactive_plan|invalid_subscription_period|plan_price_currency_pair_required`, و`419 csrf_failed`.
 
 ترحيل `009_subscription_management.sql` يضيف فهرسًا جزئيًا لتسريع البحث عن المنتهي فقط. التراجع `database/rollback/009_subscription_management.sql` يحذف هذا الفهرس دون المساس ببيانات الخطط والاشتراكات.
+
+## التشغيل وفحص الصحة
+
+- `GET /health` لا يتطلب جلسة أو صلاحية. يجري `SELECT 1` على PostgreSQL ويعيد `200 {"status":"ok"}` عند النجاح، أو `503 {"status":"unavailable"}` عند تعذر قاعدة البيانات. لا يعيد تفاصيل الاتصال أو رسالة الاستثناء.
+- لا توجد API عامة لإدارة النسخ أو الاستعادة. يشغّلها مشغل الخادم من CLI عبر `php database/backup.php` و`php database/restore.php`؛ خطوات التأكيد وتجربة الاستعادة في `docs/OPERATIONS_BACKUP_RESTORE.md`.
+- سجلات الأخطاء تسجل اسم الحدث ونوع الاستثناء والرمز فقط؛ لا تسجل نص SQL أو كلمة المرور أو محتوى الطلب أو رسالة الاستثناء.
+- مسارات التشغيل والاختبارات الآلية موثقة في `README.md` و`docs/TRACEABILITY.md`. لا تعتبر نتيجة CI ناجحة قبل أن ينتهي workflow فعليًا.

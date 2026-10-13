@@ -89,7 +89,9 @@ php -S 127.0.0.1:8000 -t public public/router.php
 
 الاشتراك الشهري مدعوم في المخطط. بوابة الدفع لم تُختَر ولم تُنفذ؛ لا تخزن بيانات البطاقة البنكية في قاعدة المنصة. جدول المدفوعات يحفظ معرف المزود والحالة والمرجع والبيانات الوصفية غير الحساسة فقط.
 
-## ما يعمل حاليًا
+## الوظائف الموجودة في المستودع
+
+هذه القائمة تصف مكونات التطبيق. التشغيل يعتمد على إعداد البيئة، ونتائج الاختبارات مسجلة بصورة منفصلة في `docs/TRACEABILITY.md`؛ لا تعني القائمة وحدها اجتياز CI أو جاهزية النشر.
 
 - اتصال PDO بإعدادات `.env`.
 - ترحيل مخطط PostgreSQL وبذور الأدوار والصلاحيات.
@@ -103,6 +105,13 @@ php -S 127.0.0.1:8000 -t public public/router.php
 - تشغيل قاعدة البيانات يشمل قفلًا وبصمة SHA-256 للترحيلات، ونسخًا احتياطية خاصة عبر `pg_dump`، واستعادةً تتحقق من البصمة، ونقطة فحص الصحة `/health`.
 
 عقد النقاط في `docs/API_CONTRACT.md`، والقرارات التي لا تزال بلا قيمة في `docs/OPEN_DECISIONS.md`. مصفوفات التتبع واختبارات المراحل في `docs/TRACEABILITY_PHASE_*.md` و`tests/`. تكامل الاختبار لا يعمل إلا على قاعدة يبدأ اسمها بـ`alesnad_test_`.
+
+## الاختبارات والتحقق
+
+- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/quiz_policy_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
+- اختبارات PostgreSQL التكاملية ترفض العمل ما لم يبدأ اسم `DB_DATABASE` بـ`alesnad_test_`. شغّل `php database/migrate.php` قبل `tests/phase1_integration.php` و`tests/phase2_academic_integration.php`.
+- GitHub Actions في `.github/workflows/backend-ci.yml` يوفر PostgreSQL 16 وPHP 8.4، ويشغّل الترحيلات واختبارات DB وHTTP وصلاحيات endpoints والوصول المباشر للملفات وتجربة النسخ والاستعادة.
+- `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. عند كتابة هذا التغيير لم يعمل workflow بعد؛ لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.
 
 ## هيكل المستودع
 
