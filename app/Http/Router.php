@@ -42,7 +42,17 @@ function dispatch_request(): void
         if ($route === 'POST /api/v1/auth/logout') api_logout();
         if ($route === 'GET /api/v1/admin/users') api_list_accounts();
         if ($route === 'GET /api/v1/admin/roles') api_list_roles();
+        if ($route === 'GET /api/v1/academics/stages') api_academic_stages();
+        if ($route === 'GET /api/v1/academics/classes') api_academic_classes();
+        if ($route === 'GET /api/v1/academics/subjects') api_academic_subjects();
+        if ($route === 'GET /api/v1/academics/lessons') api_academic_lessons();
+        if ($route === 'GET /api/v1/academics/my-teaching-assignments') api_my_teaching_assignments();
+        if ($route === 'GET /api/v1/content/search') api_search_academic_content();
         if ($route === 'POST /api/v1/admin/users') api_create_account($body);
+        if (preg_match('#^POST /api/v1/admin/academics/(stages|classes|subjects|class-subjects|lessons)$#', $route, $match)) api_admin_academic_create($match[1], $body);
+        if (preg_match('#^PATCH /api/v1/admin/academics/(stages|classes|subjects|class-subjects|lessons)/([1-9][0-9]*)$#', $route, $match)) api_admin_academic_update($match[1], (int) $match[2], $body);
+        if ($route === 'POST /api/v1/admin/teaching-assignments') api_admin_assign_teacher($body);
+        if (preg_match('#^DELETE /api/v1/admin/teaching-assignments/([1-9][0-9]*)/([1-9][0-9]*)$#', $route, $match)) api_admin_unassign_teacher((int) $match[1], (int) $match[2]);
         if (preg_match('#^PATCH /api/v1/admin/users/([1-9][0-9]*)$#', $route, $match)) api_update_account((int) $match[1], $body);
         if (preg_match('#^PUT /api/v1/admin/users/([1-9][0-9]*)/roles$#', $route, $match)) api_assign_account_roles((int) $match[1], $body);
         throw new ApiException(404, 'not_found', 'المسار غير موجود.');
