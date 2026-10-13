@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/Support/env.php';
+require_once dirname(__DIR__) . '/app/Support/logger.php';
 require_once dirname(__DIR__) . '/app/Support/config.php';
 require_once dirname(__DIR__) . '/app/Database/connection.php';
 require_once dirname(__DIR__) . '/app/Security/audit.php';
@@ -93,6 +94,6 @@ try {
         $pdo->rollBack();
     }
     fwrite(STDERR, "فشل إنشاء حساب مدير النظام. تحقق من البريد ومن تطبيق الترحيلات.\n");
-    error_log('Admin bootstrap failed: ' . $error->getMessage());
+    app_log_error('admin_bootstrap_failed', $error);
     exit(1);
 }

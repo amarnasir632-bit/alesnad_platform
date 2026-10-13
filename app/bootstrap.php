@@ -5,8 +5,11 @@ define('PROJECT_ROOT', dirname(__DIR__));
 require_once PROJECT_ROOT . '/app/Support/env.php';
 load_environment(PROJECT_ROOT . '/.env');
 require_once PROJECT_ROOT . '/app/Support/config.php';
+require_once PROJECT_ROOT . '/app/Support/logger.php';
 
 date_default_timezone_set(env_value('APP_TIMEZONE', 'Africa/Khartoum'));
+ini_set('log_errors', '1');
+if (is_production()) ini_set('display_errors', '0');
 ini_set('session.use_strict_mode', '1');
 ini_set('session.use_only_cookies', '1');
 session_name('alesnad_session');
