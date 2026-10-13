@@ -48,11 +48,11 @@ check("project context describes phase 5", "حالة المرحلة الخامس
 
 try:
     baseline = subprocess.check_output(["git", "rev-parse", f"{BASELINE}^{{commit}}"], cwd=ROOT, text=True).strip()
-    changed = subprocess.check_output(["git", "diff", "--name-only", baseline, "--", "app/Views", "public/assets"], cwd=ROOT, text=True).strip()
+    changed = subprocess.check_output(["git", "diff", "--name-only", baseline, "HEAD", "--", "app/Views", "public/assets"], cwd=ROOT, text=True).strip()
     check("frontend scope untouched", changed == "")
     for i in range(1, 8):
         name = next((ROOT / "database/migrations").glob(f"{i:03d}_*.sql")).name
-        same = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{name}"], cwd=ROOT).returncode == 0
+        same = subprocess.run(["git", "diff", "--quiet", baseline, "HEAD", "--", f"database/migrations/{name}"], cwd=ROOT).returncode == 0
         check(f"prior migration unchanged: {name}", same)
 except (subprocess.CalledProcessError, StopIteration):
     check("pinned phase-4 baseline available", False)

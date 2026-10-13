@@ -48,9 +48,9 @@ for i in range(1, 9):
     if file is None:
         check(f"migration {i:03d} exists", False)
         continue
-    proc = subprocess.run(["git", "diff", "--quiet", BASELINE, "--", f"database/migrations/{file.name}"], cwd=ROOT)
+    proc = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", f"database/migrations/{file.name}"], cwd=ROOT)
     check(f"prior migration unchanged: {file.name}", proc.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", BASELINE, "--", "app/Views", "public/assets"], cwd=ROOT)
+frontend = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", "app/Views", "public/assets"], cwd=ROOT)
 check("frontend ownership preserved", frontend.returncode == 0)
 
 failed = [name for name, passed in checks if not passed]

@@ -4,6 +4,8 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
+# Pin the phase-6 baseline; the stacked branch ref may not be fetched by CI.
+BASELINE = "1421e883e45a295e825983d5f3eadceb84b2e0a4"
 checks = []
 
 
@@ -36,12 +38,11 @@ check("backup restore rehearsal is documented without claiming it ran", "تجر�
 check("phase 7 traceability covers all requested controls", all(value in trace for value in ("NFR-007", "NFR-009", "NFR-011", "تجربة استعادة")))
 check("backup artifacts remain excluded from Git", "/storage/backups/*" in (ROOT / ".gitignore").read_text())
 
-baseline = "origin/codex/phase-6-subscriptions"
 prior = sorted((ROOT / "database/migrations").glob("*.sql"))
 for migration in prior:
-    result = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{migration.name}"], cwd=ROOT)
+    result = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", f"database/migrations/{migration.name}"], cwd=ROOT)
     check(f"existing migration unchanged: {migration.name}", result.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
+frontend = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", "app/Views", "public/assets"], cwd=ROOT)
 check("frontend files untouched", frontend.returncode == 0)
 
 failed = [name for name, passed in checks if not passed]

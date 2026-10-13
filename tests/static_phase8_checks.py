@@ -7,6 +7,8 @@ from zipfile import ZipFile
 from xml.etree import ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[1]
+# Pin the phase-7 baseline; CI does not guarantee stacked branch refs exist.
+BASELINE = "e4888141e5c415d513d15e4836fdf8fe26895fb8"
 checks = []
 
 
@@ -92,11 +94,10 @@ for path in tracked:
         private_or_secret.append(path)
 check("Git index contains no environment secrets, private files, or database dumps", not private_or_secret)
 
-baseline = "origin/codex/phase-7-operations"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):
-    result = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{migration.name}"], cwd=ROOT)
+    result = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", f"database/migrations/{migration.name}"], cwd=ROOT)
     check(f"existing migration unchanged: {migration.name}", result.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
+frontend = subprocess.run(["git", "diff", "--quiet", BASELINE, "HEAD", "--", "app/Views", "public/assets"], cwd=ROOT)
 check("frontend ownership preserved", frontend.returncode == 0)
 
 failed = [name for name, passed in checks if not passed]
