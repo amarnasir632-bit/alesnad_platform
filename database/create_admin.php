@@ -2,7 +2,11 @@
 declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/Support/env.php';
+require_once dirname(__DIR__) . '/app/Support/config.php';
 require_once dirname(__DIR__) . '/app/Database/connection.php';
+require_once dirname(__DIR__) . '/app/Security/audit.php';
+require_once dirname(__DIR__) . '/app/Security/passwords.php';
+require_once dirname(__DIR__) . '/app/Security/passwords.php';
 load_environment(dirname(__DIR__) . '/.env');
 
 if (PHP_SAPI !== 'cli') {
@@ -43,13 +47,15 @@ if ($name === '' || strlen($name) > 150 || !filter_var($email, FILTER_VALIDATE_E
     fwrite(STDERR, "الاسم أو البريد الإلكتروني غير صحيح.\n");
     exit(1);
 }
-if (strlen($password) < 16 || !hash_equals($password, $confirmation)) {
-    fwrite(STDERR, "كلمة المرور قصيرة أو غير متطابقة.\n");
+if (password_validation_error($password) !== null || !hash_equals($password, $confirmation)) {
+    fwrite(STDERR, "كلمة المرور غير مطابقة لسياسة النظام أو أن التأكيد غير مطابق.\n");
     exit(1);
 }
 
 $pdo = database_connection();
-$existingAdmin = $pdo->query("SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.code = 'admin' LIMIT 1")->fetchColumn();
+$adminCheck = $pdo->prepare("SELECT 1 FROM user_roles ur JOIN roles r ON r.id = ur.role_id WHERE r.code = :code LIMIT 1");
+$adminCheck->execute(['code' => 'admin']);
+$existingAdmin = $adminCheck->fetchColumn();
 if ($existingAdmin) {
     fwrite(STDERR, "يوجد حساب مدير نظام بالفعل. لم يُنشأ حساب جديد.\n");
     exit(1);
@@ -71,12 +77,15 @@ try {
 
     $pdo->prepare('INSERT INTO employees (user_id, job_title) VALUES (:user_id, :job_title)')
         ->execute(['user_id' => $userId, 'job_title' => 'مدير النظام']);
-    $adminRoleId = $pdo->query("SELECT id FROM roles WHERE code = 'admin'")->fetchColumn();
+    $adminRole = $pdo->prepare('SELECT id FROM roles WHERE code = :code');
+    $adminRole->execute(['code' => 'admin']);
+    $adminRoleId = $adminRole->fetchColumn();
     if ($adminRoleId === false) {
         throw new RuntimeException('Admin role is missing. Apply database migrations first.');
     }
     $pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)')
         ->execute(['user_id' => $userId, 'role_id' => $adminRoleId]);
+    audit_log('account.created', 'user', (int) $userId, ['roles' => ['admin']], (int) $userId);
     $pdo->commit();
     fwrite(STDOUT, "تم إنشاء حساب مدير النظام. احتفظ ببياناته خارج المستودع.\n");
 } catch (Throwable $error) {

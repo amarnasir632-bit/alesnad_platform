@@ -3,6 +3,26 @@ declare(strict_types=1);
 
 function authenticate_user(string $email, string $password): bool
 {
+    if (strlen($password) > 72) {
+        $emailKey = login_email_key($email);
+        $pdo = database_connection();
+        $pdo->beginTransaction();
+        try {
+            record_login_failure($email);
+            audit_log('auth.login.failed', 'user', null, ['email_key' => $emailKey, 'reason' => 'invalid_credentials']);
+            $pdo->commit();
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $error;
+        }
+        return false;
+    }
+
+    if (login_is_locked($email)) {
+        audit_log('auth.login.blocked', 'user', null, ['email_key' => login_email_key($email)]);
+        return false;
+    }
+
     $pdo = database_connection();
     $statement = $pdo->prepare(
         'SELECT id, full_name, email, password_hash,
@@ -14,22 +34,41 @@ function authenticate_user(string $email, string $password): bool
     $user = $statement->fetch();
 
     if (!$user || (int) $user['active_flag'] !== 1 || !password_verify($password, $user['password_hash'])) {
+        $pdo->beginTransaction();
+        try {
+            record_login_failure($email);
+            audit_log('auth.login.failed', 'user', $user ? (int) $user['id'] : null, [
+                'email_key' => login_email_key($email),
+                'reason' => 'invalid_credentials',
+            ]);
+            $pdo->commit();
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $error;
+        }
         return false;
     }
 
-    if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
-        $update = $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
-        $update->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $user['id']]);
+    $pdo->beginTransaction();
+    try {
+        if (password_needs_rehash($user['password_hash'], PASSWORD_DEFAULT)) {
+            $update = $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
+            $update->execute(['hash' => password_hash($password, PASSWORD_DEFAULT), 'id' => $user['id']]);
+        }
+        $pdo->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = :id')
+            ->execute(['id' => $user['id']]);
+        clear_login_failures($email);
+        $roleStatement = $pdo->prepare(
+            'SELECT r.code FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = :user_id ORDER BY r.code'
+        );
+        $roleStatement->execute(['user_id' => $user['id']]);
+        $roles = $roleStatement->fetchAll(PDO::FETCH_COLUMN);
+        audit_log('auth.login.succeeded', 'user', (int) $user['id']);
+        $pdo->commit();
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        throw $error;
     }
-
-    $pdo->prepare('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = :id')
-        ->execute(['id' => $user['id']]);
-
-    $roleStatement = $pdo->prepare(
-        'SELECT r.code FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = :user_id ORDER BY r.code'
-    );
-    $roleStatement->execute(['user_id' => $user['id']]);
-    $roles = $roleStatement->fetchAll(PDO::FETCH_COLUMN);
 
     session_regenerate_id(true);
     $_SESSION['user'] = [
@@ -45,6 +84,7 @@ function authenticate_user(string $email, string $password): bool
 
 function register_student(string $fullName, string $email, string $phone, string $password): void
 {
+    validate_password_or_throw($password);
     $pdo = database_connection();
     $pdo->beginTransaction();
     try {
@@ -72,6 +112,7 @@ function register_student(string $fullName, string $email, string $phone, string
             ->execute(['user_id' => $user['id'], 'role_id' => $roleId]);
         $pdo->prepare('INSERT INTO students (user_id) VALUES (:user_id)')
             ->execute(['user_id' => $user['id']]);
+        audit_log('auth.registered', 'user', (int) $user['id'], ['role' => 'student'], (int) $user['id']);
 
         $pdo->commit();
         session_regenerate_id(true);

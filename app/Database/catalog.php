@@ -15,8 +15,11 @@ function list_class_subjects(int $limit = 12): array
             WHERE cs.is_active
             GROUP BY cs.id, s.name, c.name, st.name
             ORDER BY st.sort_order, c.sort_order, s.name
-            LIMIT ' . $limit;
-    return database_connection()->query($sql)->fetchAll();
+            LIMIT :limit';
+    $statement = database_connection()->prepare($sql);
+    $statement->bindValue('limit', $limit, PDO::PARAM_INT);
+    $statement->execute();
+    return $statement->fetchAll();
 }
 
 function find_class_subject(int $id): ?array
