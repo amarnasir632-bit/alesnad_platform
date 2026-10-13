@@ -170,8 +170,10 @@ function content_create_past_exam(array $actor, array $input, array $file): arra
 function content_normalize_question_options(mixed $options): array
 {
     if (!is_array($options)) throw new ApiException(422, 'validation_failed', 'options يجب أن تكون قائمة.');
+    if (count($options) > 32768) throw new ApiException(422, 'validation_failed', 'عدد الخيارات يتجاوز الحد الذي يدعمه المخطط.');
     $normalized = [];
     foreach (array_values($options) as $index => $option) {
+        if (is_object($option)) $option = get_object_vars($option);
         if (!is_array($option)) throw new ApiException(422, 'validation_failed', 'كل خيار يجب أن يكون كائنًا.');
         $text = content_text($option['option_text'] ?? null, 'option_text', PHP_INT_MAX, true);
         $correct = $option['is_correct'] ?? false;
@@ -187,6 +189,26 @@ function content_replace_question_options(PDO $db, int $questionId, array $optio
     $delete->execute(['id' => $questionId]);
     $insert = $db->prepare('INSERT INTO question_options (question_id, option_text, is_correct, sort_order) VALUES (:question_id, :option_text, :is_correct, :sort_order)');
     foreach ($options as $option) $insert->execute(['question_id' => $questionId] + $option);
+}
+
+function content_validate_question_option_set(string $questionType, array $options): void
+{
+    $optionCount = count($options);
+    $correctCount = count(array_filter($options, static fn(array $option): bool => database_boolean($option['is_correct'] ?? false)));
+    if ($questionType === 'ESSAY') {
+        if ($optionCount !== 0) throw new ApiException(422, 'question_options_invalid', 'السؤال المقالي لا يقبل خيارات موضوعية.');
+        return;
+    }
+    if ($correctCount !== 1) throw new ApiException(422, 'correct_option_required', 'يجب تحديد إجابة صحيحة واحدة للسؤال الموضوعي.');
+    if ($questionType === 'MCQ' && $optionCount < 2) throw new ApiException(422, 'question_options_invalid', 'سؤال الاختيار من متعدد يحتاج خيارين على الأقل.');
+    if ($questionType === 'TRUE_FALSE' && $optionCount !== 2) throw new ApiException(422, 'question_options_invalid', 'سؤال الصح والخطأ يحتاج خيارين فقط.');
+}
+
+function content_validate_question_options(PDO $db, array $question): void
+{
+    $statement = $db->prepare('SELECT is_correct FROM question_options WHERE question_id = :id ORDER BY sort_order, id');
+    $statement->execute(['id' => $question['id']]);
+    content_validate_question_option_set((string) $question['question_type'], $statement->fetchAll());
 }
 
 function content_create_question(array $actor, array $input): array
@@ -374,6 +396,7 @@ function content_submit_for_review(array $actor, string $kind, int $id): array
         foreach (['source_reference', 'source_owner', 'copyright_license'] as $field) {
             if (!is_string($row[$field] ?? null) || trim($row[$field]) === '') throw new ApiException(422, 'provenance_required', 'أدخل المصدر ومالك المحتوى والترخيص قبل الإرسال للمراجعة.');
         }
+        if ($kind === 'question') content_validate_question_options($db, $row);
         if ($kind !== 'question' && resolve_private_file((string) ($row['storage_key'] ?? '')) === null) throw new ApiException(422, 'file_unavailable', 'ملف المحتوى غير متاح داخل مساحة التخزين الخاصة.');
         $employeeId = content_employee_id($db, (int) $actor['id']);
         content_assert_upload_scope($db, $actor, $employeeId, (int) $row['class_subject_id']);
