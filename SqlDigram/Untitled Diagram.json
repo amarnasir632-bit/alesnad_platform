@@ -1,0 +1,1093 @@
+{
+  "version": "32.4.1",
+  "pages": [
+    {
+      "id": "euZwfwDuzQUhdPO1GAnq",
+      "name": "Page-1",
+      "cells": [
+        {
+          "id": "1",
+          "type": "layer"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-7",
+          "type": "node",
+          "parent": "1",
+          "label": "students",
+          "html": "<code>students</code>"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-8",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "SID (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-1",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "UID (FK)",
+          "html": "<code>UID (FK)</code>"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-9",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "StudentName (varcahr 100)",
+          "html": "<code>StudentName</code>&nbsp;(varcahr 100)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-39",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "class (FK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-38",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "StudentAge (num )",
+          "html": "<code>StudentAge</code>&nbsp;(num )"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-16",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "StudentPhoneNumber (num )",
+          "html": "<code>StudentPhoneNumber</code>&nbsp;(num )"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-17",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-7",
+          "label": "StudentParentPhoneNumber (num )",
+          "html": "<code>StudentParentPhoneNumber</code>&nbsp;(num )"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-19",
+          "type": "node",
+          "parent": "1",
+          "label": "User"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-20",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "UID (pk)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-21",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "EmpId&nbsp;(FK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-27",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "Name (varcahr 100)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-28",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "PhoneNumber (num)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-1",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "Password (varchar 255l)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-29",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "Email (mail)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-27",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "Last LogInAt (Date)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-29",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-19",
+          "label": "isActive (Boolean )"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-30",
+          "type": "node",
+          "parent": "1",
+          "label": "Subject"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-31",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-30",
+          "label": "SubjectID (PK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-32",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-30",
+          "label": "SubjectName (varcahr 100)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-34",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-30",
+          "label": "SubjectTecther (FK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-40",
+          "type": "node",
+          "parent": "1",
+          "label": "Classes",
+          "html": "<code>Classes</code>"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-41",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-40",
+          "label": "ClassID (PK)",
+          "html": "<code>ClassID (PK)</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-11",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-40",
+          "label": "StageID (FK)",
+          "html": "<code>StageID</code> (FK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-42",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-40",
+          "label": "ClassName (varcahr 100)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-47",
+          "type": "node",
+          "parent": "1",
+          "label": "Resource"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-48",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "RID (PK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-51",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "ResourceName (varcahr 100)",
+          "html": "<span style=\"text-align: center;\">Resource</span>Name (varcahr 100)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-52",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "ResourceType  ENUM('AUDIO',VIDEO,PDF)",
+          "html": "<span style=\"text-align: center;\">Resource</span>Type&nbsp; ENUM('AUDIO',VIDEO,PDF)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-2",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "Description (Text)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-3",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "SubjectID (FK)"
+        },
+        {
+          "id": "BKvbLyGVcZsRI37Hnhll-49",
+          "type": "node",
+          "parent": "BKvbLyGVcZsRI37Hnhll-47",
+          "label": "CreatedAt (TimeTamp)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-8",
+          "type": "edge",
+          "parent": "1",
+          "source": "BKvbLyGVcZsRI37Hnhll-39",
+          "target": "BKvbLyGVcZsRI37Hnhll-41"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-9",
+          "type": "edge",
+          "parent": "1",
+          "source": "BKvbLyGVcZsRI37Hnhll-41",
+          "target": "1kj4oKM3GgurEhXgdZoQ-70"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-18",
+          "type": "node",
+          "parent": "1",
+          "label": "Employees"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-19",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "EmpId (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-2",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "UID (FK)",
+          "html": "<span style=\"font-family: monospace;\">UID (FK)</span>"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-20",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "Name (varcahr 150)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-23",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "JopTitle (Varchar 100)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-21",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "PhoneNumber (num)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-22",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "Email (mail)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-26",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "address (Varchar 255)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-24",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-18",
+          "label": "isActive (Boolean )"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-30",
+          "type": "node",
+          "parent": "1",
+          "label": "Role"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-31",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-30",
+          "label": "RoleId (PK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-32",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-30",
+          "label": "RoleName (varcahr 50)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-33",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-30",
+          "label": "DisplayName (Varchar 100)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-34",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-30",
+          "label": "Description (Text)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-35",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-30",
+          "label": "IsSystemRole(boolean)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-38",
+          "type": "node",
+          "parent": "1",
+          "label": "Permissions"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-39",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-38",
+          "label": "PermissionsId (PK)",
+          "html": "<span style=\"text-align: center;\">PermissionsId</span>&nbsp;(PK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-40",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-38",
+          "label": "PermissionsKey (varcahr 100)",
+          "html": "<span style=\"text-align: center;\">PermissionsKey</span>&nbsp;(varcahr 100)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-41",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-38",
+          "label": "DisplayName (Varchar 150)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-42",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-38",
+          "label": "Description (Text)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-46",
+          "type": "node",
+          "parent": "1",
+          "label": "UserRole"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-47",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-46",
+          "label": "RoleId (FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-48",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-46",
+          "label": "UID (FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-49",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-46",
+          "label": "DisplayName (Varchar 150)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-51",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-46",
+          "label": "AssignedAt (TimeTamp)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-50",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-46",
+          "label": "AssignedBy (Int)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-52",
+          "type": "node",
+          "parent": "1",
+          "label": "PermissionsRole"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-53",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-52",
+          "label": "RoleId (FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-57",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-52",
+          "label": "PermissionsId (FK)",
+          "html": "<span style=\"text-align: center;\">PermissionsId</span> (FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-54",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-52",
+          "label": "AssignedAt (TimeTamp)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-60",
+          "type": "edge",
+          "parent": "1",
+          "source": "BKvbLyGVcZsRI37Hnhll-21",
+          "target": "1kj4oKM3GgurEhXgdZoQ-19"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-62",
+          "type": "edge",
+          "parent": "1",
+          "source": "1kj4oKM3GgurEhXgdZoQ-31",
+          "target": "1kj4oKM3GgurEhXgdZoQ-47"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-63",
+          "type": "edge",
+          "parent": "1",
+          "source": "1kj4oKM3GgurEhXgdZoQ-30",
+          "target": "1kj4oKM3GgurEhXgdZoQ-53"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-64",
+          "type": "node",
+          "parent": "1",
+          "label": "ClassSubject",
+          "html": "<pre dir=\"ltr\"><code>ClassSubject</code></pre>"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-65",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-64",
+          "label": "SubjectID (PK, FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-70",
+          "type": "node",
+          "parent": "1kj4oKM3GgurEhXgdZoQ-64",
+          "label": "ClassID (PK, FK)",
+          "html": "<span style=\"background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));\">ClassID</span>&nbsp;(PK, FK)"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-74",
+          "type": "edge",
+          "parent": "1",
+          "source": "BKvbLyGVcZsRI37Hnhll-31",
+          "target": "1kj4oKM3GgurEhXgdZoQ-65"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-75",
+          "type": "edge",
+          "parent": "1",
+          "source": "1kj4oKM3GgurEhXgdZoQ-39",
+          "target": "1kj4oKM3GgurEhXgdZoQ-57"
+        },
+        {
+          "id": "1kj4oKM3GgurEhXgdZoQ-76",
+          "type": "edge",
+          "parent": "1",
+          "source": "BKvbLyGVcZsRI37Hnhll-20",
+          "target": "1kj4oKM3GgurEhXgdZoQ-48"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-3",
+          "type": "node",
+          "parent": "1",
+          "label": "Stages",
+          "html": "<code>Stages</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-4",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-3",
+          "label": "StageID (PK)",
+          "html": "<code>StageID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-5",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-3",
+          "label": "StageName (Varchar 100)",
+          "html": "<code>StageName</code> (Varchar 100)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-8",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-3",
+          "label": "IsSystemRole(boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-12",
+          "type": "node",
+          "parent": "1",
+          "label": "Questions",
+          "html": "<code>Questions</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-13",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "QuestionID (PK)",
+          "html": "<code>QuestionID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-14",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "SubjectID (FK)",
+          "html": "<code>SubjectID</code> (FK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-15",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "LessonID (FK)",
+          "html": "<code>LessonID (FK)</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-16",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "QuestionText (Text)",
+          "html": "<code>QuestionText</code>&nbsp;(Text)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-19",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "QuestionType (ENUM: 'MCQ', 'TRUE_FALSE', 'ESSAY')",
+          "html": "<code>QuestionType</code> (ENUM: 'MCQ', 'TRUE_FALSE', 'ESSAY')"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-20",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "DifficultyLevel (ENUM: 'EASY', 'MEDIUM', 'HARD')",
+          "html": "<code>DifficultyLevel</code> (ENUM: 'EASY', 'MEDIUM', 'HARD')"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-17",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "CreatedBy (FK -> Employees.EmpId)",
+          "html": "<code>CreatedBy</code> (FK -&gt; Employees.EmpId)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-21",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-12",
+          "label": "Status (ENUM: 'DRAFT', 'PENDING_REVIEW', 'APPROVED')",
+          "html": "<code>Status</code> (ENUM: 'DRAFT', 'PENDING_REVIEW', 'APPROVED')"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-22",
+          "type": "node",
+          "parent": "1",
+          "label": "QuestionOptions",
+          "html": "<code>QuestionOptions</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-23",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-22",
+          "label": "OptionID (PK)",
+          "html": "<code>OptionID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-24",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-22",
+          "label": "QuestionID (FK)",
+          "html": "<code>QuestionID</code> (FK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-25",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-22",
+          "label": "OptionText (Text)",
+          "html": "<code>OptionText</code> (Text)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-26",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-22",
+          "label": "IsCorrect (Boolean)",
+          "html": "<code>IsCorrect</code> (Boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-31",
+          "type": "node",
+          "parent": "1",
+          "label": "PastExams",
+          "html": "<code>PastExams</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-32",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "ExamID (PK)",
+          "html": "<code>ExamID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-33",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "SubjectID (FK)",
+          "html": "<code>SubjectID</code> (FK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-34",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "ExamTitle (Varchar 150)",
+          "html": "<code>ExamTitle</code> (Varchar 150)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-36",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "AcademicYear (Varchar 20)",
+          "html": "<code>AcademicYear</code> (Varchar 20)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-37",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "FilePath (Varchar 255)",
+          "html": "<code>FilePath</code> (Varchar 255)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-35",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-31",
+          "label": "IsPublished (Boolean)",
+          "html": "<code>IsPublished</code> (Boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-38",
+          "type": "node",
+          "parent": "1",
+          "label": "LiveSessions",
+          "html": "<code>LiveSessions</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-39",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "SessionID",
+          "html": "<code>SessionID</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-40",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "SubjectID (FK)",
+          "html": "<code>SubjectID</code> (FK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-41",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "TeacherID (FK -> Employees.EmpId)",
+          "html": "<code>TeacherID</code> (FK -&gt; Employees.EmpId)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-42",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "Title (Varchar 150)",
+          "html": "<code>Title</code> (Varchar 150)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-43",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "ScheduledAt (Timestamp)",
+          "html": "<code>ScheduledAt</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-44",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "MeetingURL (Varchar 255)",
+          "html": "<code>MeetingURL</code> (Varchar 255)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-45",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "RecordingURL (Varchar 255)",
+          "html": "<code>RecordingURL</code> (Varchar 255)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-46",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-38",
+          "label": "IsActive (Boolean)",
+          "html": "<code>IsActive</code> (Boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-47",
+          "type": "node",
+          "parent": "1",
+          "label": "Messages",
+          "html": "<code>Messages</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-48",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "MessageID (PK)",
+          "html": "<code>MessageID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-49",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "SenderID (FK -> Users.UID)",
+          "html": "<code>SenderID</code> (FK -&gt; Users.UID)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-50",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "ReceiverID (FK -> Users.UID)",
+          "html": "<code>ReceiverID</code> (FK -&gt; Users.UID)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-51",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "MessageBody (Text)",
+          "html": "<code>MessageBody</code> (Text)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-52",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "SentAt (Timestamp)",
+          "html": "<code>SentAt</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-53",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-47",
+          "label": "IsRead (Boolean)",
+          "html": "<code>IsRead</code> (Boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-56",
+          "type": "node",
+          "parent": "1",
+          "label": "ContentReviews",
+          "html": "<code>ContentReviews</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-57",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ReviewID (PK)",
+          "html": "<code>ReviewID</code> (PK)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-58",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ContentType (ENUM: 'RESOURCE', 'QUESTION', 'EXAM')",
+          "html": "<code>ContentType</code> (ENUM: 'RESOURCE', 'QUESTION', 'EXAM')"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-59",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ContentID (Int )",
+          "html": "<code>ContentID</code> (Int )"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-60",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ReviewerID (FK -> Employees.EmpId )",
+          "html": "<code>ReviewerID</code> (FK -&gt; Employees.EmpId )"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-61",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ReviewStatus (ENUM: 'APPROVED', 'REJECTED', 'NEEDS_MODIFICATION')",
+          "html": "<code>ReviewStatus</code> (ENUM: 'APPROVED', 'REJECTED', 'NEEDS_MODIFICATION')"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-63",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "Feedback (Text)",
+          "html": "<code>Feedback</code> (Text)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-62",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-56",
+          "label": "ReviewedAt (Timestamp)",
+          "html": "<code>ReviewedAt</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-64",
+          "type": "node",
+          "parent": "1",
+          "label": "Quizzes",
+          "html": "<code>Quizzes</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-65",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "QuizID (PK, Int)",
+          "html": "<code>QuizID</code> (PK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-66",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "SubjectID (FK, Int)",
+          "html": "<code>SubjectID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-67",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "Title (Varchar 150)",
+          "html": "<code>Title</code> (Varchar 150)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-68",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "Description (Text)",
+          "html": "<code>Description</code> (Text)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-69",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "DurationMinutes (Int)",
+          "html": "<code>DurationMinutes</code> (Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-70",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "TotalMarks (Decimal/Int)",
+          "html": "<code>TotalMarks</code> (Decimal/Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-71",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "PassingMarks (Decimal/Int)",
+          "html": "<code>PassingMarks</code> (Decimal/Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-73",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "StartTime (Timestamp)",
+          "html": "<code>StartTime</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-74",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "EndTime (Timestamp)",
+          "html": "<code>EndTime</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-72",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "IsPublished (Boolean)",
+          "html": "<code>IsPublished</code> (Boolean)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-75",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-64",
+          "label": "CreatedBy (FK, Int)",
+          "html": "<code>CreatedBy</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-76",
+          "type": "node",
+          "parent": "1",
+          "label": "QuizQuestions",
+          "html": "<code>QuizQuestions</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-77",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-76",
+          "label": "QuizID (FK, Int)",
+          "html": "<code>QuizID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-78",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-76",
+          "label": "QuestionID (FK, Int)",
+          "html": "<code>QuestionID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-79",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-76",
+          "label": "QuestionMark (Decimal)",
+          "html": "<code>QuestionMark</code> (Decimal)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-88",
+          "type": "node",
+          "parent": "1",
+          "label": "QuizAttempts",
+          "html": "<code>QuizAttempts</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-89",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "AttemptID (PK, Int)",
+          "html": "<code>AttemptID</code> (PK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-90",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "QuizID (FK, Int)",
+          "html": "<code>QuizID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-91",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "StudentID (FK, Int)",
+          "html": "<code>StudentID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-92",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "StartedAt (Timestamp)",
+          "html": "<code>StartedAt</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-93",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "SubmittedAt (Timestamp)",
+          "html": "<code>SubmittedAt</code> (Timestamp)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-94",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "Score (Decimal)",
+          "html": "<code>Score</code> (Decimal)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-95",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-88",
+          "label": "Status (ENUM: 'IN_PROGRESS', 'SUBMITTED', 'GRADED')",
+          "html": "<code>Status</code> (ENUM: <code>'IN_PROGRESS'</code>, <code>'SUBMITTED'</code>, <code>'GRADED'</code>)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-100",
+          "type": "node",
+          "parent": "1",
+          "label": "StudentAnswers",
+          "html": "<code>StudentAnswers</code>"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-101",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "AnswerID (PK, Int)",
+          "html": "<code>AnswerID</code> (PK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-102",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "AttemptID (FK, Int)",
+          "html": "<code>AttemptID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-103",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "QuestionID (FK, Int)",
+          "html": "<code>QuestionID</code> (FK, Int)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-104",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "SelectedOptionID (FK, Int, Nullable)",
+          "html": "<code>SelectedOptionID</code> (FK, Int, Nullable)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-105",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "EssayAnswerText (Text, Nullable)",
+          "html": "<code>EssayAnswerText</code> (Text, Nullable)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-106",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "IsCorrect (Boolean, Nullable)",
+          "html": "<code>IsCorrect</code> (Boolean, Nullable)"
+        },
+        {
+          "id": "g2mmxTvzueTYQa9XIghY-107",
+          "type": "node",
+          "parent": "g2mmxTvzueTYQa9XIghY-100",
+          "label": "AwardedMark (Decimal)",
+          "html": "<code>AwardedMark</code> (Decimal)"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-1",
+          "type": "node",
+          "parent": "1",
+          "label": "Subscriptions",
+          "html": "<code>Subscriptions</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-2",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "SubscriptionID (PK)",
+          "html": "<code>SubscriptionID (PK)</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-3",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "StudentID (FK)",
+          "html": "<code>StudentID (FK)</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-4",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "StartDate (Timestamp)",
+          "html": "<code>StartDate (Timestamp)</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-5",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "EndDate (Timestamp)",
+          "html": "<code>EndDate (Timestamp)</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-6",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "AmountPaid (Decimal)",
+          "html": "<code>AmountPaid (Decimal)</code>"
+        },
+        {
+          "id": "_cW3OKqbQioPhcxFG3YQ-7",
+          "type": "node",
+          "parent": "_cW3OKqbQioPhcxFG3YQ-1",
+          "label": "Status (ENUM: 'ACTIVE', 'EXPIRED', 'PENDING')",
+          "html": "<code>Status (ENUM: 'ACTIVE', 'EXPIRED', 'PENDING')</code>"
+        }
+      ]
+    }
+  ]
+}
