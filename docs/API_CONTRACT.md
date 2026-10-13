@@ -1,4 +1,4 @@
-# عقد واجهة API للمرحلة الأولى
+# عقد واجهة API
 
 الجذر `/api/v1/`. كل الاستجابات JSON بترميز UTF-8، وتستخدم الأخطاء الشكل `{ "error": { "code": "...", "message": "..." } }`. يتطلب كل `POST` و`PUT` و`PATCH` و`DELETE` جلسة متصفح ورمز CSRF؛ لا تستخدم الواجهة تخزينًا محليًا لرموز الدخول.
 
@@ -65,8 +65,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `Content-Type: application/json` مطلوب لكل طلب ذي جسم؛ JSON غير الصحيح يعيد `400 invalid_json`، والنوع الخطأ `415 content_type_required`.
 - جميع مدخلات SQL مربوطة عبر PDO prepared statements. رسائل الخادم لا تعرض تفاصيل استثناء قاعدة البيانات.
 - أخطاء غير متوقعة تعيد `500 internal_error` مع تسجيل التفاصيل في سجل الخادم.
-- لا توجد نقاط لرفع الملفات أو تنزيلها أو مراجعة الموارد والامتحانات أو الاختبارات والحصص والرسائل والاشتراكات. البحث الأكاديمي يعرض بيانات وصفية للموارد فقط؛ عند تنفيذ نقاط الوصول للملفات يجب فرض الاستحقاق وتسجيل أحداث المراجعة/التنزيل في `audit_events`.
-- الدفع الإلكتروني والذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج النطاق.
+- الاختبارات القابلة للتقديم والحصص المباشرة والرسائل والاشتراكات/الدفع الإلكتروني ما زالت خارج التنفيذ في هذه المرحلة. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
 
 ## الترحيل والتراجع
 
@@ -112,6 +111,34 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ### البحث
 
-`GET /api/v1/content/search?q={text}&stage_id={id}&class_id={id}&subject_id={id}&lesson_id={id}&limit=25&offset=0` يتطلب جلسة وصلاحية `content.read`. كل المرشحات اختيارية؛ البحث النصي محدود بـ120 محرفًا، والحد `limit` من 1 إلى 100. يعيد موارد المحتوى المعتمدة فقط، مع بيانات المرحلة والصف والمادة والدرس وحقل `requires_subscription`، دون `storage_key` أو رابط تنزيل. يظل الوصول إلى الملف الفعلي خاضعًا لنقطة تنزيل محمية في مرحلة المحتوى، وقواعد أهلية الاشتراك في OD-05. أخطاء المدخلات `422 validation_failed`، وانعدام الصلاحية `403 forbidden`.
+`GET /api/v1/content/search?q={text}&stage_id={id}&class_id={id}&class_subject_id={id}&subject_id={id}&lesson_id={id}&limit=25&offset=0` يتطلب جلسة وصلاحية `content.read`. يعيد الموارد والامتحانات السابقة المعتمدة فقط دون مفاتيح التخزين أو روابط التنزيل. البحث بالمرحلة والصف والمادة والدرس يطبق على الموارد؛ الامتحانات السابقة تتبع الصف والمادة. الحد `limit` من 1 إلى 100.
 
 تمثل أسماء المراحل والصفوف والمواد بيانات قابلة للإدارة. لا يزرع النظام صفوفًا للمرحلة المتوسطة لأن أسمائها غير معتمدة بعد (OD-19).
+
+## المحتوى والملفات والأسئلة (المرحلة الثالثة)
+
+طلبات الرفع تستخدم `multipart/form-data` مع حقل ملف اسمه `file` ورمز CSRF في `X-CSRF-Token`. الأنواع تُفحص بمكتبة PHP Fileinfo. الحد الأقصى إلزامي في `UPLOAD_MAX_BYTES`؛ غيابه يعيد `503 upload_not_configured`. الملفات تحفظ خارج `public/` في `PRIVATE_STORAGE_PATH`، ومفتاح التخزين عشوائي ولا يظهر في استجابات API. توافق حد PHP/web server مع الحد المعتمد مطلوب (OD-14).
+
+### رفع وتحرير المحتوى
+
+- `POST /api/v1/content/resources` يتطلب `content.upload` وملفًا، ويقبل `title`, `resource_type` (`PDF|VIDEO|AUDIO|DOCUMENT`), `class_subject_id`, `lesson_id` اختياري، `description`, `source_reference`, `source_owner`, `copyright_license`. يعود 201 بمورد في حالة `DRAFT`.
+- `POST /api/v1/content/past-exams` يتطلب `content.upload` وملفًا، ويقبل `title`, `class_subject_id`, `academic_year` اختياري وحقول المصدر والمالك والترخيص. يعود 201 في `DRAFT`.
+- `POST /api/v1/content/questions` يتطلب `questions.manage` ويقبل `class_subject_id`, `lesson_id` اختياري، `question_text`, `question_type` (`MCQ|TRUE_FALSE|ESSAY`), `difficulty` اختياري، `explanation`, حقول المصدر، و`options` الاختيارية كمصفوفة `{option_text,is_correct}`. لا تفرض المنصة قواعد إضافية لعدد الخيارات أو الإجابات الصحيحة.
+- `PATCH /api/v1/content/{resources|past-exams|questions}/{id}` يحرر مسودة أو محتوى مرفوض يملكه المستخدم أو مدير النظام. تعديل المحتوى المرفوض يعيده إلى `DRAFT`. الصلاحية المطلوبة `content.upload` للملفات و`questions.manage` للسؤال.
+- `POST /api/v1/content/{resources|past-exams}/{id}/replace-file` يستبدل ملف المسودة/المرفوض. يحذف الملف القديم بعد نجاح معاملة تحديث قاعدة البيانات.
+
+الأستاذ الذي يرفع أو يرسل للمراجعة يجب أن يملك إسنادًا نشطًا للصف والمادة. أخطاء الرفع تشمل `413 file_too_large`, `415 unsupported_file_type`, `422 invalid_reference|provenance_required|file_required`, و`503 storage_not_configured|upload_not_configured`.
+
+### المراجعة والنشر
+
+- `POST /api/v1/content/{resources|past-exams|questions}/{id}/submit` يتطلب صلاحية الرفع المناسبة، ملكية المحتوى أو دور مدير النظام، وحالة `DRAFT` وبيانات مصدر/مالك/ترخيص مكتملة.
+- `POST /api/v1/admin/content/{resources|past-exams|questions}/{id}/review` يتطلب `content.review` ويقبل `{ "status": "APPROVED"|"REJECTED", "feedback": "..." }`. الموافقة تتطلب أيضًا `content.publish`. ينشأ سجل `content_reviews` وتتغير الحالة و`published_at` في معاملة واحدة. المراجع لا يمكنه مراجعة محتواه، وقاعدة البيانات تمنع حالة `APPROVED` بلا سجل موافقة.
+- المسار: `DRAFT → PENDING_REVIEW → APPROVED|REJECTED`؛ المحتوى المرفوض يمكن تحريره وإعادته لمسودة.
+- أخطاء الحالات: `403 self_review_forbidden|forbidden`, `404 not_found`, `409 content_state_conflict`, `422 provenance_required|file_unavailable`, و`419 csrf_failed`.
+
+### تنزيل الملفات الخاصة
+
+- `GET /api/v1/content/resources/{id}/download`, `GET /api/v1/content/resources/{id}/variants/{variant_id}/download`, `GET /api/v1/content/past-exams/{id}/download` تتطلب جلسة وصلاحية `content.read` أو `exams.read` على الترتيب.
+- يشترط أن يكون المحتوى `APPROVED` وله `published_at` وسجل مراجعة موافق. الطالب يحتاج اشتراكًا نشطًا ساريًا إذا كان المورد يتطلب اشتراكًا. تنزيل النسخ البديلة يتطلب `resource_variants.is_downloadable=true`.
+- يدعم `Range: bytes=start-end` وطلبات suffix، ويعيد `206` مع `Content-Range` و`Accept-Ranges`. النطاق غير الصحيح يعيد `416` و`Content-Range: bytes */size`. النطاقات المتعددة غير مدعومة. يسجل التنزيل `content.download.started` في `audit_events`.
+- لا يعاد مفتاح التخزين ولا ينشأ رابط عام. أخطاء الوصول: `401 unauthenticated`, `403 forbidden|active_subscription_required`, `404 not_found`, `416 range_not_satisfiable`.

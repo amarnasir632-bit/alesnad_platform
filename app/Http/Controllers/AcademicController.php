@@ -71,7 +71,11 @@ function api_search_academic_content(): never
     $queryLength = preg_match_all('/./us', $query);
     if ($queryLength === false || $queryLength > 120) throw new InvalidArgumentException('q يجب أن يكون نصًا صالحًا وألا يتجاوز 120 محرفًا.');
     $filters['q'] = trim($query);
-    json_response(200, ['data' => ['resources' => academic_search_resources($filters), 'filters' => array_intersect_key($filters, array_flip(['stage_id', 'class_id', 'subject_id', 'lesson_id', 'q', 'limit', 'offset']))]]);
+    json_response(200, ['data' => [
+        'resources' => academic_search_resources($filters),
+        'past_exams' => api_search_past_exams($filters),
+        'filters' => array_intersect_key($filters, array_flip(['stage_id', 'class_id', 'class_subject_id', 'subject_id', 'lesson_id', 'q', 'limit', 'offset'])),
+    ]]);
 }
 
 function api_admin_academic_create(string $kind, array $body): never
