@@ -44,3 +44,4 @@ require_once PROJECT_ROOT . '/app/Security/authorization.php';
 require_once PROJECT_ROOT . '/app/Security/audit.php';
 require_once PROJECT_ROOT . '/app/Security/login_throttle.php';
 require_once PROJECT_ROOT . '/app/Security/passwords.php';
+require_once PROJECT_ROOT . '/app/Services/AcademicService.php';
