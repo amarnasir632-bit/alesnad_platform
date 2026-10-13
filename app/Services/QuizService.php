@@ -308,7 +308,7 @@ function quiz_student_list(int $userId): array
            AND (qz.requires_subscription = FALSE OR :can_access = TRUE)
          ORDER BY qz.starts_at NULLS FIRST, qz.id"
     );
-    $statement->execute(['has_subscription' => $hasSubscription, 'can_access' => $hasSubscription, 'class_id' => $student['class_id']]);
+    database_execute($statement, ['has_subscription' => $hasSubscription, 'can_access' => $hasSubscription, 'class_id' => (int) $student['class_id']]);
     return $statement->fetchAll();
 }
 

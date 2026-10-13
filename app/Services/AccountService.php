@@ -123,7 +123,7 @@ function update_managed_account(int $id, array $input): array
         }
         if (!$sets) throw new InvalidArgumentException('لا توجد حقول قابلة للتعديل.');
         $update = $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=:id');
-        $update->execute($params);
+        database_execute($update, $params);
         audit_log('account.updated', 'user', $id, ['fields' => array_keys($input)]);
         $pdo->commit();
     } catch (Throwable $error) {

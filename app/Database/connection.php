@@ -30,3 +30,14 @@ function database_boolean(mixed $value): bool
 {
     return $value === true || $value === 1 || $value === '1' || $value === 't' || $value === 'true';
 }
+
+function database_execute(PDOStatement $statement, array $parameters = []): void
+{
+    foreach ($parameters as $name => $value) {
+        $parameter = is_int($name) ? $name + 1 : (str_starts_with((string) $name, ':') ? (string) $name : ':' . $name);
+        $type = is_bool($value) ? PDO::PARAM_BOOL
+            : ($value === null ? PDO::PARAM_NULL : (is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR));
+        $statement->bindValue($parameter, $value, $type);
+    }
+    $statement->execute();
+}

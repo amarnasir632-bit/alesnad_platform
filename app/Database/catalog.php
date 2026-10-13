@@ -13,7 +13,7 @@ function list_class_subjects(int $limit = 12): array
             JOIN stages st ON st.id = c.stage_id AND st.is_active
             LEFT JOIN lessons l ON l.class_subject_id = cs.id AND l.is_published
             WHERE cs.is_active
-            GROUP BY cs.id, s.name, c.name, st.name
+            GROUP BY cs.id, s.name, c.name, st.name, st.sort_order, c.sort_order
             ORDER BY st.sort_order, c.sort_order, s.name
             LIMIT :limit';
     $statement = database_connection()->prepare($sql);

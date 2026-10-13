@@ -130,7 +130,7 @@ function subscription_create_plan(array $input, int $actorId): array
     $db->beginTransaction();
     try {
         $stmt = $db->prepare('INSERT INTO subscription_plans (code, name, description, duration_days, price, currency, is_active) VALUES (:code, :name, :description, :duration_days, :price, :currency, :is_active) RETURNING id, code, name, description, duration_days, price, currency, is_active, created_at');
-        $stmt->execute($data);
+        database_execute($stmt, $data);
         $row = $stmt->fetch();
         audit_log('subscription_plan.created', 'subscription_plan', (int) $row['id'], ['code' => $row['code']], $actorId);
         $db->commit();
@@ -153,7 +153,7 @@ function subscription_update_plan(int $planId, array $input, int $actorId): arra
         if (!$existing) throw new ApiException(404, 'not_found', 'الخطة غير موجودة.');
         $data = subscription_plan_input($input, $existing);
         $stmt = $db->prepare('UPDATE subscription_plans SET code = :code, name = :name, description = :description, duration_days = :duration_days, price = :price, currency = :currency, is_active = :is_active WHERE id = :id RETURNING id, code, name, description, duration_days, price, currency, is_active, created_at');
-        $stmt->execute($data + ['id' => $planId]);
+        database_execute($stmt, $data + ['id' => $planId]);
         $row = $stmt->fetch();
         audit_log('subscription_plan.updated', 'subscription_plan', $planId, ['fields' => array_keys($input)], $actorId);
         $db->commit();

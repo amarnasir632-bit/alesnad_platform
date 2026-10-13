@@ -46,6 +46,7 @@ function api_register_student(array $body): never
 function api_logout(): never
 {
     $user = refresh_authenticated_user();
+    if ($user === null) throw new ApiException(401, 'unauthenticated', 'سجّل الدخول للمتابعة.');
     if ($user !== null) audit_log('auth.logout', 'user', (int) $user['id']);
     logout_user();
     session_start();

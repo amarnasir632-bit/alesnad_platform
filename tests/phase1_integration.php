@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 
+ob_start();
 putenv('APP_ENV=test');
 putenv('SESSION_IDLE_TIMEOUT_SECONDS=300');
 putenv('LOGIN_MAX_ATTEMPTS=2');

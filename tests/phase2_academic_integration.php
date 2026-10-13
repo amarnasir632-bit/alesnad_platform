@@ -66,16 +66,23 @@ try {
     $lessonId = (int) $lesson['id'];
     $assert($stageId > 0 && $classId > 0 && $subjectId > 0 && $classSubjectId > 0 && $lessonId > 0, 'create stage, class, subject, mapping, and lesson');
     $assert(count(array_filter(academic_list_classes($stageId), static fn(array $row): bool => (int) $row['id'] === $classId)) === 1, 'filter classes by stage');
-    $assert(count(array_filter(academic_list_subjects($classId), static fn(array $row): bool => (int) $row['subject_id'] === $subjectId)) === 1, 'filter subjects by class');
+    $assert(count(array_filter(academic_list_subjects($classId), static fn(array $row): bool => (int) $row['id'] === $subjectId)) === 1, 'filter subjects by class');
     $assert(count(array_filter(academic_list_lessons(['stage_id' => $stageId, 'class_id' => $classId, 'subject_id' => $subjectId]), static fn(array $row): bool => (int) $row['id'] === $lessonId)) === 0, 'unpublished lesson remains hidden from the content catalog');
     academic_update('lessons', $lessonId, ['is_published' => true], $adminId);
     $publishAudit = $pdo->prepare("SELECT COUNT(*) FROM audit_events WHERE action_code='content.published' AND target_type='lesson' AND target_id=:id");
     $publishAudit->execute(['id' => $lessonId]);
     $assert((int) $publishAudit->fetchColumn() === 1, 'lesson publication is audited transactionally');
 
-    $resource = $pdo->prepare("INSERT INTO learning_resources(class_subject_id,lesson_id,title,resource_type,storage_key,requires_subscription,status,uploaded_by,published_at) VALUES(:mapping,:lesson,:title,'PDF',:storage,TRUE,'APPROVED',:employee,CURRENT_TIMESTAMP) RETURNING id");
+    $resource = $pdo->prepare("INSERT INTO learning_resources(class_subject_id,lesson_id,title,resource_type,storage_key,requires_subscription,status,uploaded_by,source_reference,source_owner,copyright_license) VALUES(:mapping,:lesson,:title,'PDF',:storage,TRUE,'DRAFT',:employee,'test source','test owner','test license') RETURNING id");
     $resource->execute(['mapping' => $classSubjectId, 'lesson' => $lessonId, 'title' => 'ملف دراسي قابل للبحث', 'storage' => 'test/' . $suffix . '.pdf', 'employee' => $employeeId]);
     $resourceId = (int) $resource->fetchColumn();
+    $pdo->prepare("UPDATE learning_resources SET status='PENDING_REVIEW' WHERE id=:id")->execute(['id' => $resourceId]);
+    $reviewerLookup = $pdo->prepare('SELECT id FROM employees WHERE user_id=:user_id');
+    $reviewerLookup->execute(['user_id' => $adminId]);
+    $reviewerId = (int) $reviewerLookup->fetchColumn();
+    $pdo->prepare("INSERT INTO content_reviews(resource_id,reviewer_id,status,feedback) VALUES(:resource,:reviewer,'APPROVED','approved test fixture')")
+        ->execute(['resource' => $resourceId, 'reviewer' => $reviewerId]);
+    $pdo->prepare("UPDATE learning_resources SET status='APPROVED',published_at=CURRENT_TIMESTAMP WHERE id=:id")->execute(['id' => $resourceId]);
     $results = academic_search_resources(['stage_id' => $stageId, 'class_id' => $classId, 'subject_id' => $subjectId, 'lesson_id' => $lessonId, 'q' => 'قابل للبحث']);
     $assert(count($results) === 1 && !array_key_exists('storage_key', $results[0]), 'search approved content by stage, class, subject, lesson, and text without exposing storage keys');
 

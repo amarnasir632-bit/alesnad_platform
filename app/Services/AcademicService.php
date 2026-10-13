@@ -198,7 +198,7 @@ function academic_update(string $table, int $id, array $input, int $actorId): ?a
         if ($table === 'subjects' || $table === 'lessons') $set[] = 'updated_at = CURRENT_TIMESTAMP';
         $data['id'] = $id;
         $statement = $db->prepare('UPDATE ' . $table . ' SET ' . implode(', ', $set) . ' WHERE id = :id RETURNING *');
-        $statement->execute($data);
+        database_execute($statement, $data);
         $row = $statement->fetch();
         if (!$row) { $db->rollBack(); return null; }
         $singular = ['stages' => 'stage', 'classes' => 'class', 'subjects' => 'subject', 'class_subjects' => 'class_subject', 'lessons' => 'lesson'][$table];

@@ -39,7 +39,7 @@ $httpRequest = static function (array &$client, string $method, string $path, ?a
     $content = '';
     if ($body !== null) {
         $headers[] = 'Content-Type: application/json';
-        $content = json_encode($body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
+        $content = json_encode((object) $body, JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE);
     }
     $context = stream_context_create(['http' => [
         'method' => $method,
@@ -231,7 +231,7 @@ try {
     chmod($privateRoot . '/' . $fixtureDirectFile, 0600);
     $directClient = ['cookie' => '', 'csrf' => ''];
     [$directStatus] = $httpRequest($directClient, 'GET', '/storage/private/' . $fixtureDirectFile);
-    $assert($directStatus === 404, 'private file cannot be fetched by direct public URL');
+    $assert($directStatus === 404, "private file cannot be fetched by direct public URL (HTTP {$directStatus})");
 
     printf("%d assertions, %d failures; %d protected endpoint entries\n", $assertions, count($failures), count($cases));
 } catch (Throwable $error) {
