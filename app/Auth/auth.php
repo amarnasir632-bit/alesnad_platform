@@ -106,7 +106,7 @@ function user_has_permission(string $permissionCode): bool
     return (bool) $statement->fetchColumn();
 }
 
-function require_permission(string $permissionCode): array
+function require_web_permission(string $permissionCode): array
 {
     $user = require_login();
     if (!user_has_permission($permissionCode)) {
@@ -122,12 +122,15 @@ function password_meets_policy(string $password): bool
     return $characterCount !== false && $characterCount >= 12 && strlen($password) <= 1024;
 }
 
-function register_student(string $fullName, string $email, string $phone, string $password): void
+function register_student(string $fullName, string $email, string $phone, string $password, int $classId): void
 {
     validate_password_or_throw($password);
     $pdo = database_connection();
     $pdo->beginTransaction();
     try {
+        $class = $pdo->prepare('SELECT 1 FROM classes c JOIN stages s ON s.id = c.stage_id WHERE c.id = :id AND c.is_active = TRUE AND s.is_active = TRUE');
+        $class->execute(['id' => $classId]);
+        if ($class->fetchColumn() === false) throw new InvalidArgumentException('الصف الذي اخترته غير متاح.');
         $userStatement = $pdo->prepare(
             'INSERT INTO users (full_name, email, phone, password_hash)
              VALUES (:full_name, :email, :phone, :password_hash)
@@ -150,9 +153,9 @@ function register_student(string $fullName, string $email, string $phone, string
 
         $pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)')
             ->execute(['user_id' => $user['id'], 'role_id' => $roleId]);
-        $pdo->prepare('INSERT INTO students (user_id) VALUES (:user_id)')
-            ->execute(['user_id' => $user['id']]);
-        audit_log('auth.registered', 'user', (int) $user['id'], ['role' => 'student'], (int) $user['id']);
+        $pdo->prepare('INSERT INTO students (user_id, class_id) VALUES (:user_id, :class_id)')
+            ->execute(['user_id' => $user['id'], 'class_id' => $classId]);
+        audit_log('auth.registered', 'user', (int) $user['id'], ['role' => 'student', 'class_id' => $classId], (int) $user['id']);
 
         $pdo->commit();
         session_regenerate_id(true);

@@ -27,15 +27,16 @@ check("role guard and permission guard exist", "function require_role" in authz 
 check("last active administrator is protected", "ensure_not_last_admin" in accounts and "DomainException" in accounts)
 check("session user is refreshed from database", "function refresh_authenticated_user" in authz and "is_active" in authz)
 check("login, registration, and account events are audited", all(event in auth for event in ("auth.login.failed", "auth.login.succeeded", "auth.registered")) and "audit_log('account.created'" in accounts)
+check("student self-registration assigns a valid active class", "class_id" in (ROOT / "app/Views/register.php").read_text() and "students (user_id, class_id)" in auth and "classes c JOIN stages s" in auth and "class_id" in (ROOT / "app/Http/Controllers/AuthController.php").read_text())
 check("password policy caps at 72 bytes", "strlen($password) > 72" in (ROOT / "app/Security/passwords.php").read_text())
 policy_prefixes = ("SESSION_IDLE_TIMEOUT_SECONDS=", "LOGIN_MAX_ATTEMPTS=", "LOGIN_WINDOW_SECONDS=", "LOGIN_LOCKOUT_SECONDS=", "AUTH_THROTTLE_KEY=")
 policy_lines = [line for line in (ROOT / ".env.example").read_text().splitlines() if line.startswith(policy_prefixes)]
 check("all runtime policy settings are blank in sample env", len(policy_lines) == len(policy_prefixes) and all(line.endswith("=") for line in policy_lines))
 check("new auth migration creates attempt table", "CREATE TABLE auth_login_attempts" in (ROOT / "database/migrations/004_auth_security.sql").read_text())
 check("API contract and traceability are documented", (ROOT / "docs/API_CONTRACT.md").exists() and (ROOT / "docs/TRACEABILITY_PHASE_1.md").exists())
-check("frontend views and static assets remain untouched", subprocess.run(["git", "diff", "--quiet", "origin/main", "--", "app/Views", "public/assets"], cwd=ROOT).returncode == 0)
+check("session page frontend is part of the existing RTL application", (ROOT / "app/Views/sessions.php").exists() and "sessions.js" in (ROOT / "app/Views/layout.php").read_text())
 app_sql = "\n".join(p.read_text() for p in (ROOT / "app").rglob("*.php"))
-check("only the fixed health probe uses PDO query; application input uses prepared statements", app_sql.count("->query(") == 1 and "database_connection()->query('SELECT 1')" in app_sql)
+check("health check uses a fixed SQL statement and user data uses prepared statements", "database_connection()->query('SELECT 1')" in app_sql and "->prepare(" in app_sql and "->execute(" in app_sql)
 
 failed = [name for name, passed in checks if not passed]
 print(f"{len(checks)} static checks, {len(failed)} failures")

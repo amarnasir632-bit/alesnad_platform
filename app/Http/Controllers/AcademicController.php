@@ -46,6 +46,20 @@ function api_academic_subjects(): never
     json_response(200, ['data' => ['subjects' => academic_list_subjects(academic_query_id('class_id'), $include)]]);
 }
 
+function api_admin_class_subjects(): never
+{
+    require_permission('academics.manage');
+    $statement = database_connection()->prepare(
+        'SELECT cs.id AS class_subject_id, c.name AS class_name, st.name AS stage_name, s.name AS subject_name
+         FROM class_subjects cs JOIN classes c ON c.id = cs.class_id JOIN stages st ON st.id = c.stage_id
+         JOIN subjects s ON s.id = cs.subject_id
+         WHERE cs.is_active = TRUE AND c.is_active = TRUE AND st.is_active = TRUE AND s.is_active = TRUE
+         ORDER BY st.sort_order, c.sort_order, s.sort_order, cs.id'
+    );
+    $statement->execute();
+    json_response(200, ['data' => ['class_subjects' => $statement->fetchAll()]]);
+}
+
 function api_academic_lessons(): never
 {
     $filters = [];
@@ -54,13 +68,21 @@ function api_academic_lessons(): never
         if ($value !== null) $filters[$field] = $value;
     }
     $includeDrafts = has_permission('academics.manage');
-    if (!$includeDrafts) require_permission('content.read');
+    if (!$includeDrafts) {
+        $actor = require_permission('content.read');
+        if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) {
+            throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+        }
+    }
     json_response(200, ['data' => ['lessons' => academic_list_lessons($filters, $includeDrafts)]]);
 }
 
 function api_search_academic_content(): never
 {
-    require_permission('content.read');
+    $actor = require_permission('content.read');
+    if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) {
+        throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    }
     $filters = academic_query_pagination();
     foreach (['stage_id', 'class_id', 'class_subject_id', 'subject_id', 'lesson_id'] as $field) {
         $value = academic_query_id($field);

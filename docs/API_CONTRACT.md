@@ -30,7 +30,7 @@ CSRF مطلوب، دون دور مسبق.
 
 ### `POST /api/v1/auth/register`
 
-CSRF مطلوب، ينشئ طالبًا فقط. المدخلات: `full_name` (2–150 محرفًا)، `email`، `phone` اختياري، `password` (12 محرفًا على الأقل و72 بايت كحد أعلى). الاستجابة `201` تتضمن بيانات المستخدم ورمز CSRF. الأخطاء `409 email_exists`, `422 validation_failed`, `419 csrf_failed`.
+CSRF مطلوب، ينشئ طالبًا فقط. المدخلات: `full_name` (2–150 محرفًا)، `email`، `class_id` لصف نشط، `phone` اختياري، `password` (12 محرفًا على الأقل و72 بايت كحد أعلى). الاستجابة `201` تتضمن بيانات المستخدم ورمز CSRF. الأخطاء `409 email_exists`, `422 validation_failed` عند غياب الصف أو عدم نشاطه، `419 csrf_failed`.
 
 ### `POST /api/v1/auth/logout`
 
@@ -42,7 +42,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ### `GET /api/v1/admin/users?limit=50&offset=0`
 
-الصلاحية `users.manage`. يعيد `200 {"data":[{"id":1,"full_name":"...","email":"...","phone":null,"is_active":true,"roles":["teacher"],"created_at":"..."}]}`. الحد `limit` بين 1 و100، و`offset` صفر أو أكثر.
+الصلاحية `roles.manage`. يعيد `200 {"data":[{"id":1,"full_name":"...","email":"...","phone":null,"is_active":true,"roles":["teacher"],"class_id":null,"class_name":null,"created_at":"..."}]}`. تتضمن بيانات الصف حسابات الطلاب فقط. الحد `limit` بين 1 و100، و`offset` صفر أو أكثر.
 
 ### `GET /api/v1/admin/roles`
 
@@ -54,7 +54,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ### `PATCH /api/v1/admin/users/{id}`
 
-الصلاحية `users.manage`. يقبل واحدًا أو أكثر من `full_name`, `email`, `phone`, `password`, `is_active`. يجب أن تكون `is_active` قيمة JSON منطقية. تغيير الحساب وسجل التدقيق معاملة واحدة. يعيد `200 {"data":{"user":{...}}}`، أو `403`, `404 not_found`, `409 account_conflict` للبريد المكرر، `409 last_admin`, `422`, `419`.
+الصلاحية `roles.manage`. يقبل واحدًا أو أكثر من `full_name`, `email`, `phone`, `password`, `is_active`; ويقبل `class_id` (معرّف صف نشط أو `null`) للطالب فقط. يجب أن تكون `is_active` قيمة JSON منطقية. تغيير الحساب وسجل التدقيق معاملة واحدة. يعيد `200 {"data":{"user":{...}}}`، أو `403`, `404 not_found`, `409 account_conflict` للبريد المكرر، `409 last_admin`, `422`, `419`.
 
 ### `PUT /api/v1/admin/users/{id}/roles`
 
@@ -65,7 +65,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `Content-Type: application/json` مطلوب لطلبات JSON؛ JSON غير الصحيح يعيد `400 invalid_json` والنوع الخطأ `415 content_type_required`. نقاط رفع الملفات تقبل `multipart/form-data` كما هو موضح أعلاه.
 - جميع مدخلات SQL مربوطة عبر PDO prepared statements. رسائل الخادم لا تعرض تفاصيل استثناء قاعدة البيانات.
 - أخطاء غير متوقعة تعيد `500 internal_error` مع تسجيل التفاصيل في سجل الخادم.
-- بوابة الدفع ما زالت خارج التنفيذ. ربط مزود البث غير موجود؛ واجهة المزود مجردة بلا تنفيذ حتى يعتمد المالك مزودًا. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
+- بوابة الدفع خارج التنفيذ وفق نموذج منح الوصول اليدوي. يوجد محول Cloudflare Stream، لكن يلزم إعداد حساب وبيانات اعتماد واختبار بث حقيقي قبل الإطلاق. الذكاء الاصطناعي والألعاب وبوابة ولي الأمر وتطبيق الجوال خارج نطاق الإصدار الحالي.
 
 ## الترحيل والتراجع
 
@@ -139,9 +139,9 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 ### تنزيل الملفات الخاصة
 
 - `GET /api/v1/content/resources/{id}/download`, `GET /api/v1/content/resources/{id}/variants/{variant_id}/download`, `GET /api/v1/content/past-exams/{id}/download` تتطلب جلسة وصلاحية `content.read` أو `exams.read` على الترتيب.
-- يشترط أن يكون المحتوى `APPROVED` وله `published_at` وسجل مراجعة موافق. الطالب يحتاج اشتراكًا نشطًا ساريًا إذا كان المورد يتطلب اشتراكًا. تنزيل النسخ البديلة يتطلب `resource_variants.is_downloadable=true`.
+- يشترط أن يكون المحتوى `APPROVED` وله `published_at` وسجل مراجعة موافق. الطالب يحتاج منحة وصول يدوية نشطة من المدير أو المراجع قبل تنزيل أي محتوى؛ لا تعتمد أهلية الإطلاق على الاشتراك. تنزيل النسخ البديلة يتطلب `resource_variants.is_downloadable=true`.
 - يدعم `Range: bytes=start-end` وطلبات suffix، ويعيد `206` مع `Content-Range` و`Accept-Ranges`. النطاق غير الصحيح يعيد `416` و`Content-Range: bytes */size`. النطاقات المتعددة غير مدعومة. يسجل التنزيل `content.download.started` في `audit_events`.
-- لا يعاد مفتاح التخزين ولا ينشأ رابط عام. أخطاء الوصول: `401 unauthenticated`, `403 forbidden|active_subscription_required`, `404 not_found`, `416 range_not_satisfiable`.
+- لا يعاد مفتاح التخزين ولا ينشأ رابط عام. أخطاء الوصول: `401 unauthenticated`, `403 forbidden|content_access_required`, `404 not_found`, `416 range_not_satisfiable`.
 
 ## الأسئلة والاختبارات (المرحلة الرابعة)
 
@@ -160,7 +160,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - قبل إرسال السؤال للمراجعة: سؤال `MCQ` يحتاج خيارين على الأقل وإجابة صحيحة واحدة؛ `TRUE_FALSE` يحتاج خيارين بالضبط وإجابة صحيحة واحدة؛ السؤال المقالي لا يقبل خيارات. خيار إجابة واحدة هو المتوافق مع نموذج الإجابة الحالي (`selected_option_id`). يفرض التطبيق وقاعدة البيانات هذه القواعد.
 - `POST /api/v1/teacher/quizzes` يتطلب `quizzes.manage` وإسناد المادة، ويقبل `class_subject_id`, `title`, `description` اختياري، `duration_minutes` اختياري، `passing_marks` اختياري، `starts_at`, `ends_at` اختياريان، `requires_subscription` اختياري، و`questions` مصفوفة `{question_id,question_mark}`. لا يقبل إلا أسئلة `APPROVED` من المادة نفسها. ينشأ الاختبار غير منشور.
 - `PATCH /api/v1/teacher/quizzes/{id}` يعدل البيانات و`is_published`. النشر يحتاج سؤالًا معتمدًا واحدًا على الأقل. لا يمكن تعديل البيانات بعد بدء محاولة. الأستاذ لا يعدل إلا اختبار مادة مسندة إليه؛ المدير يستطيع إدارة كل المواد.
-- `GET /api/v1/quizzes` و`GET /api/v1/quizzes/{id}` للطالب ذي `quizzes.attempt`، ويعرضان الاختبارات المنشورة لصفه وخيارات الأسئلة دون مفاتيح الإجابة. يتطلب الاختبار اشتراكًا فعالًا إذا كان `requires_subscription=true`.
+- `GET /api/v1/quizzes` و`GET /api/v1/quizzes/{id}` للطالب ذي `quizzes.attempt`، ويعرضان الاختبارات المنشورة لصفه وخيارات الأسئلة دون مفاتيح الإجابة. يلزم الطالب منحة وصول يدوية نشطة؛ لا يعتمد الإطلاق على اشتراك مدفوع.
 
 ### المحاولات والتصحيح والنتائج
 
@@ -173,17 +173,20 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ## الحصص والرسائل (المرحلة الخامسة)
 
-تتطلب العمليات المغيرة جلسة ورمز CSRF. لا يعيد أي مسار قراءة `meeting_url`؛ الرابط يظهر فقط من endpoint الانضمام بعد التحقق من المستخدم والموعد والاشتراك للطالب. مزود البث غير محدد، و`LiveMeetingProvider` عقد مجرد بلا تنفيذ. تتطلب الرسائل `MESSAGING_RATE_LIMIT_COUNT` و`MESSAGING_RATE_LIMIT_WINDOW_SECONDS`؛ غيابهما يرفض الإرسال بـ`503 messaging_not_configured` حتى يعتمد مالك البيئة القيم (OD-23).
+تتطلب العمليات المغيرة جلسة ورمز CSRF. لا يعيد أي مسار قراءة `meeting_url` أو مراجع البث في قائمة الحصص؛ رابط المشاهدة يصدر عند الانضمام فقط بعد فحص الصف والموعد ومنحة الوصول اليدوية للطالب. Cloudflare Stream يتطلب إعدادات الخادم `STREAM_PROVIDER=cloudflare_stream`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, و`CLOUDFLARE_STREAM_CUSTOMER_CODE`. يتطلب API Token صلاحيات Stream Read وStream Write. يحتاج الاختبار الحي حساب Cloudflare فعليًا. تتطلب الرسائل `MESSAGING_RATE_LIMIT_COUNT` و`MESSAGING_RATE_LIMIT_WINDOW_SECONDS`؛ غيابهما يرفض الإرسال بـ`503 messaging_not_configured` حتى يعتمد مشغل البيئة القيم (OD-23).
 
 ### الحصص والتسجيلات
 
 - `GET /api/v1/sessions` يتطلب `sessions.join` للطالب و`sessions.manage` للأستاذ/الأدمن. يعرض الحصص المتاحة للمستخدم دون `meeting_url` أو مراجع المزود.
 - `POST /api/v1/teacher/sessions` يتطلب `sessions.manage` وCSRF. مدخل الأستاذ: `{ "class_subject_id": 1, "title": "...", "description": "...", "scheduled_at": "ISO-8601", "duration_minutes": 60 }`. الأدمن يضيف `teacher_id` لأستاذ ذي إسناد فعّال. يعيد `201` ببيانات الحصة.
+- `POST /api/v1/teacher/sessions/{id}/stream` يتطلب `sessions.manage` وCSRF؛ ينشئ Cloudflare Live Input مع تسجيل آلي وروابط موقعة ويحفظ UID داخليًا. يعيد عنوان RTMPS ومفتاح الإرسال مرة واحدة للأستاذ/المدير الذي جهّز البث؛ التطبيق لا يخزن المفتاح. لا يمكن إعادة المفتاح بعد إغلاق الاستجابة.
+- `POST /api/v1/teacher/sessions/{id}/recordings/sync` يتطلب `sessions.manage` وCSRF؛ يقرأ تسجيلات Cloudflare الجاهزة ويضيفها دون تكرار إلى `session_recordings`. يعيد عدد الجاهز والجديد.
 - `PATCH /api/v1/teacher/sessions/{id}` يتطلب `sessions.manage` وCSRF، ويقبل `title`, `description`, `scheduled_at`, `duration_minutes`, `status` (`LIVE|COMPLETED|CANCELLED`), و`meeting_url` يدويًا. الرابط HTTPS فقط ولا يظهر في الاستجابة.
-- `POST /api/v1/sessions/{id}/join` يتطلب دور الطالب مع `sessions.join`، أو صلاحية إدارة الحصص للأستاذ. يتحقق الخادم من أن الحصة ليست ملغاة وأن الوقت ضمن الموعد والمدة؛ الطالب يحتاج صف الحصة واشتراكًا نشطًا. يعيد الرابط عند الإتاحة فقط؛ قبل الموعد/بعده يعيد `409 session_not_started|session_ended`, والطالب غير المشترك `403 active_subscription_required`. عند غياب الرابط/المزود يعيد `503 broadcast_provider_not_configured`.
+- `POST /api/v1/sessions/{id}/join` يتطلب دور الطالب مع `sessions.join`، أو صلاحية إدارة الحصص للأستاذ. يتحقق الخادم من أن الحصة ليست ملغاة وأن الوقت ضمن الموعد والمدة؛ الطالب يحتاج صف الحصة ومنحة وصول يدوية نشطة. يصدر Cloudflare رابط iframe موقعًا صالحًا لمدة مناسبة للحصة (حتى 24 ساعة) عند الإتاحة فقط؛ قبل الموعد/بعده يعيد `409 session_not_started|session_ended`, والطالب بلا منحة `403 content_access_required`. إذا لم يُجهز مدخل البث يعيد `503 stream_not_provisioned`.
 - `POST /api/v1/teacher/sessions/{id}/recordings` يرفع `multipart/form-data` بحقل `file` من نوع فيديو، أو يستقبل `provider_recording_ref` دون ملف. الحقول: `title`, و`duration_seconds` و`available_from` اختياريان. يتطلب `sessions.manage` وإسناد الأستاذ؛ لا يعاد مفتاح التخزين.
-- `GET /api/v1/sessions/{id}/recordings` و`GET /api/v1/session-recordings/{id}/download` يتطلبان الوصول للحصة؛ الطالب يحتاج اشتراكًا نشطًا. التسجيل لا يظهر إلا بعد نهاية الحصة وبلوغ `available_from` وحالة `READY`. الملفات المحلية خاصة وتدعم `Range`. مرجع المزود الخارجي لا يعمل قبل تركيب adapter معتمد.
+- `GET /api/v1/sessions/{id}/recordings` و`GET /api/v1/session-recordings/{id}/download` يتطلبان الوصول للحصة؛ الطالب يحتاج منحة وصول يدوية نشطة. التسجيل لا يظهر إلا بعد نهاية الحصة وبلوغ `available_from` وحالة `READY`. الملفات المحلية خاصة وتدعم `Range`. تسجيل Cloudflare يعيد تحويلًا مؤقتًا إلى Player URL موقع بعد فحص الصلاحية.
 - الترحيل `008_sessions_messaging.sql` يجعل `storage_key` اختياريًا ويشترط `storage_key` أو `provider_recording_ref`. يضيف حذفًا منفصلًا لكل طرف وفهارس للمعدل والجدولة ومحفزًا يتحقق من إسناد الأستاذ. التراجع في `database/rollback/008_sessions_messaging.sql` يعيد `storage_key NOT NULL`؛ يفشل إذا وجدت تسجيلات مزود بلا ملف، ويحذف حقول الحذف المنفصل.
+- الترحيل `010_cloudflare_stream_recording_refs.sql` يفرض عدم تكرار مدخل بث Cloudflare أو التسجيل داخل الحصة، ويملك ملف تراجع مقابلًا.
 
 ### الرسائل الفردية
 
@@ -194,7 +197,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 ## الاشتراكات (المرحلة السادسة)
 
-لا توجد بوابة دفع أو نقطة API لتسجيل دفع إلكتروني. لا يحدد النظام سعرًا أو عملة افتراضيين؛ السعر والعملة قرارات OD-06، وقواعد أهلية كل محتوى قرار OD-05. يستخدم التطبيق `has_active_subscription(user_id)` مركزيًا في كل فحص وصول يعتمد على الاشتراك، ويحوّل السجل المنتهي إلى `EXPIRED` داخل معاملة مع سجل تدقيق.
+لا توجد بوابة دفع ضمن إطلاق المنصة، والقرار هو منح/سحب وصول المحتوى يدويًا. يستخدم التطبيق `has_manual_content_access(user_id)` في فحوصات المحتوى والاختبارات والحصص والتسجيلات. توجد جداول وخدمات اشتراك قديمة للتوسع المستقبلي، لكنها ليست مصدر أهلية محتوى إطلاق النسخة الأولى.
 
 ### الخطط
 
@@ -210,7 +213,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 - `POST /api/v1/admin/subscriptions` يتطلب `subscriptions.manage` وCSRF. الحقول: `student_id` من جدول الطلاب، `plan_id` لخطة نشطة، `starts_at` بصيغة ISO-8601، `amount_paid`, `currency`, `status` (`PENDING|ACTIVE`) مطلوبة؛ `ends_at` اختيارية وتحسب عند غيابها بإضافة `duration_days` للخطة المختارة إلى البداية. المبلغ والعملة قيم يدوّنها المدير صراحة؛ لا يتم إنشاء سجل في `payments`.
 - `PATCH /api/v1/admin/subscriptions/{id}` يتطلب `subscriptions.manage` وCSRF، ويقبل `status`, `starts_at`, `ends_at`, `amount_paid`, `currency`. يُنشأ سجل جديد عند تجديد الاشتراك للحفاظ على سجل الفترات السابقة.
 - `POST /api/v1/admin/subscriptions/expire` يتطلب `subscriptions.manage` وCSRF، ويعالج كل سجل `ACTIVE` انتهت فترته؛ يعيد `expired_count`.
-- عند طلب مورد أو اختبار أو حصة/تسجيل يشترط اشتراكًا، يتحقق الخادم من حساب المستخدم وسجلاته النشطة. إذا انتهت جميع اشتراكاته، تعاد `403 active_subscription_required`. انتهاء الاشتراك يحفظ الحالة `EXPIRED` حتى لو عُرض المورد لاحقًا.
+- لا تستخدم هذه السجلات لمنح أهلية محتوى الإطلاق؛ إذ يظل المصدر المعتمد هو سجل `manual_content_access`. تبقى endpoints الاشتراك لإدارة مستقبلية فقط، ولا توجد بوابة دفع.
 - يمكن تشغيل المعالجة الدورية خارج الويب عبر `php database/expire_subscriptions.php` بعد ضبط اتصال `.env`؛ لا يحدد المشروع جدول cron. يسجل النظام أحداث إدارة الخطط والاشتراكات والانتهاء في `audit_events`.
 - الأخطاء تشمل `403 forbidden`, `404 not_found`, `409 subscription_conflict`, `422 invalid_student|inactive_plan|invalid_subscription_period|plan_price_currency_pair_required`, و`419 csrf_failed`.
 

@@ -97,10 +97,9 @@ function api_download_content(string $kind, int $id, ?int $variantId = null): ne
     $actor = require_permission($permission);
     $record = content_download_record($kind, $id, $variantId);
     if ($record === null) throw new ApiException(404, 'not_found', 'المحتوى غير متاح للتنزيل.');
-    if (database_boolean($record['requires_subscription'])
-        && in_array('student', $actor['roles'] ?? [], true)
-        && !has_active_subscription((int) $actor['id'])) {
-        throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لتنزيل هذا المحتوى.');
+    if (in_array('student', $actor['roles'] ?? [], true)
+        && !has_manual_content_access((int) $actor['id'])) {
+        throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     }
     $path = resolve_private_file((string) $record['storage_key']);
     if ($path === null) throw new ApiException(404, 'not_found', 'الملف غير متاح.');

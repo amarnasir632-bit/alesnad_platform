@@ -75,6 +75,15 @@ function has_active_subscription(int $userId): bool
     }
 }
 
+function has_manual_content_access(int $userId): bool
+{
+    $statement = database_connection()->prepare(
+        'SELECT EXISTS (SELECT 1 FROM manual_content_access mca JOIN students st ON st.id = mca.student_id WHERE st.user_id = :user_id AND mca.revoked_at IS NULL)'
+    );
+    $statement->execute(['user_id' => $userId]);
+    return database_boolean($statement->fetchColumn());
+}
+
 function subscription_expire_all(?int $actorId = null): int
 {
     $db = database_connection();

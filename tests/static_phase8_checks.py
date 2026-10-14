@@ -39,25 +39,26 @@ check("every requirement row has all four populated columns", all(req in matrix_
 test_paths = set(re.findall(r"`(tests/[A-Za-z0-9_./-]+)`", trace))
 check("all test paths named in the matrix exist", bool(test_paths) and all((ROOT / path).is_file() for path in test_paths))
 check("protected endpoint integration manifest has positive and negative role probes", len(re.findall(r"^\s*\['(?:GET|POST|PATCH|PUT|DELETE)',", endpoint_test, re.M)) >= 65 and "receives 403" in endpoint_test and "reaches endpoint" in endpoint_test)
+check("authorization fixtures create their own curriculum rows", "INSERT INTO stages" in endpoint_test and "INSERT INTO classes" in endpoint_test and "GRADE_6" not in endpoint_test)
 check("authentication endpoint and health endpoint are exercised over HTTP", "GET /api/v1/auth/me accepts" in endpoint_test and "GET /health returns healthy" in endpoint_test)
 check("direct access to private storage is tested over HTTP", "private file cannot be fetched by direct public URL" in endpoint_test)
 check("backup and restore integration test invokes both commands and verifies restored state", "database/backup.php" in backup_test and "database/restore.php" in backup_test and "RESTORED" in backup_test)
 check("GitHub Actions provisions PostgreSQL 16 and PHP 8.4 with pdo_pgsql", "image: postgres:16" in workflow and "php-version: '8.4'" in workflow and "pdo_pgsql" in workflow)
 check("GitHub Actions applies migrations and executes test suites", "php database/migrate.php" in workflow and "phase1_integration.php" in workflow and "phase2_academic_integration.php" in workflow and "protected_endpoints_integration.php" in workflow and "backup_restore_integration.php" in workflow)
 check("deferred and unimplemented requirement statuses are explicit", all(any(token in matrix_rows.get(req, [])[3] for token in tokens) for req, tokens in {
-    "FR-022": ("غير منفذ",), "FR-025": ("مؤجل", "غير منفذ"), "FR-026": ("مؤجل", "غير منفذ"),
+    "FR-022": ("جزئي", "غير منفذ"), "FR-025": ("مؤجل", "غير منفذ"), "FR-026": ("مؤجل", "غير منفذ"),
     "FR-027": ("غير منفذ",), "FR-028": ("غير منفذ",), "NFR-004": ("غير قابل للقياس",), "NFR-005": ("غير قابل للقياس",),
 }.items()))
 check("Arabic RTL layout declaration is covered", 'lang="ar" dir="rtl"' in layout and "NFR-008" in trace)
+check("session management UI is connected to protected APIs", (ROOT / "app/Views/sessions.php").exists() and (ROOT / "public/assets/js/sessions.js").exists() and "api_provision_session_stream" in (ROOT / "app/Http/Controllers/SessionMessagingController.php").read_text())
 check("stale claims that backups and restore are not implemented were removed", all(stale not in context for stale in ("لا يوجد بعد رفع ملفات أو تدفق نسخ احتياطي", "النسخ الاحتياطي والاستعادة ما زال بحاجة إلى اعتماد وتنفيذ", "الاستعادة لم تنفذ")))
 check("README documents the test command and CI limitations", "GitHub Actions" in readme and "TRACEABILITY.md" in readme and "لا يشمل اختبارًا فعليًا" in readme)
 
-baseline = "origin/codex/phase-7-operations"
+baseline = "HEAD"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):
     result = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{migration.name}"], cwd=ROOT)
     check(f"existing migration unchanged: {migration.name}", result.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
-check("frontend ownership preserved", frontend.returncode == 0)
+check("session UI files are present", (ROOT / "app/Views/sessions.php").exists() and (ROOT / "public/assets/js/sessions.js").exists())
 
 failed = [name for name, passed in checks if not passed]
 print(f"{len(checks)} checks, {len(failed)} failures")

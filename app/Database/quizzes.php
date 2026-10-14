@@ -134,8 +134,8 @@ function list_available_quizzes(int $userId, bool $forTeacher): array
                 c.name AS class_name,s.name AS subject_name,
                 (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.quiz_id=q.id) AS question_count,
                 (SELECT id FROM quiz_attempts a WHERE a.quiz_id=q.id AND a.student_id=st.id AND a.status='IN_PROGRESS' ORDER BY a.attempt_number DESC LIMIT 1) AS active_attempt_id,
-                (SELECT status FROM quiz_attempts a WHERE a.quiz_id=q.id AND a.student_id=st.id ORDER BY a.attempt_number DESC LIMIT 1) AS last_attempt_status,
-                (SELECT score FROM quiz_attempts a WHERE a.quiz_id=q.id AND a.student_id=st.id ORDER BY a.attempt_number DESC LIMIT 1) AS last_score
+                (SELECT id FROM quiz_attempts a WHERE a.quiz_id=q.id AND a.student_id=st.id ORDER BY a.attempt_number DESC LIMIT 1) AS last_attempt_id,
+                (SELECT status FROM quiz_attempts a WHERE a.quiz_id=q.id AND a.student_id=st.id ORDER BY a.attempt_number DESC LIMIT 1) AS last_attempt_status
          FROM quizzes q JOIN class_subjects cs ON cs.id=q.class_subject_id JOIN classes c ON c.id=cs.class_id JOIN subjects s ON s.id=cs.subject_id
          JOIN students st ON st.user_id=:user_id JOIN users u ON u.id=st.user_id AND u.is_active
          WHERE q.is_published AND st.class_id=cs.class_id
@@ -182,7 +182,7 @@ function start_quiz_attempt(int $quizId, int $userId): int
 function get_quiz_attempt(int $attemptId, int $userId): array
 {
     $statement=database_connection()->prepare(
-        'SELECT a.id,a.quiz_id,a.status,a.started_at,a.submitted_at,a.score,q.title,q.duration_minutes,q.total_marks,q.passing_marks,
+        'SELECT a.id,a.quiz_id,a.status,a.started_at,a.deadline_at,a.submitted_at,a.score,q.title,q.duration_minutes,q.total_marks,q.passing_marks,
                 st.user_id AS student_user_id,q.class_subject_id,
                 EXISTS(SELECT 1 FROM manual_content_access ca JOIN class_subjects acs ON acs.id=q.class_subject_id WHERE ca.student_id=st.id AND st.class_id=acs.class_id AND ca.revoked_at IS NULL) AS student_has_access,
                 EXISTS(SELECT 1 FROM users su WHERE su.id=st.user_id AND su.is_active) AS student_active,u.full_name AS student_name

@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS session_recordings_provider_ref_unique;
+DROP INDEX IF EXISTS live_sessions_provider_session_ref_unique;

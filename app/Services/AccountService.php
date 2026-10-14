@@ -6,17 +6,19 @@ function account_public_fields(array $row): array
     return [
         'id' => (int) $row['id'], 'full_name' => $row['full_name'], 'email' => $row['email'],
         'phone' => $row['phone'], 'is_active' => database_boolean($row['is_active']),
-        'roles' => $row['roles'] ?? [], 'created_at' => $row['created_at'] ?? null,
+        'roles' => $row['roles'] ?? [], 'class_id' => isset($row['class_id']) ? (int) $row['class_id'] : null,
+        'class_name' => $row['class_name'] ?? null, 'created_at' => $row['created_at'] ?? null,
     ];
 }
 
 function list_accounts(int $limit = 50, int $offset = 0): array
 {
     $statement = database_connection()->prepare(
-        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at,
+        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, st.class_id, c.name AS class_name,
                 COALESCE(array_agg(r.code ORDER BY r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::VARCHAR[]) AS roles
-         FROM users u LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
-         GROUP BY u.id ORDER BY u.id DESC LIMIT :limit OFFSET :offset'
+         FROM users u LEFT JOIN students st ON st.user_id = u.id LEFT JOIN classes c ON c.id = st.class_id
+         LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
+         GROUP BY u.id, st.class_id, c.name ORDER BY u.id DESC LIMIT :limit OFFSET :offset'
     );
     $statement->bindValue('limit', max(1, min($limit, 100)), PDO::PARAM_INT);
     $statement->bindValue('offset', max(0, $offset), PDO::PARAM_INT);
@@ -27,10 +29,11 @@ function list_accounts(int $limit = 50, int $offset = 0): array
 function find_account(int $id): ?array
 {
     $statement = database_connection()->prepare(
-        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at,
+        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, st.class_id, c.name AS class_name,
                 COALESCE(array_agg(r.code ORDER BY r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::VARCHAR[]) AS roles
-         FROM users u LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
-         WHERE u.id = :id GROUP BY u.id'
+         FROM users u LEFT JOIN students st ON st.user_id = u.id LEFT JOIN classes c ON c.id = st.class_id
+         LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
+         WHERE u.id = :id GROUP BY u.id, st.class_id, c.name'
     );
     $statement->execute(['id' => $id]);
     $row = $statement->fetch();
@@ -92,6 +95,7 @@ function update_managed_account(int $id, array $input): array
         if (!$user) throw new OutOfBoundsException('الحساب غير موجود.');
         $sets = [];
         $params = ['id' => $id];
+        $studentClassChange = false;
         if (array_key_exists('full_name', $input)) {
             if (!is_string($input['full_name'])) throw new InvalidArgumentException('الاسم يجب أن يكون نصًا.');
             $name = trim((string) $input['full_name']);
@@ -121,9 +125,29 @@ function update_managed_account(int $id, array $input): array
             if (!$input['is_active'] && database_boolean($user['is_active']) && is_admin_account($pdo, $id)) ensure_not_last_admin($pdo, $id);
             $sets[] = 'is_active=:active'; $params['active'] = $input['is_active'];
         }
-        if (!$sets) throw new InvalidArgumentException('لا توجد حقول قابلة للتعديل.');
-        $update = $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=:id');
-        $update->execute($params);
+        if (array_key_exists('class_id', $input)) {
+            $student = $pdo->prepare('SELECT id FROM students WHERE user_id = :id FOR UPDATE');
+            $student->execute(['id' => $id]);
+            $studentId = $student->fetchColumn();
+            if ($studentId === false) throw new InvalidArgumentException('تعيين الصف متاح لحساب الطالب فقط.');
+            $classId = $input['class_id'] === null ? null : filter_var($input['class_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+            if ($classId === false) throw new InvalidArgumentException('الصف غير صالح.');
+            if ($classId !== null) {
+                $class = $pdo->prepare('SELECT 1 FROM classes c JOIN stages s ON s.id = c.stage_id WHERE c.id = :id AND c.is_active = TRUE AND s.is_active = TRUE');
+                $class->execute(['id' => $classId]);
+                if ($class->fetchColumn() === false) throw new InvalidArgumentException('الصف غير نشط أو غير موجود.');
+            }
+            $studentClassChange = true;
+            $params['class_id'] = $classId;
+        }
+        if (!$sets && !$studentClassChange) throw new InvalidArgumentException('لا توجد حقول قابلة للتعديل.');
+        if ($sets) {
+            $update = $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=:id');
+            $update->execute($params);
+        }
+        if ($studentClassChange) {
+            $pdo->prepare('UPDATE students SET class_id = :class_id WHERE user_id = :id')->execute(['class_id' => $params['class_id'], 'id' => $id]);
+        }
         audit_log('account.updated', 'user', $id, ['fields' => array_keys($input)]);
         $pdo->commit();
     } catch (Throwable $error) {

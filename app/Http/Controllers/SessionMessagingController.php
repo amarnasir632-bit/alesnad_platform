@@ -36,6 +36,18 @@ function api_join_session(int $id): never
     json_response(200, ['data' => ['join' => sm_join_session($actor, $id)]]);
 }
 
+function api_provision_session_stream(int $id): never
+{
+    $actor = require_permission('sessions.manage');
+    json_response(201, ['data' => ['stream' => sm_provision_stream($actor, $id)]]);
+}
+
+function api_sync_session_recordings(int $id): never
+{
+    $actor = require_permission('sessions.manage');
+    json_response(200, ['data' => ['sync' => sm_sync_stream_recordings($actor, $id)]]);
+}
+
 function api_add_session_recording(int $id, array $file, array $input): never
 {
     $actor = require_permission('sessions.manage');
@@ -58,7 +70,12 @@ function api_download_session_recording(int $id): never
     if (in_array('student', $actor['roles'] ?? [], true)) require_permission('sessions.join');
     else require_permission('sessions.manage');
     $recording = sm_recording_download($actor, $id);
-    if (isset($recording['provider_source'])) json_response(200, ['data' => ['recording' => $recording['provider_source']]]);
+    if (isset($recording['provider_source'])) {
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        header('Location: ' . $recording['provider_source']['stream_url'], true, 302);
+        exit;
+    }
     audit_log('session.recording.downloaded', 'session_recording', $id, [], (int) $actor['id']);
     $path = resolve_private_file((string) $recording['storage_key']);
     if ($path === null) throw new ApiException(404, 'not_found', 'ملف التسجيل غير متاح.');

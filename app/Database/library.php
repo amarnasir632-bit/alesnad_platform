@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-function private_storage_root(): string
+function legacy_library_storage_root(): string
 {
     $configured = (string) env_value('PRIVATE_STORAGE_PATH', 'storage/private');
     $root = str_starts_with($configured, DIRECTORY_SEPARATOR)
@@ -24,7 +24,7 @@ function store_private_pdf(array $upload): array
     if (($upload['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK || !is_uploaded_file((string) ($upload['tmp_name'] ?? ''))) {
         throw new InvalidArgumentException('اختر ملف PDF صالحًا لرفعه.');
     }
-    $maximumBytes = max(1, (int) env_value('MAX_UPLOAD_BYTES', (string) (25 * 1024 * 1024)));
+    $maximumBytes = required_positive_int('UPLOAD_MAX_BYTES');
     $size = (int) ($upload['size'] ?? 0);
     if ($size < 1 || $size > $maximumBytes) {
         throw new InvalidArgumentException('حجم الملف يتجاوز الحد المسموح أو أن الملف فارغ.');
@@ -39,7 +39,7 @@ function store_private_pdf(array $upload): array
     }
     $originalName = basename(str_replace('\\', '/', (string) ($upload['name'] ?? 'document.pdf')));
     $originalName = preg_replace('/[^\pL\pN._() -]+/u', '_', $originalName) ?: 'document.pdf';
-    $root = private_storage_root();
+    $root = legacy_library_storage_root();
     $directory = $root . DIRECTORY_SEPARATOR . 'library';
     if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
         throw new RuntimeException('تعذر إعداد مجلد الملفات.');
@@ -205,7 +205,7 @@ function create_library_item(int $classSubjectId, string $kind, string $title, s
         $pdo->commit();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) { $pdo->rollBack(); }
-        if ($file) { @unlink(private_storage_root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file['storage_key'])); }
+        if ($file) { @unlink(legacy_library_storage_root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $file['storage_key'])); }
         throw $error;
     }
 }
@@ -272,8 +272,8 @@ function get_authorized_library_download(string $kind, int $itemId, int $userId)
     $allowed = $allowed || (int)$row['owner_user_id'] === $userId || (bool)$row['assigned_teacher'] || (bool)$row['reviewed_by_me'];
     $allowed = $allowed || (user_has_permission('content.review') && in_array($row['status'], ['PENDING_REVIEW','DRAFT','REJECTED'], true));
     if (!$allowed) { throw new RuntimeException('ليس لديك صلاحية تنزيل هذا الملف.'); }
-    $path = private_storage_root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $row['storage_key']);
-    $root = private_storage_root() . DIRECTORY_SEPARATOR;
+    $path = legacy_library_storage_root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $row['storage_key']);
+    $root = legacy_library_storage_root() . DIRECTORY_SEPARATOR;
     $real = realpath($path);
     if ($real === false || !str_starts_with($real, $root) || !is_file($real) || !is_readable($real)) { throw new RuntimeException('تعذر العثور على الملف الخاص.'); }
     return ['path'=>$real,'filename'=>$row['original_filename'] ?: basename($real),'mime'=>$row['mime_type'] ?: 'application/pdf'];

@@ -287,15 +287,16 @@ function quiz_student_can_access(PDO $db, array $student, array $quiz, int $user
 {
     if (!database_boolean($quiz['class_subject_active']) || !database_boolean($quiz['class_active']) || !database_boolean($quiz['stage_active']) || !database_boolean($quiz['subject_active'])) throw new ApiException(404, 'not_found', 'الاختبار غير متاح.');
     if ($student['class_id'] === null || (int) $student['class_id'] !== (int) $quiz['class_id']) throw new ApiException(403, 'quiz_class_forbidden', 'الاختبار غير مخصص لصفك.');
-    if (database_boolean($quiz['requires_subscription']) && !has_active_subscription($userId)) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لأداء هذا الاختبار.');
+    if (!has_manual_content_access($userId)) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
 }
 
 function quiz_student_list(int $userId): array
 {
     $db = database_connection();
+    if (!has_manual_content_access($userId)) return [];
     $student = quiz_student_id($db, $userId);
     if ($student['class_id'] === null) return [];
-    $hasSubscription = has_active_subscription($userId);
+    $hasSubscription = has_manual_content_access($userId);
     $statement = $db->prepare(
         "SELECT qz.id, qz.class_subject_id, qz.title, qz.description, qz.duration_minutes, qz.total_marks, qz.passing_marks,
                 qz.starts_at, qz.ends_at, qz.requires_subscription,

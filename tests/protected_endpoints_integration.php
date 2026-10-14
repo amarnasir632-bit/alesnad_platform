@@ -16,6 +16,8 @@ $suffix = bin2hex(random_bytes(6));
 $password = 'ci-test-password-42';
 $fixtureUsers = [];
 $fixtureEmployeeIds = [];
+$fixtureStageId = null;
+$fixtureClassId = null;
 $fixtureStudentId = null;
 $fixtureSubjectId = null;
 $fixtureClassSubjectId = null;
@@ -62,10 +64,13 @@ $httpRequest = static function (array &$client, string $method, string $path, ?a
 };
 
 try {
-    $classQuery = $pdo->prepare("SELECT c.id FROM classes c JOIN stages s ON s.id=c.stage_id WHERE c.code='GRADE_6' ORDER BY c.id LIMIT 1");
-    $classQuery->execute();
-    $classId = (int) $classQuery->fetchColumn();
-    if ($classId < 1) throw new RuntimeException('Migration seed GRADE_6 is required for endpoint authorization tests.');
+    $stage = $pdo->prepare('INSERT INTO stages(code,name,sort_order) VALUES(:code,:name,0) RETURNING id');
+    $stage->execute(['code' => 'CI_' . strtoupper($suffix), 'name' => 'مرحلة اختبار CI']);
+    $fixtureStageId = (int) $stage->fetchColumn();
+    $classInsert = $pdo->prepare('INSERT INTO classes(stage_id,code,name,sort_order) VALUES(:stage,:code,:name,0) RETURNING id');
+    $classInsert->execute(['stage' => $fixtureStageId, 'code' => 'CI_' . strtoupper($suffix), 'name' => 'صف اختبار CI']);
+    $classId = (int) $classInsert->fetchColumn();
+    $fixtureClassId = $classId;
 
     $usersInsert = $pdo->prepare('INSERT INTO users(full_name,email,password_hash) VALUES(:name,:email,:password) RETURNING id');
     $roleQuery = $pdo->prepare('SELECT id FROM roles WHERE code=:code');
@@ -121,6 +126,7 @@ try {
     $cases = [
         ['GET', '/api/v1/admin/users', 'admin', 'student'],
         ['GET', '/api/v1/admin/roles', 'admin', 'student'],
+        ['GET', '/api/v1/admin/academics/class-subjects', 'admin', 'student'],
         ['POST', '/api/v1/admin/users', 'admin', 'student', []],
         ['PATCH', '/api/v1/admin/users/999999', 'admin', 'student', []],
         ['PUT', '/api/v1/admin/users/999999/roles', 'admin', 'student', ['roles' => ['teacher']]],
@@ -174,6 +180,8 @@ try {
         ['GET', '/api/v1/sessions', 'student', 'content_reviewer'],
         ['POST', '/api/v1/teacher/sessions', 'teacher', 'student', []],
         ['PATCH', '/api/v1/teacher/sessions/999999', 'teacher', 'student', []],
+        ['POST', '/api/v1/teacher/sessions/999999/stream', 'teacher', 'student', []],
+        ['POST', '/api/v1/teacher/sessions/999999/recordings/sync', 'teacher', 'student', []],
         ['POST', '/api/v1/sessions/999999/join', 'student', 'content_reviewer', []],
         ['GET', '/api/v1/sessions/999999/recordings', 'student', 'content_reviewer'],
         ['POST', '/api/v1/teacher/sessions/999999/recordings', 'teacher', 'student', []],
@@ -243,6 +251,8 @@ try {
         foreach ($fixtureEmployeeIds as $employeeId) $pdo->prepare('DELETE FROM employees WHERE id=?')->execute([$employeeId]);
         if ($fixtureClassSubjectId !== null) $pdo->prepare('DELETE FROM class_subjects WHERE id=?')->execute([$fixtureClassSubjectId]);
         if ($fixtureSubjectId !== null) $pdo->prepare('DELETE FROM subjects WHERE id=?')->execute([$fixtureSubjectId]);
+        if ($fixtureClassId !== null) $pdo->prepare('DELETE FROM classes WHERE id=?')->execute([$fixtureClassId]);
+        if ($fixtureStageId !== null) $pdo->prepare('DELETE FROM stages WHERE id=?')->execute([$fixtureStageId]);
         $pdo->prepare("DELETE FROM audit_events WHERE actor_user_id IN ({$placeholders})")->execute($ids);
         $pdo->prepare("DELETE FROM user_roles WHERE user_id IN ({$placeholders})")->execute($ids);
         $pdo->prepare("DELETE FROM users WHERE id IN ({$placeholders})")->execute($ids);
