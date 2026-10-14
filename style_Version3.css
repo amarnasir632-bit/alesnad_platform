@@ -1,0 +1,122 @@
+/* أساسي */
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
+:root{
+  --navy: #0b3350;
+  --green: #1e8f6e;
+  --bg: #f8fafb;
+  --card: #ffffff;
+  --text: #17314d;
+  --muted: #66768a;
+  --shadow: 0 18px 42px rgba(11,51,80,0.08);
+  --radius: 20px;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  font-family:'Cairo', sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  line-height:1.7;
+}
+
+/* حاويات */
+.container{width:min(1200px,92%);margin:0 auto;padding:0 8px}
+
+/* هيدر */
+.topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(255,255,255,0.96);
+  border-bottom:1px solid rgba(11,51,80,0.06);
+}
+.nav{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:88px;padding:10px 0}
+.logo-full{width:150px;max-width:100%;object-fit:contain}
+.menu{display:flex;gap:20px;align-items:center}
+.menu a{color:var(--navy);font-weight:700;text-decoration:none}
+.nav-actions{display:flex;align-items:center;gap:12px}
+
+/* ا للأزرار */
+.btn{border:0;padding:10px 18px;border-radius:10px;font-weight:800;cursor:pointer}
+.btn-primary{background:linear-gradient(135deg,var(--green),#149076);color:#fff;box-shadow:0 12px 22px rgba(30,143,110,0.18)}
+.btn-secondary{background:rgba(11,51,80,0.06);color:var(--navy)}
+.menu-toggle{display:none;background:none;border:0;padding:8px;cursor:pointer}
+.menu-toggle span{display:block;width:22px;height:3px;background:var(--navy);margin:4px 0;border-radius:3px;transition:0.25s}
+
+/* Hero */
+.hero{padding:48px 0}
+.hero-grid{display:grid;grid-template-columns:1.2fr 0.8fr;gap:30px;align-items:center}
+.eyebrow{display:inline-block;padding:8px 14px;background:rgba(30,143,110,0.08);color:var(--green);border-radius:999px;font-weight:800;margin-bottom:12px}
+.hero h1{margin:0;font-size:clamp(2.2rem,4vw,3.6rem);color:var(--navy);line-height:1.15}
+.hero p{color:var(--muted);margin-top:10px}
+
+/* إحصائيات صغيرة */
+.stats-mini{display:flex;gap:12px;margin-top:20px;flex-wrap:wrap}
+.mini-card{background:var(--card);padding:12px 14px;border-radius:12px;box-shadow:var(--shadow);min-width:120px}
+.mini-card strong{display:block;color:var(--navy);font-size:1.3rem}
+.mini-card span{color:var(--muted);font-size:0.88rem}
+
+/* الجزء البصري */
+.visual-box{position:relative;width:min(520px,100%);min-height:360px;border-radius:28px;background:linear-gradient(145deg,#edf8f4,#e8f0fb);box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;border:1px solid rgba(11,51,80,0.04);overflow:hidden}
+.visual-circle{width:300px;height:300px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#ffffff,#dff5ef 62%,#d9ebfa 100%);display:grid;place-items:center;border:16px solid rgba(30,143,110,0.12)}
+.logo-icon{width:160px;height:160px;object-fit:contain;filter:drop-shadow(0 12px 18px rgba(11,51,80,0.12))}
+
+/* البطاقات الطافية */
+.floating-card{position:absolute;background:var(--card);border-radius:12px;padding:10px 12px;box-shadow:var(--shadow)}
+.top-left{top:20px;right:20px}
+.bottom-right{left:20px;bottom:20px;background:var(--navy);color:#fff}
+
+/* الأقسام */
+.section{padding:56px 0}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.section-head h2{margin:0;color:var(--navy);font-size:1.9rem}
+.link-more{color:var(--green);font-weight:800}
+
+/* شبكة الدورات */
+.course-grid{display:grid;grid-template-columns:repeat(3,minmax(250px,1fr));gap:18px}
+.course-card{background:var(--card);border-radius:18px;overflow:hidden;box-shadow:var(--shadow);border:1px solid rgba(11,51,80,0.04)}
+.course-thumb{height:170px;display:grid;place-items:center;font-size:3rem;background:linear-gradient(135deg,#def2eb,#e3eef9);color:var(--navy)}
+.course-body{padding:16px}
+.course-tag{display:inline-block;background:rgba(30,143,110,0.08);color:var(--green);padding:6px 10px;border-radius:999px;font-weight:800;font-size:0.82rem}
+.course-body h3{margin:12px 0 8px;color:var(--navy)}
+.course-body p{margin:0;color:var(--muted)}
+
+/* مدرسون */
+.teacher-grid{display:grid;grid-template-columns:repeat(3,minmax(220px,1fr));gap:16px}
+.teacher-card{background:var(--card);border-radius:18px;padding:18px;text-align:center;box-shadow:var(--shadow);border:1px solid rgba(11,51,80,0.04)}
+.teacher-avatar{width:78px;height:78px;border-radius:50%;margin:0 auto 12px;background:linear-gradient(135deg,var(--navy),var(--green));display:grid;place-items:center;color:#fff;font-size:1.6rem;font-weight:800}
+
+/* تواصل */
+.contact-grid{display:grid;grid-template-columns:1fr 360px;gap:26px;align-items:start}
+.contact-form{background:var(--card);padding:18px;border-radius:12px;box-shadow:var(--shadow)}
+.form-row{margin-bottom:12px}
+.form-row label{display:block;margin-bottom:6px;font-weight:700;color:var(--navy)}
+.form-row input,.form-row textarea{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(11,51,80,0.06);font-family:inherit}
+.form-message{margin-top:12px;padding:10px;border-radius:8px;display:none;font-weight:700}
+.form-message.success{display:block;background:#2ecc71;color:#fff}
+.form-message.error{display:block;background:#e74c3c;color:#fff}
+
+/* فوتر */
+footer{background:var(--navy);color:#fff;padding:22px 0;margin-top:30px}
+.footer-row{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.footer-links{display:flex;gap:12px}
+
+/* زر العودة للأعلى */
+.back-to-top{position:fixed;bottom:20px;left:20px;width:44px;height:44px;border-radius:50%;background:var(--green);color:#fff;border:0;display:none;align-items:center;justify-content:center;box-shadow:0 10px 20px rgba(30,143,110,0.18);cursor:pointer}
+
+/* Responsive */
+@media(max-width:980px){
+  .course-grid,.teacher-grid{grid-template-columns:1fr 1fr}
+  .category-grid{grid-template-columns:repeat(2,1fr)}
+  .hero-grid{grid-template-columns:1fr}
+  .contact-grid{grid-template-columns:1fr}
+}
+@media(max-width:700px){
+  .menu{display:none}
+  .menu-toggle{display:block}
+  .logo-full{width:260px}
+  .course-grid,.teacher-grid{grid-template-columns:1fr}
+  .nav-actions{gap:8px}
+  .visual-box{min-height:300px}
+}

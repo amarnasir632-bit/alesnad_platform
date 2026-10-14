@@ -82,6 +82,46 @@ function authenticate_user(string $email, string $password): bool
     return true;
 }
 
+function user_has_permission(string $permissionCode): bool
+{
+    $user = current_user();
+    if ($user === null || $permissionCode === '') {
+        return false;
+    }
+
+    $statement = database_connection()->prepare(
+        'SELECT CASE WHEN EXISTS (
+            SELECT 1
+            FROM user_roles ur
+            JOIN users u ON u.id = ur.user_id AND u.is_active
+            JOIN role_permissions rp ON rp.role_id = ur.role_id
+            JOIN permissions p ON p.id = rp.permission_id
+            WHERE ur.user_id = :user_id AND p.code = :permission_code
+        ) THEN 1 ELSE 0 END'
+    );
+    $statement->execute([
+        'user_id' => $user['id'],
+        'permission_code' => $permissionCode,
+    ]);
+    return (bool) $statement->fetchColumn();
+}
+
+function require_permission(string $permissionCode): array
+{
+    $user = require_login();
+    if (!user_has_permission($permissionCode)) {
+        http_response_code(403);
+        exit('ليس لديك الصلاحية لتنفيذ هذا الإجراء.');
+    }
+    return $user;
+}
+
+function password_meets_policy(string $password): bool
+{
+    $characterCount = preg_match_all('/./us', $password);
+    return $characterCount !== false && $characterCount >= 12 && strlen($password) <= 1024;
+}
+
 function register_student(string $fullName, string $email, string $phone, string $password): void
 {
     validate_password_or_throw($password);
@@ -135,16 +175,9 @@ function register_student(string $fullName, string $email, string $phone, string
 function logout_user(): void
 {
     $_SESSION = [];
-    if (ini_get('session.use_cookies')) {
-        $parameters = session_get_cookie_params();
-        setcookie(session_name(), '', [
-            'expires' => time() - 42000,
-            'path' => $parameters['path'],
-            'domain' => $parameters['domain'],
-            'secure' => $parameters['secure'],
-            'httponly' => $parameters['httponly'],
-            'samesite' => $parameters['samesite'] ?? 'Lax',
-        ]);
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_regenerate_id(true);
+        $_SESSION = [];
     }
-    session_destroy();
+    unset($_SESSION['user'], $_SESSION['csrf_token'], $_SESSION['pending_staff_invitation_id'], $_SESSION['pending_staff_invitation_token']);
 }

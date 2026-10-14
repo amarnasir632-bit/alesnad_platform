@@ -37,3 +37,15 @@ function find_class_subject(int $id): ?array
     $subject = $statement->fetch();
     return $subject ?: null;
 }
+
+function list_published_lessons(int $classSubjectId): array
+{
+    $statement = database_connection()->prepare(
+        'SELECT id, title, description, body, position
+         FROM lessons
+         WHERE class_subject_id = :class_subject_id AND is_published
+         ORDER BY position, id'
+    );
+    $statement->execute(['class_subject_id' => $classSubjectId]);
+    return $statement->fetchAll();
+}

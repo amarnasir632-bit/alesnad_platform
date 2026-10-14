@@ -10,8 +10,41 @@ $user = current_user();
   <meta name="description" content="منصة الإسناد الأكاديمي للتعلم ومتابعة المحتوى الدراسي.">
   <title><?= e($title) ?> | الإسناد الأكاديمي</title>
   <link rel="stylesheet" href="/assets/css/style.css">
+  <?php if (($page ?? '') === 'home'): ?><link rel="stylesheet" href="/assets/css/version3.css"><?php endif; ?>
 </head>
-<body>
+<body class="<?= ($page ?? '') === 'home' ? 'submitted-home' : '' ?>">
+  <?php if (($page ?? '') === 'home'): ?>
+    <header class="topbar">
+      <nav class="nav container" aria-label="القائمة الرئيسية">
+        <a href="<?= e(url('home')) ?>"><img src="/assets/brand/al-warith-logo.jpg" alt="الإسناد الأكاديمي" class="logo-full"></a>
+        <button class="menu-toggle" type="button" aria-label="فتح القائمة"><span></span><span></span><span></span></button>
+        <div class="menu">
+          <a href="<?= e(url('home')) ?>">الرئيسية</a>
+          <a href="<?= e(url('subjects')) ?>">المواد الدراسية</a>
+          <?php if ($user): ?><a href="<?= e(url('questions')) ?>">بنك الأسئلة</a><?php endif; ?>
+          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php elseif ($user): ?><a href="<?= e(url('library')) ?>">الامتحانات السابقة</a><?php else: ?><a href="#exams">الامتحانات</a><?php endif; ?>
+          <a href="#sessions">الحصص</a>
+          <?php if ($user && user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
+          <?php if ($user && user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
+          <?php if ($user && user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
+          <?php if ($user && user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
+          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
+          <?php if ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
+          <?php if ($user): ?>
+            <span><?= e($user['full_name']) ?></span>
+            <form class="inline-form" method="post" action="<?= e(url('home')) ?>">
+              <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+              <input type="hidden" name="action" value="logout">
+              <button class="nav-link" type="submit">تسجيل الخروج</button>
+            </form>
+          <?php else: ?>
+            <a href="<?= e(url('login')) ?>">دخول</a>
+            <a href="<?= e(url('register')) ?>">إنشاء حساب</a>
+          <?php endif; ?>
+        </div>
+      </nav>
+    </header>
+  <?php else: ?>
   <header class="site-header">
     <a class="brand" href="<?= e(url('home')) ?>">
       <img class="brand-logo" src="/assets/brand/al-warith-logo.jpg" alt="AL WARITH">
@@ -20,7 +53,14 @@ $user = current_user();
     <nav aria-label="القائمة الرئيسية">
       <a href="<?= e(url('home')) ?>">الرئيسية</a>
       <a href="<?= e(url('subjects')) ?>">المواد الدراسية</a>
+      <?php if ($user): ?><a href="<?= e(url('questions')) ?>">بنك الأسئلة</a><?php endif; ?>
       <?php if ($user): ?>
+        <?php if (user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
+        <?php if (user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
+        <?php if (user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
+        <?php if (user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
+        <?php if (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt')): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
+        <?php if (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review')): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
         <span class="nav-user">مرحباً <?= e($user['full_name']) ?></span>
         <form class="inline-form" method="post" action="<?= e(url('home')) ?>">
           <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
@@ -33,6 +73,7 @@ $user = current_user();
       <?php endif; ?>
     </nav>
   </header>
+  <?php endif; ?>
 
   <?php if ($flashes): ?>
     <div class="messages" aria-live="polite">
@@ -51,6 +92,11 @@ $user = current_user();
   <?php endif; ?>
 
   <main><?php require $contentView; ?></main>
+  <?php if (($page ?? '') === 'home'): ?><script src="/assets/js/version3.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'questions'): ?><script src="/assets/js/questions.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'library'): ?><script src="/assets/js/library.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'quizzes'): ?><script src="/assets/js/quizzes.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'quiz_attempt'): ?><script src="/assets/js/quiz-attempt.js" defer></script><?php endif; ?>
   <footer class="site-footer">
     <span>منصة الإسناد الأكاديمي · AL WARITH</span>
     <span>خطوتك القادمة تبدأ بالتعلّم</span>

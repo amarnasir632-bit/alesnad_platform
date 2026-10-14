@@ -6,10 +6,37 @@ function e(?string $value): string
     return htmlspecialchars($value ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
+function database_bool(mixed $value): bool
+{
+    if (is_bool($value)) { return $value; }
+    if (is_int($value) || is_float($value)) { return $value !== 0 && $value !== 0.0; }
+    return is_string($value) && in_array(strtolower(trim($value)), ['1', 't', 'true', 'yes', 'on'], true);
+}
+
 function url(string $page = 'home', array $parameters = []): string
 {
     $query = ['page' => $page] + $parameters;
     return '/?' . http_build_query($query);
+}
+
+function absolute_url(string $page = 'home', array $parameters = []): string
+{
+    return public_origin() . url($page, $parameters);
+}
+
+function public_origin(): string
+{
+    $baseUrl = rtrim((string) env_value('APP_URL', ''), '/');
+    $parts = parse_url($baseUrl);
+    if ($baseUrl === '' || !is_array($parts)
+        || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)
+        || empty($parts['host'])
+        || isset($parts['user']) || isset($parts['pass'])
+        || isset($parts['query']) || isset($parts['fragment'])
+        || !in_array($parts['path'] ?? '', ['', '/'], true)) {
+        throw new RuntimeException('APP_URL must contain the public HTTP or HTTPS origin.');
+    }
+    return $baseUrl;
 }
 
 function redirect(string $location): never
