@@ -10,7 +10,7 @@
       </div>
     </div>
     <div class="visual-box" aria-label="الإسناد الأكاديمي">
-      <div class="visual-circle"><img src="/assets/brand/al-warith-logo.jpg" alt="شعار الإسناد الأكاديمي" class="logo-icon"></div>
+      <div class="visual-circle"><img src="/assets/brand/icon.png" alt="أيقونة الإسناد الأكاديمي" class="logo-icon"></div>
     </div>
   </div>
 </section>

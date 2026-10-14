@@ -11,6 +11,7 @@
 /* AL WARITH project identity and contrast adjustments. */
 :root{--ink:#132b50;--muted:#62718a;--green:#125baa;--green-dark:#102b52;--mint:#e9f1fb;--cream:#f6f8fc;--gold:#2581d8;--line:#e2e8f0}
 .brand-logo{width:54px;height:54px;object-fit:contain;border-radius:10px;background:#fff}
+.developer-brand{display:flex;align-items:center;gap:9px}.developer-brand img{width:34px;height:34px;object-fit:contain;border-radius:5px;background:#fff}
 .message.error{background:#fff0ee;color:#9a352c!important}
 .message.success{background:#e9f5ed;color:#20613a!important}
 

@@ -16,7 +16,7 @@ $user = current_user();
   <?php if (($page ?? '') === 'home'): ?>
     <header class="topbar">
       <nav class="nav container" aria-label="القائمة الرئيسية">
-        <a href="<?= e(url('home')) ?>"><img src="/assets/brand/al-warith-logo.jpg" alt="الإسناد الأكاديمي" class="logo-full"></a>
+        <a href="<?= e(url('home')) ?>"><img src="/assets/brand/logo.png" alt="شعار الإسناد الأكاديمي" class="logo-full"></a>
         <button class="menu-toggle" type="button" aria-label="فتح القائمة"><span></span><span></span><span></span></button>
         <div class="menu">
           <a href="<?= e(url('home')) ?>">الرئيسية</a>
@@ -47,7 +47,7 @@ $user = current_user();
   <?php else: ?>
   <header class="site-header">
     <a class="brand" href="<?= e(url('home')) ?>">
-      <img class="brand-logo" src="/assets/brand/al-warith-logo.jpg" alt="AL WARITH">
+      <img class="brand-logo" src="/assets/brand/icon.png" alt="أيقونة الإسناد الأكاديمي">
       <span>الإسناد الأكاديمي<small>منصة التعليم السودانية</small></span>
     </a>
     <nav aria-label="القائمة الرئيسية">
@@ -102,7 +102,7 @@ $user = current_user();
   <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
   <footer class="site-footer">
-    <span>منصة الإسناد الأكاديمي · AL WARITH</span>
+    <span class="developer-brand"><img src="/assets/brand/al-warith-logo.jpg" alt="شعار شركة الوارث المطورة للموقع"> شركة الوارث · الشركة المطورة للموقع</span>
     <span>خطوتك القادمة تبدأ بالتعلّم</span>
   </footer>
 </body>
