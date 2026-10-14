@@ -42,10 +42,22 @@ check("all phase-5 routes registered", all(route in router for route in ["/api/v
 check("API contract includes phase-5 routes and policies", "المرحلة الخامسة" in contract and "/api/v1/sessions/{id}/join" in contract and "/api/v1/teacher/sessions/{id}/stream" in contract and "لا توجد مجموعات" in contract)
 check("project context describes phase 5", "حالة المرحلة الخامسة" in context and "008_sessions_messaging.sql" in context)
 
+layout = (ROOT / "app/Views/layout.php").read_text()
+session_view = (ROOT / "app/Views/sessions.php").read_text()
+session_script = (ROOT / "public/assets/js/sessions.js").read_text()
+legacy_controller = (ROOT / "app/Http/LegacyWebController.php").read_text()
+check(
+    "session page is wired to the API",
+    "($page ?? '') === 'sessions'" in layout
+    and '/assets/js/sessions.js' in layout
+    and 'id="session-list"' in session_view
+    and "api('/api/v1/teacher/sessions', 'POST', values)" in session_script
+    and "handle_web_request" in legacy_controller
+    and "sm_list_sessions($user)" in legacy_controller,
+)
+
 try:
     baseline = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
-    changed = subprocess.check_output(["git", "diff", "--name-only", baseline, "--", "app/Views", "public/assets"], cwd=ROOT, text=True).strip()
-    check("session page is wired to the API", "app/Views/layout.php" in changed and (ROOT / "app/Views/sessions.php").exists() and (ROOT / "public/assets/js/sessions.js").exists() and "handle_web_request" in (ROOT / "app/Http/LegacyWebController.php").read_text())
     for i in range(1, 8):
         name = next((ROOT / "database/migrations").glob(f"{i:03d}_*.sql")).name
         same = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{name}"], cwd=ROOT).returncode == 0

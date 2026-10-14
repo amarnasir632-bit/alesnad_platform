@@ -35,16 +35,70 @@ sudo -u postgres psql
 ثم داخل `psql`:
 
 ```sql
-CREATE ROLE alesnad_app LOGIN;
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'alesnad_app') THEN
+    CREATE ROLE alesnad_app LOGIN;
+  ELSE
+    ALTER ROLE alesnad_app LOGIN;
+  END IF;
+END $$;
+```
+
+نفّذ الأمر التالي وحده، ولا تلصق معه أوامر أخرى؛ فهو يطلب كلمة المرور تفاعليًا:
+
+```text
 \password alesnad_app
-CREATE DATABASE alesnad_platform OWNER alesnad_app;
+```
+
+أدخل كلمة مرور جديدة مرتين. بعد رجوع المؤشر `postgres=#`، أنشئ القاعدة إن لم تكن موجودة، ثم اعرض مسار ملف إعداد الاتصال:
+
+```sql
+SELECT format('CREATE DATABASE %I OWNER %I', 'alesnad_platform', 'alesnad_app')
+WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'alesnad_platform') \gexec
+ALTER DATABASE alesnad_platform OWNER TO alesnad_app;
+SHOW hba_file;
 \q
 ```
 
-سيطلب `\password` كلمة مرور المستخدم دون إدخالها في نص SQL. أنشئ ملف إعداد محليًا، واكتب كلمة المرور التي اخترتها فيه:
+إذا ظهرت رسالة `\password: extra argument` بعد لصق عدة أسطر، نفّذ `\r` عند المؤشر `postgres=#` لمسح الأمر المعلّق، ثم أعد `\password alesnad_app` وحده وانتظر رجوع المؤشر قبل إدخال الأمر التالي.
+
+احتفظ بمسار `pg_hba.conf` الذي يظهر من `SHOW hba_file;`. افتح الملف بهذا المسار:
 
 ```bash
-cp .env.example .env
+sudoedit /المسار/الذي/ظهر/لك/من/SHOW-hba_file
+```
+
+أضف قاعدة الاتصال التالية **قبل أي قاعدة عامة قد تطابق الاتصال** مثل `host all all 127.0.0.1/32 ident`:
+
+```text
+host    alesnad_platform    alesnad_app    127.0.0.1/32    scram-sha-256
+```
+
+أعد تحميل الإعداد من طرفية أخرى:
+
+```bash
+sudo -u postgres psql -c 'SELECT pg_reload_conf();'
+pg_isready -h 127.0.0.1 -p 5432
+```
+
+يجب أن يظهر `accepting connections`. إذا ظهر `no response`، فتحقق أن خدمة PostgreSQL تعمل قبل متابعة إعداد الموقع.
+
+للتأكد أن قاعدة المصادقة الجديدة قُرئت وتسبق أي قاعدة عامة، نفّذ داخل `psql`:
+
+```sql
+SELECT line_number, database, user_name, auth_method, error
+FROM pg_hba_file_rules
+WHERE host(address) = '127.0.0.1'
+ORDER BY line_number;
+```
+
+يجب أن يظهر صف `alesnad_platform` و`alesnad_app` و`scram-sha-256` قبل أي صف عام يستخدم `ident`، وأن تكون خانة `error` فارغة.
+
+أنشئ ملف الإعداد المحلي إن لم يكن موجودًا، واكتب كلمة مرور `alesnad_app` التي اخترتها في `DB_PASSWORD`:
+
+```bash
+test -f .env || cp .env.example .env
 ```
 
 عدّل `DB_PASSWORD` في `.env`. قبل التشغيل، عيّن قيم مهلة الجلسة وحدود محاولة الدخول التي يعتمدها مسؤول البيئة، وأنشئ سرًا بـ`openssl rand -hex 32` وضعه في `AUTH_THROTTLE_KEY`. تظل هذه القيم فارغة في المثال لعدم اعتمادها بعد، والتطبيق يتطلبها:
