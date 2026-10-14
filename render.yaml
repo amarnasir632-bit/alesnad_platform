@@ -1,0 +1,45 @@
+services:
+  - type: web
+    name: alesnad-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "0"
+      - key: APP_TIMEZONE
+        value: Africa/Khartoum
+      - key: SESSION_SECURE
+        value: "1"
+      - key: SESSION_IDLE_TIMEOUT_SECONDS
+        value: "900"
+      - key: LOGIN_MAX_ATTEMPTS
+        value: "20"
+      - key: LOGIN_WINDOW_SECONDS
+        value: "300"
+      - key: LOGIN_LOCKOUT_SECONDS
+        value: "60"
+      - key: AUTH_THROTTLE_KEY
+        generateValue: true
+      - key: UPLOAD_MAX_BYTES
+        value: "1048576"
+      - key: PRIVATE_STORAGE_PATH
+        value: /var/www/alesnad/storage/private
+      - key: QUIZ_MAX_ATTEMPTS
+        value: "1"
+      - key: QUIZ_DURATION_MINUTES
+        value: "60"
+      - key: QUIZ_RESULT_VISIBILITY
+        value: AFTER_MANAGER_APPROVAL
+      - key: QUIZ_INCOMPLETE_ATTEMPT_POLICY
+        value: MANAGER_REVIEW
+      - key: MESSAGING_RATE_LIMIT_COUNT
+        value: "20"
+      - key: MESSAGING_RATE_LIMIT_WINDOW_SECONDS
+        value: "60"
+      - key: DATABASE_URL
+        sync: false

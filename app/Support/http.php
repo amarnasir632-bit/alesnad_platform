@@ -26,7 +26,7 @@ function absolute_url(string $page = 'home', array $parameters = []): string
 
 function public_origin(): string
 {
-    $baseUrl = rtrim((string) env_value('APP_URL', ''), '/');
+    $baseUrl = rtrim((string) env_value('APP_URL', env_value('RENDER_EXTERNAL_URL', '')), '/');
     $parts = parse_url($baseUrl);
     if ($baseUrl === '' || !is_array($parts)
         || !in_array($parts['scheme'] ?? '', ['http', 'https'], true)

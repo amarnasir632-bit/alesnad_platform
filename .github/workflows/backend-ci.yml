@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - 'codex/phase-*'
+      - 'codex/ready-for-hosting'
   workflow_dispatch:
 
 permissions:
@@ -82,6 +83,7 @@ jobs:
         run: |
           php tests/password_policy.php
           php tests/content_range_unit.php
+          php tests/database_url_unit.php
           php tests/quiz_policy_unit.php
           for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done
 

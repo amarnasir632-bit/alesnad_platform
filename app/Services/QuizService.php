@@ -305,11 +305,12 @@ function quiz_student_list(int $userId): array
          FROM quizzes qz JOIN class_subjects cs ON cs.id = qz.class_subject_id
          JOIN classes c ON c.id = cs.class_id JOIN stages st ON st.id = c.stage_id JOIN subjects s ON s.id = cs.subject_id
          WHERE qz.is_published = TRUE AND cs.class_id = :class_id AND cs.is_active = TRUE AND c.is_active = TRUE AND st.is_active = TRUE AND s.is_active = TRUE
-           AND (qz.ends_at IS NULL OR qz.ends_at > CURRENT_TIMESTAMP)
+           AND ((qz.ends_at IS NULL OR qz.ends_at > CURRENT_TIMESTAMP)
+                OR EXISTS (SELECT 1 FROM quiz_attempts retry WHERE retry.quiz_id = qz.id AND retry.student_id = :retry_student_id AND ((retry.status = 'INCOMPLETE' AND retry.retry_granted_at IS NOT NULL AND retry.retry_grant_used_at IS NULL) OR retry.status = 'IN_PROGRESS')))
            AND (qz.requires_subscription = FALSE OR :can_access = TRUE)
          ORDER BY qz.starts_at NULLS FIRST, qz.id"
     );
-    $statement->execute(['has_subscription' => $hasSubscription, 'can_access' => $hasSubscription, 'class_id' => $student['class_id']]);
+    $statement->execute(['has_subscription' => $hasSubscription, 'can_access' => $hasSubscription, 'class_id' => $student['class_id'], 'retry_student_id' => $student['id']]);
     return $statement->fetchAll();
 }
 
@@ -320,8 +321,15 @@ function quiz_student_detail(int $userId, int $quizId): array
     $quiz = quiz_fetch($db, $quizId);
     if (!$quiz || !database_boolean($quiz['is_published'])) throw new ApiException(404, 'not_found', 'الاختبار غير متاح.');
     quiz_student_can_access($db, $student, $quiz, $userId);
-    if ($quiz['starts_at'] !== null && new DateTimeImmutable($quiz['starts_at']) > new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_not_open', 'لم يبدأ وقت الاختبار بعد.');
-    if ($quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) <= new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_closed', 'انتهت نافذة الاختبار.');
+    $retry = $db->prepare("SELECT EXISTS (SELECT 1 FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status = 'INCOMPLETE' AND retry_granted_at IS NOT NULL AND retry_grant_used_at IS NULL)");
+    $retry->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
+    $hasRetryGrant = database_boolean($retry->fetchColumn());
+    $active = $db->prepare("SELECT EXISTS (SELECT 1 FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status = 'IN_PROGRESS')");
+    $active->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
+    if (!$hasRetryGrant && !database_boolean($active->fetchColumn())) {
+        if ($quiz['starts_at'] !== null && new DateTimeImmutable($quiz['starts_at']) > new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_not_open', 'لم يبدأ وقت الاختبار بعد.');
+        if ($quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) <= new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_closed', 'انتهت نافذة الاختبار.');
+    }
     $statement = $db->prepare("SELECT q.id, q.question_text, q.question_type, qq.question_mark, qq.sort_order FROM quiz_questions qq JOIN questions q ON q.id = qq.question_id WHERE qq.quiz_id = :quiz_id AND q.status = 'APPROVED' ORDER BY qq.sort_order, q.id");
     $statement->execute(['quiz_id' => $quizId]);
     $questions = $statement->fetchAll();
@@ -431,8 +439,11 @@ function quiz_start_attempt(array $actor, int $quizId): array
         if (!$quiz || !database_boolean($quiz['is_published'])) throw new ApiException(404, 'not_found', 'الاختبار غير متاح.');
         $student = quiz_student_id($db, (int) $actor['id']);
         quiz_student_can_access($db, $student, $quiz, (int) $actor['id']);
-        if ($quiz['starts_at'] !== null && new DateTimeImmutable($quiz['starts_at']) > new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_not_open', 'لم يبدأ وقت الاختبار بعد.');
-        if ($quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) <= new DateTimeImmutable('now')) throw new ApiException(409, 'quiz_closed', 'انتهت نافذة الاختبار.');
+        $retry = $db->prepare("SELECT id FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status = 'INCOMPLETE' AND retry_granted_at IS NOT NULL AND retry_grant_used_at IS NULL ORDER BY attempt_number DESC LIMIT 1 FOR UPDATE");
+        $retry->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
+        $retrySourceId = $retry->fetchColumn();
+        $hasRetryGrant = $retrySourceId !== false;
+        $now = new DateTimeImmutable('now');
         $questions = $db->prepare("SELECT COUNT(*) FROM quiz_questions qq JOIN questions q ON q.id = qq.question_id WHERE qq.quiz_id = :id AND q.status = 'APPROVED'");
         $questions->execute(['id' => $quizId]);
         if ((int) $questions->fetchColumn() < 1) throw new ApiException(409, 'quiz_questions_unavailable', 'لا يحتوي الاختبار على أسئلة معتمدة متاحة.');
@@ -451,13 +462,12 @@ function quiz_start_attempt(array $actor, int $quizId): array
             $expired = quiz_finalize_attempt($db, (int) $attempt['id'], 'INCOMPLETE');
             audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', (int) $attempt['id'], ['status' => $expired['status']], (int) $actor['id']);
         }
+        if (!$hasRetryGrant && $quiz['starts_at'] !== null && new DateTimeImmutable($quiz['starts_at']) > $now) throw new ApiException(409, 'quiz_not_open', 'لم يبدأ وقت الاختبار بعد.');
+        if (!$hasRetryGrant && $quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) <= $now) throw new ApiException(409, 'quiz_closed', 'انتهت نافذة الاختبار.');
         $countSql = "SELECT COUNT(*) FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status <> 'CANCELLED'";
         $count = $db->prepare($countSql);
         $count->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
         $attemptCount = (int) $count->fetchColumn();
-        $retry = $db->prepare("SELECT id FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status = 'INCOMPLETE' AND retry_granted_at IS NOT NULL AND retry_grant_used_at IS NULL ORDER BY attempt_number DESC LIMIT 1 FOR UPDATE");
-        $retry->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
-        $retrySourceId = $retry->fetchColumn();
         $hasRetry = $retrySourceId !== false && $attemptCount < $maxAttempts + 1;
         if ($attemptCount >= $maxAttempts && !$hasRetry) {
             $db->commit();
@@ -466,7 +476,7 @@ function quiz_start_attempt(array $actor, int $quizId): array
         $duration = $quiz['duration_minutes'] === null ? quiz_positive_setting('QUIZ_DURATION_MINUTES') : (int) $quiz['duration_minutes'];
         $start = new DateTimeImmutable('now');
         $deadline = $start->modify('+' . $duration . ' minutes');
-        if ($quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) < $deadline) $deadline = new DateTimeImmutable($quiz['ends_at']);
+        if (!$hasRetry && $quiz['ends_at'] !== null && new DateTimeImmutable($quiz['ends_at']) < $deadline) $deadline = new DateTimeImmutable($quiz['ends_at']);
         $nextNumber = $db->prepare('SELECT COALESCE(MAX(attempt_number), 0) + 1 FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id');
         $nextNumber->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
         $attemptNumber = (int) $nextNumber->fetchColumn();

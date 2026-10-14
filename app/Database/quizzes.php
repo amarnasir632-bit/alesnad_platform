@@ -139,7 +139,8 @@ function list_available_quizzes(int $userId, bool $forTeacher): array
          FROM quizzes q JOIN class_subjects cs ON cs.id=q.class_subject_id JOIN classes c ON c.id=cs.class_id JOIN subjects s ON s.id=cs.subject_id
          JOIN students st ON st.user_id=:user_id JOIN users u ON u.id=st.user_id AND u.is_active
          WHERE q.is_published AND st.class_id=cs.class_id
-           AND (q.starts_at IS NULL OR q.starts_at<=CURRENT_TIMESTAMP) AND (q.ends_at IS NULL OR q.ends_at>CURRENT_TIMESTAMP)
+           AND (((q.starts_at IS NULL OR q.starts_at<=CURRENT_TIMESTAMP) AND (q.ends_at IS NULL OR q.ends_at>CURRENT_TIMESTAMP))
+                OR EXISTS (SELECT 1 FROM quiz_attempts retry WHERE retry.quiz_id=q.id AND retry.student_id=st.id AND ((retry.status='INCOMPLETE' AND retry.retry_granted_at IS NOT NULL AND retry.retry_grant_used_at IS NULL) OR retry.status='IN_PROGRESS')))
            AND EXISTS (SELECT 1 FROM manual_content_access a WHERE a.student_id=st.id AND a.revoked_at IS NULL)
          ORDER BY q.created_at DESC"
     );

@@ -2,7 +2,7 @@
 
 منصة تعليمية عربية تطورها وتشرف عليها شركة **AL WARITH**. تعرض الواجهة العربية من اليمين إلى اليسار، وتستهدف المنهج السوداني.
 
-تشرح [وثيقة سياق المشروع](docs/PROJECT_CONTEXT.md) المتطلبات والأدوار وحالة التنفيذ. يشرح [دليل المساهمة](CONTRIBUTING.md) تقسيم العمل بين فريقي الواجهة والخلفية. وتوضح [خطة النشر](docs/DEPLOYMENT.md) المعمارية المتفق عليها وموانع الإطلاق وقائمة إعداد الاستضافة.
+تشرح [وثيقة سياق المشروع](docs/PROJECT_CONTEXT.md) المتطلبات والأدوار وحالة التنفيذ. يشرح [دليل المساهمة](CONTRIBUTING.md) تقسيم العمل بين فريقي الواجهة والخلفية. وتوضح [خطة النشر](docs/DEPLOYMENT.md) المعمارية وموانع الإطلاق، بينما يشرح [دليل التجربة المجانية على Render وNeon](docs/FREE_HOSTING_RENDER_NEON.md) خطوات العرض قبل شراء الخادم.
 
 ## التقنية
 
@@ -163,14 +163,14 @@ php -S 127.0.0.1:8000 -t public public/router.php
 - بدء الاختبارات وإرسال الإجابات وتصحيح الموضوعي آليًا والمقالي يدويًا، وإظهار النتائج بحسب إعداد البيئة.
 - إدارة الحصص من صفحة الحصص وAPI: Cloudflare Live Inputs، مفاتيح بث لا تُحفظ في المنصة، روابط مشاهدة موقعة، ومزامنة التسجيلات الجاهزة. يلزم اختبار حساب Cloudflare فعلي. الرسائل فردية، ويلزم إعداد `MESSAGING_RATE_LIMIT_COUNT` و`MESSAGING_RATE_LIMIT_WINDOW_SECONDS` قبل الإرسال.
 - الخطط والاشتراكات يمكن إدارتها يدويًا من المدير، وتنتهي حالة الاشتراك آليًا عند انتهاء الفترة. لا توجد أسعار افتراضية ولا بوابة دفع. يمكن تشغيل معالجة الانتهاء يدويًا أو دوريًا عبر `php database/expire_subscriptions.php`.
-- تصنف المحاولات المنتهية بلا تسليم كغير مكتملة عبر `php database/process_expired_quiz_attempts.php`؛ شغّلها دوريًا كل دقيقة بواسطة cron على الخادم.
+- تصنف المحاولات المنتهية بلا تسليم عند تفاعل الطالب معها، ويمكن تشغيل `php database/process_expired_quiz_attempts.php` دوريًا كل دقيقة بواسطة cron على الخادم. لا توفر خطة Render المجانية جدولة دورية دائمة؛ راجع [دليل Render وNeon](docs/FREE_HOSTING_RENDER_NEON.md) للتجربة فقط.
 - تشغيل قاعدة البيانات يشمل قفلًا وبصمة SHA-256 للترحيلات، ونسخًا احتياطية خاصة عبر `pg_dump`، واستعادةً تتحقق من البصمة، ونقطة فحص الصحة `/health`.
 
 عقد النقاط في `docs/API_CONTRACT.md`، والقرارات التي لا تزال بلا قيمة في `docs/OPEN_DECISIONS.md`. مصفوفات التتبع واختبارات المراحل في `docs/TRACEABILITY_PHASE_*.md` و`tests/`. تكامل الاختبار لا يعمل إلا على قاعدة يبدأ اسمها بـ`alesnad_test_`.
 
 ## الاختبارات والتحقق
 
-- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/quiz_policy_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
+- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/database_url_unit.php`, و`php tests/quiz_policy_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
 - اختبارات PostgreSQL التكاملية ترفض العمل ما لم يبدأ اسم `DB_DATABASE` بـ`alesnad_test_`. شغّل `php database/migrate.php` قبل `tests/phase1_integration.php` و`tests/phase2_academic_integration.php`.
 - GitHub Actions في `.github/workflows/backend-ci.yml` يوفر PostgreSQL 16 وPHP 8.4، ويشغّل الترحيلات واختبارات DB وHTTP وصلاحيات endpoints والوصول المباشر للملفات وتجربة النسخ والاستعادة.
 - `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. عند كتابة هذا التغيير لم يعمل workflow بعد؛ لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.
