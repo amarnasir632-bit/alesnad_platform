@@ -156,6 +156,7 @@ function sm_list_sessions(array $actor): array
         $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id JOIN employees e ON e.id = ls.teacher_id JOIN teaching_assignments ta ON ta.employee_id = e.id AND ta.class_subject_id = cs.id WHERE e.user_id = :user_id ORDER BY ls.scheduled_at DESC LIMIT 200');
         $stmt->execute(['user_id' => $actor['id']]);
     } else {
+        if (!has_manual_content_access((int) $actor['id'])) return [];
         $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id JOIN students st ON st.class_id = cs.class_id JOIN classes c ON c.id = st.class_id AND c.is_active = TRUE JOIN teaching_assignments ta ON ta.employee_id = ls.teacher_id AND ta.class_subject_id = cs.id WHERE st.user_id = :user_id ORDER BY ls.scheduled_at DESC LIMIT 200');
         $stmt->execute(['user_id' => $actor['id']]);
     }
@@ -170,12 +171,61 @@ function sm_join_session(array $actor, int $sessionId): array
     $start = new DateTimeImmutable($session['scheduled_at']);
     if ($now < $start) throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
     if ($session['duration_minutes'] === null || $now > $start->modify('+' . (int) $session['duration_minutes'] . ' minutes')) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
-    if (in_array('student', $actor['roles'] ?? [], true) && !has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط للانضمام إلى الحصة.');
+    if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     $joinUrl = is_string($session['meeting_url']) && trim($session['meeting_url']) !== ''
         ? $session['meeting_url']
         : live_meeting_provider()->joinUrl($session, $actor);
     audit_log('session.joined', 'live_session', $sessionId, [], (int) $actor['id']);
     return ['session_id' => $sessionId, 'meeting_url' => $joinUrl, 'scheduled_at' => $session['scheduled_at'], 'duration_minutes' => $session['duration_minutes']];
+}
+
+function sm_provision_stream(array $actor, int $sessionId): array
+{
+    $session = sm_session($actor, $sessionId);
+    if (!in_array('admin', $actor['roles'] ?? [], true)) {
+        $employeeId = sm_employee_for_class(database_connection(), $actor, (int) $session['class_subject_id']);
+        if ($employeeId !== (int) $session['teacher_id']) throw new ApiException(403, 'session_teacher_required', 'يمكن للأستاذ المسند أو المدير إعداد بث الحصة فقط.');
+    }
+    if (!empty($session['provider_session_ref'])) throw new ApiException(409, 'stream_already_provisioned', 'أُعد مدخل بث لهذه الحصة من قبل.');
+    if ($session['status'] === 'CANCELLED' || $session['status'] === 'COMPLETED') throw new ApiException(409, 'session_not_provisionable', 'لا يمكن إعداد بث لحصة ملغاة أو مكتملة.');
+
+    // Do not hold a database transaction while calling Cloudflare.
+    $meeting = live_meeting_provider()->createMeeting($session);
+    $stmt = database_connection()->prepare("UPDATE live_sessions SET provider_code = :provider_code, provider_session_ref = :provider_ref, updated_at = CURRENT_TIMESTAMP WHERE id = :id AND provider_session_ref IS NULL RETURNING id");
+    $stmt->execute(['provider_code' => $meeting['provider_code'], 'provider_ref' => $meeting['provider_session_ref'], 'id' => $sessionId]);
+    if ($stmt->fetchColumn() === false) throw new ApiException(409, 'stream_already_provisioned', 'أُعد مدخل بث لهذه الحصة بالتزامن.');
+    audit_log('session.stream.provisioned', 'live_session', $sessionId, ['provider' => $meeting['provider_code']], (int) $actor['id']);
+    // The RTMPS stream key is only returned once and is never stored by this application.
+    return ['session_id' => $sessionId, 'provider_code' => $meeting['provider_code'], 'ingest_url' => $meeting['ingest_url'], 'stream_key' => $meeting['stream_key']];
+}
+
+function sm_sync_stream_recordings(array $actor, int $sessionId): array
+{
+    $session = sm_session($actor, $sessionId);
+    if (!in_array('admin', $actor['roles'] ?? [], true)) {
+        $employeeId = sm_employee_for_class(database_connection(), $actor, (int) $session['class_subject_id']);
+        if ($employeeId !== (int) $session['teacher_id']) throw new ApiException(403, 'session_teacher_required', 'يمكن للأستاذ المسند أو المدير مزامنة تسجيلات الحصة فقط.');
+    }
+    if (($session['provider_code'] ?? null) !== 'cloudflare_stream' || empty($session['provider_session_ref'])) throw new ApiException(409, 'stream_not_provisioned', 'لم يُجهز بث Cloudflare لهذه الحصة.');
+    $videos = live_meeting_provider()->listReadyRecordings($session);
+    $db = database_connection();
+    $insert = $db->prepare("INSERT INTO session_recordings (session_id, title, storage_key, provider_recording_ref, duration_seconds, file_size_bytes, status) VALUES (:session_id, :title, NULL, :provider_ref, :duration, :size, 'READY') ON CONFLICT (session_id, provider_recording_ref) WHERE provider_recording_ref IS NOT NULL DO NOTHING");
+    $added = 0;
+    foreach ($videos as $video) {
+        $ref = (string) $video['uid'];
+        $title = $video['meta']['name'] ?? ('تسجيل ' . substr($ref, 0, 12));
+        if (!is_string($title) || trim($title) === '') $title = 'تسجيل ' . substr($ref, 0, 12);
+        $insert->execute([
+            'session_id' => $sessionId,
+            'title' => mb_substr(trim($title), 0, 180),
+            'provider_ref' => $ref,
+            'duration' => isset($video['duration']) && is_numeric($video['duration']) ? max(0, (int) $video['duration']) : null,
+            'size' => isset($video['size']) && is_numeric($video['size']) ? max(0, (int) $video['size']) : null,
+        ]);
+        $added += $insert->rowCount();
+    }
+    audit_log('session.recordings.synced', 'live_session', $sessionId, ['ready_count' => count($videos), 'added_count' => $added], (int) $actor['id']);
+    return ['session_id' => $sessionId, 'ready_count' => count($videos), 'added_count' => $added];
 }
 
 function sm_add_recording(array $actor, int $sessionId, array $file, array $input): array
@@ -209,7 +259,7 @@ function sm_list_recordings(array $actor, int $sessionId): array
     $session = sm_session($actor, $sessionId);
     if (in_array('student', $actor['roles'] ?? [], true)) {
         if ($session['status'] !== 'COMPLETED' && new DateTimeImmutable($session['scheduled_at'] . ' +' . (int) ($session['duration_minutes'] ?? 0) . ' minutes') > new DateTimeImmutable('now')) return [];
-        if (!has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
+        if (!has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     }
     $stmt = database_connection()->prepare('SELECT id, session_id, title, duration_seconds, file_size_bytes, status, available_from, created_at FROM session_recordings WHERE session_id = :session_id AND status = \'READY\' AND (available_from IS NULL OR available_from <= CURRENT_TIMESTAMP) ORDER BY created_at');
     $stmt->execute(['session_id' => $sessionId]);
@@ -225,7 +275,7 @@ function sm_recording_download(array $actor, int $recordingId): array
     $session = sm_session($actor, (int) $recording['session_id']);
     $end = (new DateTimeImmutable($session['scheduled_at']))->modify('+' . (int) ($session['duration_minutes'] ?? 0) . ' minutes');
     if ($session['status'] !== 'COMPLETED' && $end > new DateTimeImmutable('now')) throw new ApiException(403, 'recording_not_available', 'يتاح التسجيل بعد انتهاء الحصة.');
-    if (in_array('student', $actor['roles'] ?? [], true) && !has_active_subscription((int) $actor['id'])) throw new ApiException(403, 'active_subscription_required', 'يلزم اشتراك نشط لمشاهدة التسجيل.');
+    if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     if ($recording['storage_key'] === null) {
         $provider = live_meeting_provider();
         $source = $provider->recordingSource($recording, $actor);

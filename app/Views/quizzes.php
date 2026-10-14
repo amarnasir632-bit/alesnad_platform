@@ -15,7 +15,7 @@
           <h2>الأسئلة المعتمدة</h2>
           <?php if (!$data['questions']): ?><p class="muted">لا توجد أسئلة معتمدة لهذه المادة بعد.</p><?php else: ?><div class="quiz-question-picker">
             <?php foreach($data['questions'] as $question): ?><label class="quiz-question-choice"><input type="checkbox" name="question_ids[]" value="<?= (int)$question['id'] ?>"><span><?= e($question['question_text']) ?><small><?= e(match($question['question_type']){'MCQ'=>'اختيار من متعدد','TRUE_FALSE'=>'صح أو خطأ','ESSAY'=>'مقالي',default=>$question['question_type']}) ?></small></span><span class="quiz-mark"><input aria-label="درجة السؤال" type="number" min="0.01" step="0.01" value="1" name="question_marks[<?= (int)$question['id'] ?>]" data-mark-for="<?= (int)$question['id'] ?>" disabled></span></label><?php endforeach; ?>
-          </div><p class="muted">حدّد الأسئلة وأدخل درجاتها؛ يمنح الاختبار محاولات غير محدودة ما لم تعتمد الإدارة سياسة مختلفة.</p><label class="quiz-publish-check"><input type="checkbox" name="publish" value="1" checked>نشر الاختبار فورًا</label><button class="button" type="submit">حفظ الاختبار</button><?php endif; ?>
+          </div><p class="muted">حدّد الأسئلة وأدخل درجاتها. إعداد سياسة المحاولات والنتائج مطلوب قبل إتاحة الاختبارات للطلاب.</p><label class="quiz-publish-check"><input type="checkbox" name="publish" value="1" checked>نشر الاختبار فورًا</label><button class="button" type="submit">حفظ الاختبار</button><?php endif; ?>
         </form>
       <?php endif; ?>
     </details>
@@ -28,7 +28,7 @@
         <details class="quiz-attempt-list"><summary>المحاولات (<?= (int)$quiz['attempt_count'] ?>)</summary><?php foreach(($data['attempts_by_quiz'][(int)$quiz['id']]??[]) as $attempt): ?><a class="quiz-attempt-link" href="<?= e(url('quiz_attempt',['id'=>(int)$attempt['id']])) ?>"><?= e($attempt['full_name']) ?> · <?= e(match($attempt['status']){'IN_PROGRESS'=>'قيد الأداء','SUBMITTED'=>'بانتظار التصحيح','GRADED'=>'تم التصحيح','CANCELLED'=>'ملغاة',default=>$attempt['status']}) ?><?php if($attempt['score']!==null): ?> · <?= e((string)$attempt['score']) ?><?php endif; ?></a><?php endforeach; ?></details>
       <?php else: ?>
         <?php if($quiz['active_attempt_id']): ?><a class="button button-small" href="<?= e(url('quiz_attempt',['id'=>(int)$quiz['active_attempt_id']])) ?>">متابعة المحاولة</a><?php else: ?><form method="post" action="<?= e(url('quizzes')) ?>" class="inline-form"><input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="quiz_start"><input type="hidden" name="quiz_id" value="<?= (int)$quiz['id'] ?>"><button class="button button-small">بدء محاولة جديدة</button></form><?php endif; ?>
-        <?php if($quiz['last_attempt_status']==='SUBMITTED'): ?><span class="muted">بانتظار تصحيح الإجابة المقالية</span><?php elseif($quiz['last_attempt_status']==='GRADED'&&$quiz['last_score']!==null): ?><span class="muted">النتيجة: <?= e((string)$quiz['last_score']) ?> من <?= e((string)$quiz['total_marks']) ?></span><?php endif; ?>
+        <?php if(!empty($quiz['last_attempt_id'])): ?><a class="button button-small button-secondary" href="<?= e(url('quiz_attempt',['id'=>(int)$quiz['last_attempt_id']])) ?>"><?= $quiz['last_attempt_status']==='IN_PROGRESS'?'متابعة المحاولة':($quiz['last_attempt_status']==='SUBMITTED'?'حالة النتيجة':'عرض النتيجة') ?></a><?php endif; ?>
       <?php endif; ?>
     </article><?php endforeach; ?>
   </div><?php endif; ?>

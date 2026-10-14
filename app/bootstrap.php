@@ -44,13 +44,6 @@ require_once PROJECT_ROOT . '/app/Support/http.php';
 require_once PROJECT_ROOT . '/app/Auth/auth.php';
 require_once PROJECT_ROOT . '/app/Database/audit.php';
 require_once PROJECT_ROOT . '/app/Database/catalog.php';
-<<<<<<< HEAD
-require_once PROJECT_ROOT . '/app/Security/authorization.php';
-require_once PROJECT_ROOT . '/app/Security/audit.php';
-require_once PROJECT_ROOT . '/app/Security/login_throttle.php';
-require_once PROJECT_ROOT . '/app/Security/passwords.php';
-require_once PROJECT_ROOT . '/app/Services/AcademicService.php';
-=======
 require_once PROJECT_ROOT . '/app/Database/academics.php';
 require_once PROJECT_ROOT . '/app/Database/access.php';
 require_once PROJECT_ROOT . '/app/Database/staff.php';
@@ -58,4 +51,8 @@ require_once PROJECT_ROOT . '/app/Database/questions.php';
 require_once PROJECT_ROOT . '/app/Database/messages.php';
 require_once PROJECT_ROOT . '/app/Database/library.php';
 require_once PROJECT_ROOT . '/app/Database/quizzes.php';
->>>>>>> 93fd34a (Update latest changes)
+require_once PROJECT_ROOT . '/app/Security/authorization.php';
+require_once PROJECT_ROOT . '/app/Security/audit.php';
+require_once PROJECT_ROOT . '/app/Security/login_throttle.php';
+require_once PROJECT_ROOT . '/app/Security/passwords.php';
+require_once PROJECT_ROOT . '/app/Services/AcademicService.php';

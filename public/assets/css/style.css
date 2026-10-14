@@ -95,3 +95,61 @@
 @media(max-width:650px){.quiz-filter{align-items:stretch;flex-direction:column}.quiz-form-grid,.quiz-grade-form{grid-template-columns:1fr}.quiz-wide{grid-column:auto}.quiz-question-choice{grid-template-columns:auto 1fr}.quiz-mark{grid-column:2}}
 .quiz-countdown{position:sticky;top:8px;z-index:3;width:max-content;max-width:100%;margin:14px auto;padding:10px 18px;border-radius:999px;background:#123d35;color:#fff;font-weight:700;box-shadow:var(--shadow)}
 .quiz-countdown.expired{background:#8b3028}
+
+/* Live classes and recordings */
+.session-create{max-width:none;margin:22px 0;padding:24px}
+.session-create>summary,.session-stream-credentials>summary{cursor:pointer;font-weight:700}
+.session-form{margin-top:18px}
+.session-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-bottom:17px}
+.session-form-grid label,.session-stream-credentials label,.session-status-form label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.session-form-grid input,.session-form-grid select,.session-form-grid textarea,.session-stream-credentials input,.session-status-form select{width:100%;padding:10px 12px;border:1px solid #dce4dd;border-radius:7px;background:#fff;font:inherit}
+.session-wide{grid-column:1/-1}
+.session-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,370px),1fr));gap:16px;align-items:start}
+.session-card{max-width:none;margin:0;padding:22px}
+.session-card-head{display:flex;justify-content:space-between;align-items:center;gap:8px;color:var(--muted);font-size:12px}
+.session-card h2{font-size:20px}
+.session-stream-credentials{margin:16px 0;padding:12px;background:#fff8e8;border:1px solid #eee1bd;border-radius:8px}
+.session-stream-credentials p{font-size:12px;color:var(--muted)}
+.session-status-form{display:flex;align-items:end;gap:9px;margin-top:14px}
+.session-status-form label{flex:1}
+.session-sync-form{margin-top:10px}
+.session-recording-list{padding-right:20px}
+.session-recording-list li{padding:7px 0}
+.session-recording-list small{margin-right:8px;color:var(--muted)}
+.session-player-wrap{position:relative;width:100%;max-width:1050px;margin:24px auto;aspect-ratio:16/9;background:#071c18;border-radius:14px;overflow:hidden;box-shadow:var(--shadow)}
+.session-player-wrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+@media(max-width:650px){.session-form-grid{grid-template-columns:1fr}.session-wide{grid-column:auto}.session-status-form{align-items:stretch;flex-direction:column}}
+
+/* Session manager UI */
+.sessions-page{max-width:1180px}
+.session-create-panel{margin:18px 0 26px;padding:22px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+.session-create-panel h2{margin-top:0;font-size:20px}
+.session-create-panel .form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.session-create-panel .form-grid label{display:grid;gap:6px;font-size:13px;font-weight:600}
+.session-create-panel input,.session-create-panel select,.session-create-panel textarea{width:100%;padding:10px 12px;border:1px solid #dce4dd;border-radius:7px;background:#fff;font:inherit}
+.session-create-panel .form-span{grid-column:1/-1}
+.session-list{grid-template-columns:repeat(auto-fit,minmax(min(100%,390px),1fr))}
+.session-card{max-width:none;margin:0;padding:20px;border:1px solid var(--line);border-radius:12px;background:#fff;box-shadow:var(--shadow)}
+.session-card-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.session-card-heading h2{margin:0 0 5px;font-size:19px}
+.session-card-heading p{margin:0;color:var(--muted);font-size:12px}
+.status-chip{flex:none;padding:4px 9px;border-radius:999px;background:#eef3f0;color:#34564b;font-size:11px}
+.session-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.session-output{margin-top:12px;overflow-wrap:anywhere}
+.session-output iframe{width:100%;aspect-ratio:16/9;border:0;border-radius:9px;background:#071c18}
+.stream-credentials{padding:12px;background:#fff8e8;border:1px solid #eee1bd;border-radius:8px;overflow-wrap:anywhere}
+@media(max-width:650px){.session-create-panel .form-grid{grid-template-columns:1fr}.session-create-panel .form-span{grid-column:auto}.session-actions{align-items:stretch}.session-actions .button{flex:1 1 45%}}
+
+/* Admin user accounts */
+.account-admin .section-head{align-items:center}
+.table-scroll{width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.account-table{width:100%;min-width:950px;border-collapse:collapse}
+.account-table th,.account-table td{padding:12px;text-align:right;vertical-align:top;border-bottom:1px solid var(--line)}
+.account-table th{background:#f6f8f6;color:var(--muted);font-size:12px}
+.account-field{display:grid;gap:4px;margin-bottom:8px;font-size:11px;color:var(--muted)}
+.account-field input,.account-table select{width:100%;min-width:135px;padding:8px;border:1px solid #dce4dd;border-radius:6px;background:#fff;font:inherit;color:var(--ink)}
+.account-active{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.account-role-list{display:grid;gap:5px;min-width:150px;border:0;padding:0;margin:0}
+.account-role-list legend{padding:0 0 5px;font-size:12px;font-weight:700}
+.account-role-list label{display:flex;align-items:center;gap:6px;font-size:12px}
+.account-table td:last-child{display:grid;gap:7px}

@@ -6,11 +6,11 @@
 
 | المعرّف | المكوّن المنفذ / الحالة | الاختبار | النتيجة الفعلية |
 | --- | --- | --- | --- |
-| FR-001 | إنشاء وإدارة الحسابات `AccountService` و`AccountController` | `tests/phase1_integration.php`; `tests/protected_endpoints_integration.php` | static phase 1: PASS محليًا؛ تكامل DB/HTTP: لم ينفذ محليًا، ينتظر CI |
+| FR-001 | إنشاء وإدارة الحسابات `AccountService` و`AccountController`؛ تسجيل الطالب يربطه بصف نشط اختاره | `tests/phase1_integration.php`; `tests/protected_endpoints_integration.php` | static phase 1: PASS محليًا؛ تكامل DB/HTTP: لم ينفذ محليًا، ينتظر CI |
 | FR-002 | تسجيل الدخول والجلسات وتحديد المحاولات | `tests/phase1_integration.php`; `tests/protected_endpoints_integration.php` | static phase 1: PASS محليًا؛ تكامل DB/HTTP: لم ينفذ محليًا، ينتظر CI |
 | FR-003 | صلاحيات حسب الدور على الخادم | `tests/protected_endpoints_integration.php` اختبار مسموح ومرفوض لكل مسار محمي | static phase 1 و8: PASS محليًا؛ HTTP: لم ينفذ محليًا، ينتظر CI |
 | FR-004 | المراحل والصفوف والمواد والدروس | `tests/phase2_academic_integration.php`; `tests/static_phase2_checks.py` | static phase 2: PASS محليًا؛ تكامل PostgreSQL: لم ينفذ محليًا، ينتظر CI |
-| FR-005 | صف السادس والثالث الثانوي وإضافة الفئات | `tests/phase2_academic_integration.php`; `tests/static_phase2_checks.py` | static phase 2: PASS محليًا؛ تكامل PostgreSQL: لم ينفذ محليًا، ينتظر CI |
+| FR-005 | تهيئة الصف السادس والثالث الثانوي والمرحلة المتوسطة؛ تدخل الإدارة صفوف الإطلاق يدويًا قبل فتح التسجيل | `tests/phase2_academic_integration.php`; `tests/static_phase2_checks.py` | آلية الإدارة موجودة؛ بيانات صفوف الإنتاج لم تدخل بعد؛ تكامل PostgreSQL ينتظر CI |
 | FR-006 | ربط المحتوى بالسياق الدراسي | `tests/static_phase3_checks.py`; `tests/phase2_academic_integration.php` | static phases 2–3: PASS محليًا؛ تكامل PostgreSQL: ينتظر CI |
 | FR-007 | المكتبة والتنزيل وفق الصلاحية | `tests/static_phase3_checks.py`; `tests/protected_endpoints_integration.php` | static phase 3: PASS محليًا؛ HTTP/DB: ينتظر CI |
 | FR-008 | البحث والتصفية | `tests/phase2_academic_integration.php`; `tests/static_phase2_checks.py` | static phase 2: PASS محليًا؛ تكامل PostgreSQL: ينتظر CI |
@@ -24,10 +24,10 @@
 | FR-016 | عرض النتائج بحسب الدور | `tests/static_phase4_checks.py`; `tests/protected_endpoints_integration.php` | static phase 4: PASS محليًا؛ اختبار خصوصية API على PostgreSQL: ينتظر CI |
 | FR-017 | جدولة الحصص للأستاذ المخول | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB: ينتظر CI |
 | FR-018 | الانضمام للحصة حسب الوقت والصلاحية | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB: ينتظر CI |
-| FR-019 | التسجيلات بعد انتهاء الحصة | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB: ينتظر CI؛ مزود البث غير مختار |
+| FR-019 | التسجيلات بعد انتهاء الحصة؛ Cloudflare Stream adapter، مزامنة التسجيلات الجاهزة وروابط موقعة | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB وبث حساب حقيقي: ينتظران بيئة اختبار |
 | FR-020 | الرسائل الفردية بين الطالب والأستاذ | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB: ينتظر CI |
 | FR-021 | صلاحيات وضوابط التواصل والقراءة والحذف | `tests/static_phase5_checks.py`; `tests/protected_endpoints_integration.php` | static phase 5: PASS محليًا؛ HTTP/DB: ينتظر CI؛ سياسة الاحتفاظ معلقة |
-| FR-022 | لوحة الإدارة الرسومية؛ صفحات الإدارة غير منفذة؛ عمليات الإدارة الحالية API | `tests/static_phase8_checks.py` يتحقق من دقة وصف النطاق | غير منفذ؛ لم يوصف بأنه جاهز |
+| FR-022 | صفحات إدارة الهيكل الدراسي والحسابات والفريق والوصول والمراجعة موجودة؛ لا توجد لوحة موحدة للتقارير والإحصاءات | `tests/static_phase8_checks.py`; صفحات `app/Views/academics.php`, `staff.php`, `content_access.php`, `questions.php`, `library.php` | تنفيذ جزئي؛ يلزم تدقيق المتصفح والقبول على صلاحيات كل صفحة |
 | FR-023 | حالات نشر المحتوى والوصول إليه | `tests/static_phase3_checks.py`; `tests/protected_endpoints_integration.php` | static phase 3: PASS محليًا؛ HTTP/DB: ينتظر CI |
 | FR-024 | التنزيل وRange للاتصال المحدود | `tests/content_range_unit.php`; `tests/static_phase3_checks.py` | PASS محليًا للوحدة والفحص الساكن؛ تنزيل HTTP ينتظر CI |
 | FR-025 | توليد الأسئلة بالذكاء الاصطناعي؛ خارج إطلاق المرحلة الحالية حسب قرار المالك | `tests/static_phase8_checks.py` يتحقق من وصف النطاق | مؤجل؛ غير منفذ |
@@ -47,12 +47,12 @@
 | NFR-009 | قابلية الصيانة وإدارة الإصدارات؛ PHP، ترحيلات ببصمات، وثائق وCI | `php -l`; `tests/static_phase8_checks.py`; جميع static phase checks | PHP/static PASS محليًا؛ نتيجة CI تنتظر تشغيل GitHub |
 | NFR-010 | خصوصية الطلاب والرسائل والنتائج؛ فحوص الدور والملكية على الخادم | `tests/protected_endpoints_integration.php`; `tests/phase1_integration.php` | static PASS محليًا؛ تكامل HTTP/DB ينتظر CI |
 | NFR-011 | مراقبة الأخطاء والخدمة؛ `/health` وسجل أحداث لا يحتوي رسالة الاستثناء | `tests/protected_endpoints_integration.php`; `tests/static_phase8_checks.py` | static PASS محليًا؛ HTTP ينتظر CI |
-| NFR-012 | التعامل مع تعذر الخدمات الخارجية دون أسرار؛ عقد مزود مجرد؛ لا مزود بث/تخزين محدد أو adapter | `tests/static_phase5_checks.py`; `tests/static_phase8_checks.py` | عدم وجود مزود تنفيذي موثق؛ اختبار تكامل غير منطبق قبل اختيار المزود |
+| NFR-012 | التعامل مع تعذر الخدمة الخارجية؛ Cloudflare Stream adapter يرفض الإعداد الناقص أو استجابة المزود غير الصالحة ولا يسجل الأسرار | `tests/static_phase5_checks.py`; `tests/static_phase8_checks.py` | تحقق ساكن محليًا؛ تعطل المزود وصلاحيات حساب حقيقي لم تختبر بعد |
 
 ## نتائج التشغيل المسجلة لهذه المرحلة
 
-- `php -l`: 53/53 ملف PHP ناجح.
-- اختبارات الوحدة: 16/16 ناجحة؛ الفحوصات الساكنة للمراحل 1–8: 158/158 ناجحة.
+- `php -l`: 71/71 ملف PHP ناجح، و`node --check public/assets/js/sessions.js` ناجح.
+- اختبارات الوحدة: 19/19 ناجحة؛ الفحوصات الساكنة للمراحل 1–8: 172/172 ناجحة.
 - لم تعمل اختبارات PostgreSQL/HTTP محليًا لأن خادم PostgreSQL على `127.0.0.1:5432` لا يستجيب. امتداد `pdo_pgsql` متاح، لكن خدمة DB غير متاحة.
 - Workflow مضاف ولم ينفذ على GitHub بعد. لا تسجل نتيجة CI كناجحة حتى يكتمل فعليًا.
 - اختبارات الأداء وUAT وتكامل البث/التخزين تنتظر قرارات وأرقام وبيئة من المالك؛ لم تُسجل كاختبارات ناجحة.

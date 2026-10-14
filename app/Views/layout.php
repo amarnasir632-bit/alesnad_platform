@@ -22,13 +22,13 @@ $user = current_user();
           <a href="<?= e(url('home')) ?>">الرئيسية</a>
           <a href="<?= e(url('subjects')) ?>">المواد الدراسية</a>
           <?php if ($user): ?><a href="<?= e(url('questions')) ?>">بنك الأسئلة</a><?php endif; ?>
-          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php elseif ($user): ?><a href="<?= e(url('library')) ?>">الامتحانات السابقة</a><?php else: ?><a href="#exams">الامتحانات</a><?php endif; ?>
-          <a href="#sessions">الحصص</a>
+          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php elseif ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?><a href="<?= e(url('library')) ?>">الامتحانات السابقة</a><?php endif; ?>
+          <?php if ($user && (user_has_permission('sessions.manage') || user_has_permission('sessions.join'))): ?><a href="<?= e(url('sessions')) ?>">الحصص</a><?php endif; ?>
           <?php if ($user && user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
           <?php if ($user && user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
           <?php if ($user && user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
+          <?php if ($user && user_has_permission('roles.manage')): ?><a href="<?= e(url('accounts')) ?>">إدارة الحسابات</a><?php endif; ?>
           <?php if ($user && user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
-          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
           <?php if ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
           <?php if ($user): ?>
             <span><?= e($user['full_name']) ?></span>
@@ -58,9 +58,11 @@ $user = current_user();
         <?php if (user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
         <?php if (user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
         <?php if (user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
+        <?php if (user_has_permission('roles.manage')): ?><a href="<?= e(url('accounts')) ?>">إدارة الحسابات</a><?php endif; ?>
         <?php if (user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
-        <?php if (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt')): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
+        <?php if (user_has_permission('sessions.manage') || user_has_permission('sessions.join')): ?><a href="<?= e(url('sessions')) ?>">الحصص</a><?php endif; ?>
         <?php if (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review')): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
+        <?php if (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt')): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
         <span class="nav-user">مرحباً <?= e($user['full_name']) ?></span>
         <form class="inline-form" method="post" action="<?= e(url('home')) ?>">
           <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
@@ -97,6 +99,8 @@ $user = current_user();
   <?php if (($page ?? '') === 'library'): ?><script src="/assets/js/library.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'quizzes'): ?><script src="/assets/js/quizzes.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'quiz_attempt'): ?><script src="/assets/js/quiz-attempt.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
   <footer class="site-footer">
     <span>منصة الإسناد الأكاديمي · AL WARITH</span>
     <span>خطوتك القادمة تبدأ بالتعلّم</span>

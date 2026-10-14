@@ -52,10 +52,19 @@ function has_permission(string $permission): bool
 
 function require_permission(string $permission): array
 {
-    if (!has_permission($permission)) {
-        json_response(403, ['error' => ['code' => 'forbidden', 'message' => 'لا تملك صلاحية تنفيذ هذا الإجراء.']]);
+    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $isApi = str_starts_with($path, '/api/v1/');
+    $user = refresh_authenticated_user();
+    if ($user === null) {
+        if ($isApi) json_response(401, ['error' => ['code' => 'unauthenticated', 'message' => 'سجل الدخول أولًا.']]);
+        redirect(url('login'));
     }
-    return refresh_authenticated_user() ?? [];
+    if (!has_permission($permission)) {
+        if ($isApi) json_response(403, ['error' => ['code' => 'forbidden', 'message' => 'لا تملك صلاحية تنفيذ هذا الإجراء.']]);
+        http_response_code(403);
+        exit('لا تملك الصلاحية لتنفيذ هذا الإجراء.');
+    }
+    return $user;
 }
 
 function require_role(string ...$roles): array

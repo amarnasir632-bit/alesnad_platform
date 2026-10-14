@@ -5,6 +5,24 @@ require_once dirname(__DIR__) . '/app/Support/env.php';
 require_once dirname(__DIR__) . '/app/Support/logger.php';
 require_once dirname(__DIR__) . '/app/Database/connection.php';
 
+/**
+ * Two additive 007 migrations from parallel branches both introduce this column.
+ * Keep their source hashes immutable, while applying the ALTER only if needed.
+ */
+function migration_execution_sql(PDO $pdo, string $version, string $sql): string
+{
+    if (!in_array($version, ['007_quiz_feedback.sql', '007_quizzes_and_attempts.sql'], true)) return $sql;
+    $column = $pdo->prepare(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = 'student_answers' AND column_name = 'teacher_feedback')"
+    );
+    $column->execute();
+    if (!filter_var($column->fetchColumn(), FILTER_VALIDATE_BOOLEAN)) return $sql;
+
+    $updated = preg_replace('/ALTER\s+TABLE\s+student_answers\s+ADD\s+COLUMN\s+teacher_feedback\s+TEXT\s*;/i', '', $sql, 1, $replacements);
+    if ($updated === null || $replacements !== 1) throw new RuntimeException("Could not reconcile duplicate teacher_feedback column in {$version}");
+    return $updated;
+}
+
 load_environment(dirname(__DIR__) . '/.env');
 ini_set('display_errors', '0');
 
@@ -54,7 +72,7 @@ try {
 
         $pdo->beginTransaction();
         try {
-            $pdo->exec($sql);
+            $pdo->exec(migration_execution_sql($pdo, $version, $sql));
             $record = $pdo->prepare('INSERT INTO schema_migrations (version, checksum_sha256) VALUES (:version, :checksum)');
             $record->execute(['version' => $version, 'checksum' => $checksum]);
             $pdo->commit();

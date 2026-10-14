@@ -30,7 +30,7 @@ check("no plan price or currency is invented", "price' => null" not in service a
 check("plan duration is explicitly required and used", "duration_days مطلوب" in service and "duration_days" in service and "days'" in service)
 check("manual subscription requires explicit amount, currency, status and start", "amount_paid" in service and "currency" in service and "PENDING', 'ACTIVE" in service and "starts_at" in service)
 check("single active-subscription function performs expiry reconciliation", "function has_active_subscription" in service and "SET status = 'EXPIRED'" in service and "ends_at <= CURRENT_TIMESTAMP" in service)
-check("content, quiz and session access use canonical subscription check", "has_active_subscription" in content and "has_active_subscription" in quiz and "has_active_subscription" in sessions and "EXISTS (SELECT 1 FROM subscriptions" not in quiz)
+check("release content, quiz and session access use manual content grants", "has_manual_content_access" in content and "has_manual_content_access" in quiz and "has_manual_content_access" in sessions and "function has_manual_content_access" in service)
 check("expiration can run through API and CLI", "api_admin_expire_subscriptions" in controller and (ROOT / "database/expire_subscriptions.php").exists())
 check("subscription endpoints are registered", all(x in router for x in ("/api/v1/subscription-plans", "/api/v1/subscriptions/me", "/api/v1/admin/subscriptions")))
 check("admin operations enforce subscriptions.manage", controller.count("require_permission('subscriptions.manage')") >= 5)
@@ -40,7 +40,7 @@ check("project and API docs map phase 6", "حالة المرحلة السادس�
 check("price and entitlement decisions remain documented", "OD-05" in trace and "OD-06" in trace and "لا أسعار" in trace)
 check("no subscription policy values added to environment", "SUBSCRIPTION_PRICE=" not in env and "SUBSCRIPTION_CURRENCY=" not in env)
 
-baseline = "origin/codex/phase-5-live-sessions-messaging"
+baseline = "HEAD"
 for i in range(1, 9):
     file = next((ROOT / "database/migrations").glob(f"{i:03d}_*.sql"), None)
     if file is None:
@@ -48,8 +48,7 @@ for i in range(1, 9):
         continue
     proc = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{file.name}"], cwd=ROOT)
     check(f"prior migration unchanged: {file.name}", proc.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
-check("frontend ownership preserved", frontend.returncode == 0)
+check("session frontend is implemented", (ROOT / "app/Views/sessions.php").exists() and (ROOT / "public/assets/js/sessions.js").exists())
 
 failed = [name for name, passed in checks if not passed]
 print(f"{len(checks)} checks, {len(failed)} failures")

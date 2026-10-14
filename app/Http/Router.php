@@ -6,7 +6,7 @@ function send_security_headers(): void
     header('X-Content-Type-Options: nosniff');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('X-Frame-Options: DENY');
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self' data:; script-src 'self'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self' data:; script-src 'self'; frame-src https://*.cloudflarestream.com; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
     if (is_production()) header('Strict-Transport-Security: max-age=31536000');
 }
 
@@ -65,6 +65,8 @@ function dispatch_request(): void
         if ($route === 'GET /api/v1/sessions') api_list_sessions();
         if ($route === 'POST /api/v1/teacher/sessions') api_create_session($body);
         if (preg_match('#^PATCH /api/v1/teacher/sessions/([1-9][0-9]*)$#', $route, $match)) api_update_session((int) $match[1], $body);
+        if (preg_match('#^POST /api/v1/teacher/sessions/([1-9][0-9]*)/stream$#', $route, $match)) api_provision_session_stream((int) $match[1]);
+        if (preg_match('#^POST /api/v1/teacher/sessions/([1-9][0-9]*)/recordings/sync$#', $route, $match)) api_sync_session_recordings((int) $match[1]);
         if (preg_match('#^POST /api/v1/sessions/([1-9][0-9]*)/join$#', $route, $match)) api_join_session((int) $match[1]);
         if (preg_match('#^GET /api/v1/sessions/([1-9][0-9]*)/recordings$#', $route, $match)) api_list_session_recordings((int) $match[1]);
         if (preg_match('#^POST /api/v1/teacher/sessions/([1-9][0-9]*)/recordings$#', $route, $match)) api_add_session_recording((int) $match[1], $_FILES['file'] ?? [], $body);
@@ -79,6 +81,7 @@ function dispatch_request(): void
         if ($route === 'POST /api/v1/auth/logout') api_logout();
         if ($route === 'GET /api/v1/admin/users') api_list_accounts();
         if ($route === 'GET /api/v1/admin/roles') api_list_roles();
+        if ($route === 'GET /api/v1/admin/academics/class-subjects') api_admin_class_subjects();
         if ($route === 'GET /api/v1/academics/stages') api_academic_stages();
         if ($route === 'GET /api/v1/academics/classes') api_academic_classes();
         if ($route === 'GET /api/v1/academics/subjects') api_academic_subjects();

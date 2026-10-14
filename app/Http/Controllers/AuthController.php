@@ -22,20 +22,21 @@ function api_login(array $body): never
 
 function api_register_student(array $body): never
 {
-    if (!is_string($body['full_name'] ?? null) || !is_string($body['email'] ?? null) || !is_string($body['phone'] ?? '')) {
-        throw new ApiException(422, 'validation_failed', 'الاسم والبريد والهاتف يجب أن تكون نصوصًا.');
+    if (!is_string($body['full_name'] ?? null) || !is_string($body['email'] ?? null) || !is_string($body['phone'] ?? '') || !array_key_exists('class_id', $body)) {
+        throw new ApiException(422, 'validation_failed', 'الاسم والبريد والهاتف والصف مطلوبة بصيغ صحيحة.');
     }
     $name = trim($body['full_name']);
     $email = strtolower(trim($body['email']));
     $phone = trim((string) ($body['phone'] ?? ''));
     $password = is_string($body['password'] ?? null) ? $body['password'] : '';
+    $classId = academic_id($body['class_id'], 'class_id');
     $length = preg_match_all('/./us', $name);
     if ($length === false || $length < 2 || $length > 150 || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
         throw new ApiException(422, 'validation_failed', 'الاسم أو البريد الإلكتروني غير صحيح.');
     }
     if (($error = password_validation_error($password)) !== null) throw new ApiException(422, 'validation_failed', $error);
     try {
-        register_student($name, $email, $phone, $password);
+        register_student($name, $email, $phone, $password, $classId);
     } catch (PDOException $error) {
         if ($error->getCode() === '23505') throw new ApiException(409, 'email_exists', 'البريد الإلكتروني مسجل بالفعل.');
         throw $error;

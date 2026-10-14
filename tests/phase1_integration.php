@@ -47,6 +47,18 @@ $admin = refresh_authenticated_user();
 $assert($admin !== null && in_array('admin', $admin['roles'], true), 'reload active account and current roles');
 $assert(has_permission('users.manage'), 'read permission through role_permissions');
 
+$stage = $pdo->prepare('INSERT INTO stages(code,name,sort_order) VALUES(:code,:name,0) RETURNING id');
+$stage->execute(['code' => 'P1_' . strtoupper($suffix), 'name' => 'مرحلة اختبار التسجيل']);
+$registrationStageId = (int) $stage->fetchColumn();
+$class = $pdo->prepare('INSERT INTO classes(stage_id,code,name,sort_order) VALUES(:stage,:code,:name,0) RETURNING id');
+$class->execute(['stage' => $registrationStageId, 'code' => 'P1_' . strtoupper($suffix), 'name' => 'صف اختبار التسجيل']);
+$registrationClassId = (int) $class->fetchColumn();
+$studentEmail = 'phase1-student-' . $suffix . '@example.invalid';
+register_student('Phase 1 Test Student', $studentEmail, '', 'test-password-123', $registrationClassId);
+$registeredStudent = $pdo->prepare('SELECT class_id FROM students WHERE user_id=(SELECT id FROM users WHERE email=:email)');
+$registeredStudent->execute(['email' => $studentEmail]);
+$assert((int) $registeredStudent->fetchColumn() === $registrationClassId, 'self-registration stores the selected active class on the student profile');
+
 $teacher = create_managed_account([
     'full_name' => 'Phase 1 Test Teacher', 'email' => $teacherEmail, 'phone' => '',
     'password' => 'test-password-123', 'roles' => ['teacher'],

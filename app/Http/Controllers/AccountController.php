@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 function api_list_accounts(): never
 {
-    require_permission('users.manage');
+    require_permission('roles.manage');
     $limit = filter_input(INPUT_GET, 'limit', FILTER_VALIDATE_INT);
     $offset = filter_input(INPUT_GET, 'offset', FILTER_VALIDATE_INT);
     json_response(200, ['data' => list_accounts($limit ?: 50, $offset ?: 0)]);
@@ -32,7 +32,7 @@ function api_create_account(array $body): never
 
 function api_update_account(int $id, array $body): never
 {
-    require_permission('users.manage');
+    require_permission('roles.manage');
     try {
         json_response(200, ['data' => ['user' => update_managed_account($id, $body)]]);
     } catch (PDOException $error) {

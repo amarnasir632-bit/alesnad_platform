@@ -38,13 +38,21 @@
 
 <section id="questions" class="section container">
   <div class="section-head"><h2>بنك الأسئلة</h2></div>
-  <div class="empty-state"><h3>خدمة الاختبارات قيد التجهيز</h3><p>لم تُربط واجهة بنك الأسئلة بخدمات المنصة بعد.</p></div>
+  <div class="empty-state"><h3>تدرب على أسئلة المنهج</h3><p>تصفح الأسئلة المعتمدة أو أدر بنك الأسئلة وفق صلاحيات حسابك.</p><a class="btn btn-primary" href="<?= e(url('questions')) ?>">فتح بنك الأسئلة</a></div>
 </section>
 <section id="exams" class="section container">
   <div class="section-head"><h2>الامتحانات السابقة</h2></div>
-  <div class="empty-state"><h3>مكتبة الامتحانات قيد التجهيز</h3><p>ستظهر الملفات المنشورة هنا عند اكتمال ربط المحتوى.</p></div>
+  <?php if (current_user() && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?>
+    <div class="empty-state"><h3>الكتب والامتحانات في المكتبة</h3><p>يعرض النظام المواد المنشورة المتاحة لحسابك.</p><a class="btn btn-primary" href="<?= e(url('library')) ?>">فتح المكتبة</a></div>
+  <?php else: ?>
+    <div class="empty-state"><h3>المكتبة متاحة للمستخدمين المخولين</h3><p>سجل الدخول، ويمنح المدير أو المراجع صلاحية الوصول إلى المحتوى.</p><a class="btn btn-primary" href="<?= e(url('login')) ?>">تسجيل الدخول</a></div>
+  <?php endif; ?>
 </section>
 <section id="sessions" class="section container">
   <div class="section-head"><h2>الحصص المباشرة والتسجيلات</h2></div>
-  <div class="empty-state"><h3>خدمة الحصص قيد التجهيز</h3><p>لا توجد حصص أو تسجيلات متاحة للعرض حاليًا.</p></div>
+  <?php if (current_user() && (user_has_permission('sessions.manage') || user_has_permission('sessions.join'))): ?>
+    <div class="empty-state"><h3>تابع الحصص المباشرة والتسجيلات</h3><p>تعرض الصفحة حصص صفك أو المواد المسندة إليك.</p><a class="btn btn-primary" href="<?= e(url('sessions')) ?>">فتح الحصص</a></div>
+  <?php else: ?>
+    <div class="empty-state"><h3>الحصص متاحة بعد تسجيل الدخول</h3><p>سجل الدخول بحساب مخول لمشاهدة جدول الحصص والتسجيلات.</p><a class="btn btn-primary" href="<?= e(url('login')) ?>">تسجيل الدخول</a></div>
+  <?php endif; ?>
 </section>

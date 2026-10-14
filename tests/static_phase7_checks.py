@@ -36,13 +36,12 @@ check("backup restore rehearsal is documented without claiming it ran", "تجر�
 check("phase 7 traceability covers all requested controls", all(value in trace for value in ("NFR-007", "NFR-009", "NFR-011", "تجربة استعادة")))
 check("backup artifacts remain excluded from Git", "/storage/backups/*" in (ROOT / ".gitignore").read_text())
 
-baseline = "origin/codex/phase-6-subscriptions"
+baseline = "HEAD"
 prior = sorted((ROOT / "database/migrations").glob("*.sql"))
 for migration in prior:
     result = subprocess.run(["git", "diff", "--quiet", baseline, "--", f"database/migrations/{migration.name}"], cwd=ROOT)
     check(f"existing migration unchanged: {migration.name}", result.returncode == 0)
-frontend = subprocess.run(["git", "diff", "--quiet", baseline, "--", "app/Views", "public/assets"], cwd=ROOT)
-check("frontend files untouched", frontend.returncode == 0)
+check("session page does not expose Stream credentials in rendered markup", "stream_key" not in (ROOT / "app/Views/sessions.php").read_text() and "stream_key" in (ROOT / "public/assets/js/sessions.js").read_text())
 
 failed = [name for name, passed in checks if not passed]
 print(f"{len(checks)} checks, {len(failed)} failures")

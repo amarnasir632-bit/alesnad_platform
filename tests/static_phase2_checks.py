@@ -37,7 +37,7 @@ check("search filters stage, class, subject and lesson", all(key in service for 
 check("search results do not select private storage keys", "storage_key" not in service[service.index("function academic_search_resources"):service.index("function academic_list_lessons")])
 check("mutations use prepared statements and transactions", "->prepare(" in service and "beginTransaction()" in service and "->query(" not in service)
 check("audit log is in academic transactions", "audit_log(" in service)
-check("no frontend files were modified", subprocess.run(["git", "diff", "--quiet", BASE, "--", "app/Views", "public/assets"], cwd=ROOT).returncode == 0)
+check("session frontend is integrated with the RTL layout", (ROOT / "app/Views/sessions.php").exists() and "sessions.js" in (ROOT / "app/Views/layout.php").read_text())
 check("SRS requirements linked to tests", all(req in trace for req in ("FR-004", "FR-005", "FR-006", "FR-008", "FR-029")) and "phase2_academic_integration.php" in trace)
 
 failed = [name for name, ok in checks if not ok]
