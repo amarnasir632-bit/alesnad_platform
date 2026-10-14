@@ -129,3 +129,13 @@ function api_teacher_grade_essay(int $attemptId, int $questionId, array $input):
         quiz_database_error($error);
     }
 }
+
+function api_admin_review_quiz_attempt(int $attemptId, array $input): never
+{
+    $actor = require_permission('quizzes.manage');
+    try {
+        json_response(200, ['data' => quiz_manager_review_attempt($actor, $attemptId, (string) ($input['decision'] ?? ''))]);
+    } catch (PDOException $error) {
+        quiz_database_error($error);
+    }
+}

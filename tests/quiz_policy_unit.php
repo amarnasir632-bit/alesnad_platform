@@ -34,12 +34,12 @@ $assert($expectApiError(static fn() => quiz_positive_setting('QUIZ_MAX_ATTEMPTS'
 $assert($expectApiError(static fn() => quiz_result_visibility(), 503, 'quiz_not_configured'), 'result visibility is mandatory');
 putenv('QUIZ_MAX_ATTEMPTS=3');
 putenv('QUIZ_DURATION_MINUTES=45');
-putenv('QUIZ_RESULT_VISIBILITY=AFTER_WINDOW');
-putenv('QUIZ_INCOMPLETE_ATTEMPT_POLICY=CANCEL_FREE');
+putenv('QUIZ_RESULT_VISIBILITY=AFTER_MANAGER_APPROVAL');
+putenv('QUIZ_INCOMPLETE_ATTEMPT_POLICY=MANAGER_REVIEW');
 $assert(quiz_positive_setting('QUIZ_MAX_ATTEMPTS') === 3, 'attempt limit reads configured value');
 $assert(quiz_positive_setting('QUIZ_DURATION_MINUTES') === 45, 'duration reads configured value');
-$assert(quiz_result_visibility() === 'AFTER_WINDOW', 'result policy reads configured value');
-$assert(quiz_incomplete_policy() === 'CANCEL_FREE', 'incomplete policy reads configured value');
+$assert(quiz_result_visibility() === 'AFTER_MANAGER_APPROVAL', 'manager approval result policy reads configured value');
+$assert(quiz_incomplete_policy() === 'MANAGER_REVIEW', 'manager review incomplete policy reads configured value');
 $assert($expectApiError(static fn() => (function (): string { putenv('QUIZ_RESULT_VISIBILITY=UNKNOWN'); return quiz_result_visibility(); })(), 503, 'quiz_not_configured'), 'unsupported result policy is rejected');
 $normalized = content_normalize_question_options([(object) ['option_text' => 'صحيح', 'is_correct' => true], (object) ['option_text' => 'خطأ', 'is_correct' => false]]);
 $assert(count($normalized) === 2 && $normalized[0]['is_correct'] === true, 'JSON object options normalize correctly');

@@ -99,6 +99,7 @@ function dispatch_request(): void
         if (preg_match('#^POST /api/v1/attempts/([1-9][0-9]*)/submit$#', $route, $match)) api_student_submit_attempt((int) $match[1]);
         if (preg_match('#^GET /api/v1/attempts/([1-9][0-9]*)/result$#', $route, $match)) api_attempt_result((int) $match[1]);
         if (preg_match('#^POST /api/v1/teacher/attempts/([1-9][0-9]*)/questions/([1-9][0-9]*)/grade$#', $route, $match)) api_teacher_grade_essay((int) $match[1], (int) $match[2], $body);
+        if (preg_match('#^POST /api/v1/admin/attempts/([1-9][0-9]*)/review$#', $route, $match)) api_admin_review_quiz_attempt((int) $match[1], $body);
         if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1]);
         if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/variants/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('resource', (int) $match[1], (int) $match[2]);
         if (preg_match('#^GET /api/v1/content/past-exams/([1-9][0-9]*)/download$#', $route, $match)) api_download_content('past_exam', (int) $match[1]);

@@ -283,6 +283,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             app_log_error('legacy_web_action_failed', $error);
             flash('error','تعذر حفظ التصحيح الآن.');redirect(url('quizzes'));
         }
+    } elseif ($action === 'quiz_manager_review_attempt') {
+        try {
+            $user = require_permission('quizzes.manage');
+            $attemptId = filter_var($_POST['attempt_id'] ?? null, FILTER_VALIDATE_INT);
+            $decision = post_string('decision');
+            if ($attemptId === false || $attemptId < 1) throw new InvalidArgumentException('المحاولة غير صالحة.');
+            quiz_manager_review_attempt($user, $attemptId, $decision);
+            flash('success', $decision === 'approve_result' ? 'اعتمد المدير نتيجة الطالب.' : 'مُنح الطالب محاولة إضافية متاحة الآن.');
+            redirect(url('quiz_attempt', ['id' => $attemptId]));
+        } catch (Throwable $error) {
+            if ($error instanceof ApiException) flash('error', $error->getMessage());
+            else { app_log_error('legacy_web_action_failed', $error); flash('error', 'تعذر تنفيذ قرار الإدارة.'); }
+            $attemptId = filter_var($_POST['attempt_id'] ?? null, FILTER_VALIDATE_INT);
+            redirect(url('quiz_attempt', $attemptId !== false && $attemptId > 0 ? ['id' => $attemptId] : []));
+        }
     } elseif ($action === 'library_upload') {
         try {
             $user = require_permission('content.upload');
@@ -507,10 +522,17 @@ try {
         try {
             if ($attemptId === false || $attemptId === null || $attemptId < 1) { throw new InvalidArgumentException('المحاولة غير موجودة.'); }
             $data['attempt'] = get_quiz_attempt($attemptId,(int)$user['id']);
+            if ($data['attempt']['status'] === 'IN_PROGRESS' && !empty($data['attempt']['deadline_at']) && new DateTimeImmutable($data['attempt']['deadline_at']) <= new DateTimeImmutable('now')) {
+                try { quiz_get_result($user, $attemptId); } catch (ApiException $error) {
+                    if (!in_array($error->apiCode, ['result_not_available', 'attempt_in_progress'], true)) throw $error;
+                }
+                $data['attempt'] = get_quiz_attempt($attemptId, (int) $user['id']);
+            }
             $data['is_owner'] = (int)$data['attempt']['student_user_id'] === (int)$user['id'];
             $data['is_teacher'] = !$data['is_owner'];
+            $data['is_admin'] = in_array('admin', $user['roles'] ?? [], true);
             $data['result_available'] = false;
-            if ($data['is_owner'] && $data['attempt']['status'] === 'GRADED') {
+            if ($data['is_owner'] && $data['attempt']['status'] === 'GRADED' && !empty($data['attempt']['result_approved_at'])) {
                 try {
                     quiz_get_result($user, $attemptId);
                     $data['result_available'] = true;

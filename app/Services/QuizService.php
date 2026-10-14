@@ -19,12 +19,12 @@ function quiz_positive_setting(string $name): int
 
 function quiz_incomplete_policy(): string
 {
-    return quiz_config_value('QUIZ_INCOMPLETE_ATTEMPT_POLICY', ['AUTO_SUBMIT', 'CANCEL_COUNTED', 'CANCEL_FREE']);
+    return quiz_config_value('QUIZ_INCOMPLETE_ATTEMPT_POLICY', ['AUTO_SUBMIT', 'CANCEL_COUNTED', 'CANCEL_FREE', 'MANAGER_REVIEW']);
 }
 
 function quiz_result_visibility(): string
 {
-    return quiz_config_value('QUIZ_RESULT_VISIBILITY', ['IMMEDIATE', 'AFTER_WINDOW', 'AFTER_MANUAL_GRADING']);
+    return quiz_config_value('QUIZ_RESULT_VISIBILITY', ['IMMEDIATE', 'AFTER_WINDOW', 'AFTER_MANUAL_GRADING', 'AFTER_MANAGER_APPROVAL']);
 }
 
 function quiz_decimal(mixed $value, string $field, bool $required = true): ?string
@@ -366,6 +366,11 @@ function quiz_saved_answers(PDO $db, int $attemptId): array
 
 function quiz_finalize_attempt(PDO $db, int $attemptId, string $mode, ?int $graderId = null): array
 {
+    if ($mode === 'INCOMPLETE') {
+        $update = $db->prepare("UPDATE quiz_attempts SET status = 'INCOMPLETE', submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP), score = NULL WHERE id = :id RETURNING id, status, attempt_number, started_at, submitted_at, deadline_at, score");
+        $update->execute(['id' => $attemptId]);
+        return $update->fetch();
+    }
     if ($mode === 'CANCEL_COUNTED' || $mode === 'CANCEL_FREE') {
         $update = $db->prepare("UPDATE quiz_attempts SET status = 'CANCELLED', submitted_at = COALESCE(submitted_at, CURRENT_TIMESTAMP), score = NULL WHERE id = :id RETURNING id, status, attempt_number, started_at, submitted_at, deadline_at, score");
         $update->execute(['id' => $attemptId]);
@@ -393,11 +398,32 @@ function quiz_finalize_attempt(PDO $db, int $attemptId, string $mode, ?int $grad
     return $update->fetch();
 }
 
+function quiz_classify_expired_attempts(int $limit = 500): int
+{
+    if ($limit < 1 || $limit > 5000) throw new InvalidArgumentException('حد معالجة المحاولات غير صالح.');
+    $db = database_connection();
+    $db->beginTransaction();
+    try {
+        $expired = $db->prepare("SELECT id FROM quiz_attempts WHERE status = 'IN_PROGRESS' AND deadline_at IS NOT NULL AND deadline_at <= CURRENT_TIMESTAMP ORDER BY deadline_at, id LIMIT :limit FOR UPDATE SKIP LOCKED");
+        $expired->bindValue('limit', $limit, PDO::PARAM_INT);
+        $expired->execute();
+        $ids = array_map('intval', $expired->fetchAll(PDO::FETCH_COLUMN));
+        foreach ($ids as $id) {
+            $attempt = quiz_finalize_attempt($db, $id, 'INCOMPLETE');
+            audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', $id, ['status' => $attempt['status']]);
+        }
+        $db->commit();
+        return count($ids);
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
 function quiz_start_attempt(array $actor, int $quizId): array
 {
     $maxAttempts = quiz_positive_setting('QUIZ_MAX_ATTEMPTS');
     if ($maxAttempts > 32767) throw new ApiException(503, 'quiz_not_configured', 'QUIZ_MAX_ATTEMPTS يتجاوز الحد الذي يدعمه المخطط.');
-    $policy = quiz_incomplete_policy();
     $db = database_connection();
     $db->beginTransaction();
     try {
@@ -422,13 +448,18 @@ function quiz_start_attempt(array $actor, int $quizId): array
             }
         }
         if ($attempt) {
-            $expired = quiz_finalize_attempt($db, (int) $attempt['id'], $policy);
-            audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', (int) $attempt['id'], ['policy' => $policy, 'status' => $expired['status']], (int) $actor['id']);
+            $expired = quiz_finalize_attempt($db, (int) $attempt['id'], 'INCOMPLETE');
+            audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', (int) $attempt['id'], ['status' => $expired['status']], (int) $actor['id']);
         }
-        $countSql = "SELECT COUNT(*) FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id" . ($policy === 'CANCEL_FREE' ? " AND status <> 'CANCELLED'" : '');
+        $countSql = "SELECT COUNT(*) FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status <> 'CANCELLED'";
         $count = $db->prepare($countSql);
         $count->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
-        if ((int) $count->fetchColumn() >= $maxAttempts) {
+        $attemptCount = (int) $count->fetchColumn();
+        $retry = $db->prepare("SELECT id FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status = 'INCOMPLETE' AND retry_granted_at IS NOT NULL AND retry_grant_used_at IS NULL ORDER BY attempt_number DESC LIMIT 1 FOR UPDATE");
+        $retry->execute(['quiz_id' => $quizId, 'student_id' => $student['id']]);
+        $retrySourceId = $retry->fetchColumn();
+        $hasRetry = $retrySourceId !== false && $attemptCount < $maxAttempts + 1;
+        if ($attemptCount >= $maxAttempts && !$hasRetry) {
             $db->commit();
             throw new ApiException(409, 'attempt_limit_reached', 'استنفدت عدد المحاولات المتاحة.');
         }
@@ -446,6 +477,11 @@ function quiz_start_attempt(array $actor, int $quizId): array
         $insert = $db->prepare("INSERT INTO quiz_attempts (quiz_id, student_id, attempt_number, started_at, deadline_at, status) VALUES (:quiz_id, :student_id, :attempt_number, :started_at, :deadline_at, 'IN_PROGRESS') RETURNING id, quiz_id, attempt_number, started_at, deadline_at, status");
         $insert->execute(['quiz_id' => $quizId, 'student_id' => $student['id'], 'attempt_number' => $attemptNumber, 'started_at' => $start->format(DateTimeInterface::ATOM), 'deadline_at' => $deadline->format(DateTimeInterface::ATOM)]);
         $attempt = $insert->fetch();
+        if ($hasRetry) {
+            $consume = $db->prepare('UPDATE quiz_attempts SET retry_grant_used_at = CURRENT_TIMESTAMP WHERE id = :id AND retry_grant_used_at IS NULL');
+            $consume->execute(['id' => (int) $retrySourceId]);
+            if ($consume->rowCount() !== 1) throw new ApiException(409, 'retry_grant_unavailable', 'انتهت صلاحية إعادة المحاولة الممنوحة.');
+        }
         audit_log('quiz.attempt.started', 'quiz_attempt', (int) $attempt['id'], ['quiz_id' => $quizId, 'attempt_number' => (int) $attempt['attempt_number']], (int) $actor['id']);
         $db->commit();
         return ['attempt' => $attempt, 'answers' => [], 'resumed' => false];
@@ -470,9 +506,8 @@ function quiz_save_answer(array $actor, int $attemptId, int $questionId, array $
         if (!$quiz) throw new ApiException(404, 'not_found', 'الاختبار غير موجود.');
         quiz_ensure_attempt_deadline($db, $attempt, $quiz);
         if (quiz_is_expired($attempt)) {
-            $policy = quiz_incomplete_policy();
-            $finalized = quiz_finalize_attempt($db, $attemptId, $policy);
-            audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', $attemptId, ['policy' => $policy, 'status' => $finalized['status']], (int) $actor['id']);
+            $finalized = quiz_finalize_attempt($db, $attemptId, 'INCOMPLETE');
+            audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', $attemptId, ['status' => $finalized['status']], (int) $actor['id']);
             $db->commit();
             throw new ApiException(409, 'attempt_time_expired', 'انتهى زمن المحاولة وأغلقها الخادم.');
         }
@@ -521,9 +556,10 @@ function quiz_submit_attempt(array $actor, int $attemptId): array
         $quiz = quiz_attempt_quiz($db, $attemptId);
         if (!$quiz) throw new ApiException(404, 'not_found', 'الاختبار غير موجود.');
         quiz_ensure_attempt_deadline($db, $attempt, $quiz);
-        $policy = quiz_is_expired($attempt) ? quiz_incomplete_policy() : 'AUTO_SUBMIT';
+        $policy = quiz_is_expired($attempt) ? 'INCOMPLETE' : 'AUTO_SUBMIT';
         $result = quiz_finalize_attempt($db, $attemptId, $policy);
-        audit_log($result['status'] === 'CANCELLED' ? 'quiz.attempt.incomplete_cancelled' : 'quiz.attempt.submitted', 'quiz_attempt', $attemptId, ['status' => $result['status']], (int) $actor['id']);
+        $event = $result['status'] === 'INCOMPLETE' ? 'quiz.attempt.incomplete_processed' : 'quiz.attempt.submitted';
+        audit_log($event, 'quiz_attempt', $attemptId, ['status' => $result['status']], (int) $actor['id']);
         $db->commit();
         return $result;
     } catch (Throwable $error) {
@@ -565,9 +601,8 @@ function quiz_get_result(array $actor, int $attemptId): array
             if (!$quiz) throw new ApiException(404, 'not_found', 'الاختبار غير موجود.');
             quiz_ensure_attempt_deadline($db, $fresh, $quiz);
             if ($fresh['status'] === 'IN_PROGRESS' && quiz_is_expired($fresh)) {
-                $policy = quiz_incomplete_policy();
-                $finalized = quiz_finalize_attempt($db, $attemptId, $policy);
-                audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', $attemptId, ['policy' => $policy, 'status' => $finalized['status']], (int) $actor['id']);
+                $finalized = quiz_finalize_attempt($db, $attemptId, 'INCOMPLETE');
+                audit_log('quiz.attempt.incomplete_processed', 'quiz_attempt', $attemptId, ['status' => $finalized['status']], (int) $actor['id']);
             }
             $db->commit();
         } catch (Throwable $error) {
@@ -579,13 +614,9 @@ function quiz_get_result(array $actor, int $attemptId): array
     }
     if ($attempt['status'] === 'IN_PROGRESS') throw new ApiException(409, 'attempt_in_progress', 'لا تتوفر النتيجة قبل إرسال المحاولة أو انتهاء وقتها.');
     if ($studentView) {
-        $visibility = quiz_result_visibility();
-        if ($visibility === 'AFTER_WINDOW') {
-            $quiz = quiz_attempt_quiz($db, $attemptId);
-            if ($quiz['ends_at'] === null || new DateTimeImmutable($quiz['ends_at']) > new DateTimeImmutable('now')) throw new ApiException(403, 'result_not_available', 'تظهر النتائج بعد إغلاق نافذة الاختبار.');
-        }
-        if ($visibility === 'AFTER_MANUAL_GRADING' && $attempt['status'] !== 'GRADED') throw new ApiException(403, 'result_not_available', 'تظهر النتيجة بعد اكتمال التصحيح اليدوي.');
         if ($attempt['status'] === 'CANCELLED') throw new ApiException(403, 'result_not_available', 'لا توجد نتيجة منشورة لهذه المحاولة.');
+        if ($attempt['status'] === 'INCOMPLETE') throw new ApiException(403, 'result_not_available', 'المحاولة غير مكتملة وتنتظر قرار الإدارة بشأن الإعادة.');
+        if ($attempt['status'] !== 'GRADED' || $attempt['result_approved_at'] === null) throw new ApiException(403, 'result_not_available', 'تظهر نتيجتك بعد اكتمال تصحيح الأستاذ وموافقة المدير.');
     }
     $answers = $db->prepare(
         'SELECT sa.question_id, q.question_text, q.question_type, qq.question_mark, sa.selected_option_id,
@@ -614,7 +645,7 @@ function quiz_teacher_results(array $actor, int $quizId): array
     quiz_assert_teacher_scope($db, $actor, $quiz);
     $statement = $db->prepare(
         'SELECT qa.id AS attempt_id, qa.student_id, u.full_name AS student_name, qa.attempt_number,
-                qa.started_at, qa.submitted_at, qa.deadline_at, qa.status, qa.score, qz.total_marks
+                qa.started_at, qa.submitted_at, qa.deadline_at, qa.status, qa.score, qa.result_approved_at, qa.retry_granted_at, qz.total_marks
          FROM quiz_attempts qa JOIN students st ON st.id = qa.student_id JOIN users u ON u.id = st.user_id
          JOIN quizzes qz ON qz.id = qa.quiz_id WHERE qa.quiz_id = :quiz_id ORDER BY u.full_name, qa.attempt_number'
     );
@@ -636,6 +667,7 @@ function quiz_grade_essay(array $actor, int $attemptId, int $questionId, array $
         if (!$attempt) throw new ApiException(404, 'not_found', 'المحاولة غير موجودة.');
         quiz_employee_id($db, $actor, (int) $attempt['class_subject_id']);
         if (!in_array($attempt['status'], ['SUBMITTED', 'GRADED'], true)) throw new ApiException(409, 'attempt_not_submitted', 'لا يمكن تصحيح إجابة قبل إرسال المحاولة.');
+        if ($attempt['status'] === 'GRADED' && $attempt['result_approved_at'] !== null) throw new ApiException(409, 'result_already_approved', 'لا يمكن تغيير التصحيح بعد اعتماد المدير للنتيجة.');
         $answer = $db->prepare("SELECT sa.id, q.question_type, qq.question_mark FROM student_answers sa JOIN questions q ON q.id = sa.question_id JOIN quiz_questions qq ON qq.question_id = q.id AND qq.quiz_id = :quiz_id WHERE sa.attempt_id = :attempt_id AND sa.question_id = :question_id FOR UPDATE OF sa");
         $answer->execute(['quiz_id' => $attempt['quiz_id'], 'attempt_id' => $attemptId, 'question_id' => $questionId]);
         $row = $answer->fetch();
@@ -655,6 +687,42 @@ function quiz_grade_essay(array $actor, int $attemptId, int $questionId, array $
         audit_log('quiz.essay.graded', 'quiz_attempt', $attemptId, ['question_id' => $questionId, 'awarded_mark' => $mark], (int) $actor['id']);
         $db->commit();
         return ['graded' => true, 'question_id' => $questionId, 'awarded_mark' => $mark];
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
+function quiz_manager_review_attempt(array $actor, int $attemptId, string $decision): array
+{
+    if (!in_array('admin', $actor['roles'] ?? [], true)) throw new ApiException(403, 'manager_required', 'هذا الإجراء متاح لمدير النظام فقط.');
+    if (!in_array($decision, ['approve_result', 'grant_retry'], true)) throw new ApiException(422, 'validation_failed', 'قرار الإدارة غير صالح.');
+    $db = database_connection();
+    $db->beginTransaction();
+    try {
+        $query = $db->prepare('SELECT qa.*, qz.class_subject_id FROM quiz_attempts qa JOIN quizzes qz ON qz.id = qa.quiz_id WHERE qa.id = :id FOR UPDATE OF qa');
+        $query->execute(['id' => $attemptId]);
+        $attempt = $query->fetch();
+        if (!$attempt) throw new ApiException(404, 'not_found', 'المحاولة غير موجودة.');
+        $employeeId = content_employee_id($db, (int) $actor['id']);
+        if ($decision === 'approve_result') {
+            if ($attempt['status'] !== 'GRADED') throw new ApiException(409, 'attempt_not_graded', 'لا تعتمد النتيجة قبل اكتمال تصحيح الأستاذ.');
+            $save = $db->prepare('UPDATE quiz_attempts SET result_approved_at = CURRENT_TIMESTAMP, result_approved_by = :manager WHERE id = :id AND result_approved_at IS NULL');
+            $save->execute(['manager' => $employeeId, 'id' => $attemptId]);
+            if ($save->rowCount() !== 1) throw new ApiException(409, 'result_already_approved', 'سبق اعتماد هذه النتيجة.');
+            audit_log('quiz.result.approved', 'quiz_attempt', $attemptId, [], (int) $actor['id']);
+        } else {
+            if ($attempt['status'] !== 'INCOMPLETE') throw new ApiException(409, 'attempt_not_incomplete', 'إعادة المحاولة متاحة للمحاولة غير المكتملة فقط.');
+            $limits = $db->prepare("SELECT COUNT(*) FROM quiz_attempts WHERE quiz_id = :quiz_id AND student_id = :student_id AND status <> 'CANCELLED'");
+            $limits->execute(['quiz_id' => $attempt['quiz_id'], 'student_id' => $attempt['student_id']]);
+            if ((int) $limits->fetchColumn() >= quiz_positive_setting('QUIZ_MAX_ATTEMPTS') + 1) throw new ApiException(409, 'retry_limit_reached', 'استنفد الطالب المحاولة الإضافية المسموحة.');
+            $save = $db->prepare('UPDATE quiz_attempts SET retry_granted_at = CURRENT_TIMESTAMP, retry_granted_by = :manager, retry_grant_used_at = NULL WHERE id = :id AND retry_granted_at IS NULL');
+            $save->execute(['manager' => $employeeId, 'id' => $attemptId]);
+            if ($save->rowCount() !== 1) throw new ApiException(409, 'retry_already_granted', 'سبق منح إعادة لهذه المحاولة.');
+            audit_log('quiz.retry.granted', 'quiz_attempt', $attemptId, ['available_immediately' => true], (int) $actor['id']);
+        }
+        $db->commit();
+        return ['attempt_id' => $attemptId, 'decision' => $decision];
     } catch (Throwable $error) {
         if ($db->inTransaction()) $db->rollBack();
         throw $error;
