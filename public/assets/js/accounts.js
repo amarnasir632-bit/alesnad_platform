@@ -53,6 +53,7 @@
     row.dataset.accountId = account.id;
 
     const identity = document.createElement('td');
+    identity.dataset.label = 'بيانات الحساب';
     identity.append(field('الاسم', 'full_name', account.full_name));
     identity.append(field('البريد الإلكتروني', 'email', account.email, 'email'));
     identity.append(field('الهاتف', 'phone', account.phone || ''));
@@ -63,6 +64,7 @@
     row.append(identity);
 
     const classCell = document.createElement('td');
+    classCell.dataset.label = 'الصف الدراسي';
     const classSelect = document.createElement('select');
     classSelect.name = 'class_id';
     classSelect.replaceChildren(classTemplate.content.cloneNode(true));
@@ -72,6 +74,7 @@
     row.append(classCell);
 
     const activeCell = document.createElement('td');
+    activeCell.dataset.label = 'حالة الحساب';
     const activeLabel = document.createElement('label');
     activeLabel.className = 'account-active';
     const active = document.createElement('input');
@@ -83,6 +86,7 @@
     row.append(activeCell);
 
     const roleCell = document.createElement('td');
+    roleCell.dataset.label = 'الأدوار والصلاحيات';
     const roleGroup = document.createElement('fieldset');
     roleGroup.className = 'account-role-list';
     const legend = document.createElement('legend');
@@ -102,6 +106,7 @@
     row.append(roleCell);
 
     const actionCell = document.createElement('td');
+    actionCell.dataset.label = 'إجراء الحفظ';
     const save = document.createElement('button');
     save.type = 'button';
     save.className = 'button button-small';

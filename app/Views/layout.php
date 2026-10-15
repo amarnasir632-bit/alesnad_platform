@@ -1,99 +1,327 @@
 <?php
 $user = current_user();
+$currentPage = $page ?? 'home';
+
+// تحديد مسمى الدور باللغة العربية لعرضه بوضوح
+$roleBadge = 'زائر';
+if ($user) {
+    if (user_has_role('admin')) {
+        $roleBadge = 'مدير النظام';
+    } elseif (user_has_role('content_reviewer')) {
+        $roleBadge = 'مراجع محتوى';
+    } elseif (user_has_role('teacher')) {
+        $roleBadge = 'أستاذ';
+    } elseif (user_has_role('student')) {
+        $roleBadge = 'طالب';
+    } else {
+        $roleBadge = 'عضو';
+    }
+}
 ?>
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#102b52">
-  <meta name="description" content="منصة الإسناد الأكاديمي للتعلم ومتابعة المحتوى الدراسي.">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+  <meta name="theme-color" content="#0d2744">
+  <meta name="description" content="منصة الإسناد الأكاديمي للتعلم ومتابعة المحتوى الدراسي المنهج السوداني.">
   <title><?= e($title) ?> | الإسناد الأكاديمي</title>
   <link rel="stylesheet" href="/assets/css/style.css">
   <?php if (($page ?? '') === 'home'): ?><link rel="stylesheet" href="/assets/css/version3.css"><?php endif; ?>
 </head>
 <body class="<?= ($page ?? '') === 'home' ? 'submitted-home' : '' ?>">
-  <?php if (($page ?? '') === 'home'): ?>
-    <header class="topbar">
-      <nav class="nav container" aria-label="القائمة الرئيسية">
-        <a href="<?= e(url('home')) ?>"><img src="/assets/brand/al-warith-logo.jpg" alt="الإسناد الأكاديمي" class="logo-full"></a>
-        <button class="menu-toggle" type="button" aria-label="فتح القائمة"><span></span><span></span><span></span></button>
-        <div class="menu">
-          <a href="<?= e(url('home')) ?>">الرئيسية</a>
-          <a href="<?= e(url('subjects')) ?>">المواد الدراسية</a>
-          <?php if ($user): ?><a href="<?= e(url('questions')) ?>">بنك الأسئلة</a><?php endif; ?>
-          <?php if ($user && (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt'))): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php elseif ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?><a href="<?= e(url('library')) ?>">الامتحانات السابقة</a><?php endif; ?>
-          <?php if ($user && (user_has_permission('sessions.manage') || user_has_permission('sessions.join'))): ?><a href="<?= e(url('sessions')) ?>">الحصص</a><?php endif; ?>
-          <?php if ($user && user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
-          <?php if ($user && user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
-          <?php if ($user && user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
-          <?php if ($user && user_has_permission('roles.manage')): ?><a href="<?= e(url('accounts')) ?>">إدارة الحسابات</a><?php endif; ?>
-          <?php if ($user && user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
-          <?php if ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
+
+  <!-- رابط الانتقال السريع للمحتوى لمستخدمي قارئات الشاشة ولوحة المفاتيح -->
+  <a href="#main-content" class="skip-link">انتقل إلى المحتوى الرئيسي</a>
+
+  <div class="app-layout-wrapper">
+
+    <!-- القائمة الجانبية (Sidebar للكمبيوتر / Drawer يختفي ويظهر في الهاتف) -->
+    <aside class="app-sidebar" id="app-sidebar" aria-label="القائمة الجانبية للمنصة">
+      <div class="sidebar-header">
+        <a class="sidebar-brand" href="<?= e(url('home')) ?>">
+          <img class="brand-logo" src="/assets/brand/icon.png" alt="شعار الإسناد الأكاديمي">
+          <div class="brand-text">
+            <span class="brand-title">الإسناد الأكاديمي</span>
+            <small class="brand-subtitle">المنهج السوداني · AL WARITH</small>
+          </div>
+        </a>
+        <button class="sidebar-close-btn" id="sidebar-close-btn" type="button" aria-label="إغلاق القائمة">✕</button>
+      </div>
+
+      <!-- بطاقة المستخدم السريعة داخل القائمة الجانبية -->
+      <?php if ($user): ?>
+        <div class="sidebar-user-card">
+          <div class="user-avatar" aria-hidden="true"><?= mb_substr($user['full_name'], 0, 1) ?></div>
+          <div class="user-details">
+            <strong class="user-name"><?= e($user['full_name']) ?></strong>
+            <span class="user-role-badge"><?= e($roleBadge) ?></span>
+          </div>
+        </div>
+      <?php else: ?>
+        <div class="sidebar-guest-card">
+          <p class="guest-text">مرحباً بك في منصة الإسناد الأكاديمي</p>
+          <div class="guest-actions">
+            <a class="button button-primary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول</a>
+            <a class="button button-secondary button-full" href="<?= e(url('register')) ?>">إنشاء حساب طالب</a>
+          </div>
+        </div>
+      <?php endif; ?>
+
+      <!-- روابط التنقل مقسمة إلى مجموعات منطقية -->
+      <nav class="sidebar-nav" aria-label="روابط المنصة">
+
+        <!-- القسم الأول: التصفح والمحتوى -->
+        <div class="nav-group">
+          <span class="nav-group-title">التصفح والمحتوى</span>
+          <ul class="nav-list">
+            <li>
+              <a class="nav-item-link <?= $currentPage === 'home' ? 'active' : '' ?>" href="<?= e(url('home')) ?>">
+                <span class="nav-icon" aria-hidden="true">🏠</span>
+                <span class="nav-label">الصفحة الرئيسية</span>
+              </a>
+            </li>
+            <li>
+              <a class="nav-item-link <?= ($currentPage === 'subjects' || $currentPage === 'subject') ? 'active' : '' ?>" href="<?= e(url('subjects')) ?>">
+                <span class="nav-icon" aria-hidden="true">📚</span>
+                <span class="nav-label">المواد الدراسية</span>
+              </a>
+            </li>
+            <?php if ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?>
+              <li>
+                <a class="nav-item-link <?= $currentPage === 'library' ? 'active' : '' ?>" href="<?= e(url('library')) ?>">
+                  <span class="nav-icon" aria-hidden="true">📖</span>
+                  <span class="nav-label">المكتبة والامتحانات</span>
+                </a>
+              </li>
+            <?php endif; ?>
+          </ul>
+        </div>
+
+        <!-- القسم الثاني: التعلم والأنشطة -->
+        <?php if ($user): ?>
+          <div class="nav-group">
+            <span class="nav-group-title">التعلّم والاختبارات</span>
+            <ul class="nav-list">
+              <li>
+                <a class="nav-item-link <?= $currentPage === 'questions' ? 'active' : '' ?>" href="<?= e(url('questions')) ?>">
+                  <span class="nav-icon" aria-hidden="true">❓</span>
+                  <span class="nav-label">بنك الأسئلة</span>
+                </a>
+              </li>
+              <?php if (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt')): ?>
+                <li>
+                  <a class="nav-item-link <?= ($currentPage === 'quizzes' || $currentPage === 'quiz_attempt') ? 'active' : '' ?>" href="<?= e(url('quizzes')) ?>">
+                    <span class="nav-icon" aria-hidden="true">📝</span>
+                    <span class="nav-label">الاختبارات الإلكترونية</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('sessions.manage') || user_has_permission('sessions.join')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'sessions' ? 'active' : '' ?>" href="<?= e(url('sessions')) ?>">
+                    <span class="nav-icon" aria-hidden="true">🎥</span>
+                    <span class="nav-label">الحصص المباشرة والمسجلة</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if ($user && (user_has_permission('messages.use') || user_has_role('admin'))): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'messages' ? 'active' : '' ?>" href="<?= e(url('messages')) ?>">
+                    <span class="nav-icon" aria-hidden="true">💬</span>
+                    <span class="nav-label"><?= user_has_role('admin') ? 'رقابة الرسائل الأكاديمية' : 'الرسائل الفردية' ?></span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_role('teacher')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'announcements' ? 'active' : '' ?>" href="<?= e(url('announcements')) ?>">
+                    <span class="nav-icon" aria-hidden="true">📢</span>
+                    <span class="nav-label">إعلانات المواد والطلاب</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+            </ul>
+          </div>
+        <?php endif; ?>
+
+        <!-- القسم الثالث: إدارة المنصة (للمسؤولين فقط) -->
+        <?php if ($user && (user_has_permission('academics.manage') || user_has_permission('content_access.manage') || user_has_permission('users.manage') || user_has_permission('roles.manage'))): ?>
+          <div class="nav-group">
+            <span class="nav-group-title">إدارة المنصة</span>
+            <ul class="nav-list">
+              <?php if (user_has_role('admin')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'announcements' ? 'active' : '' ?>" href="<?= e(url('announcements')) ?>">
+                    <span class="nav-icon" aria-hidden="true">📢</span>
+                    <span class="nav-label">إدارة لوحة الإعلانات</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('academics.manage')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'academics' ? 'active' : '' ?>" href="<?= e(url('academics')) ?>">
+                    <span class="nav-icon" aria-hidden="true">⚙️</span>
+                    <span class="nav-label">إدارة المنهج والمواد</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('content_access.manage')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'content_access' ? 'active' : '' ?>" href="<?= e(url('content_access')) ?>">
+                    <span class="nav-icon" aria-hidden="true">🔐</span>
+                    <span class="nav-label">صلاحيات وصول الطلاب</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('users.manage')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'staff' ? 'active' : '' ?>" href="<?= e(url('staff')) ?>">
+                    <span class="nav-icon" aria-hidden="true">👥</span>
+                    <span class="nav-label">حسابات الفريق والدعوات</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('roles.manage')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'accounts' ? 'active' : '' ?>" href="<?= e(url('accounts')) ?>">
+                    <span class="nav-icon" aria-hidden="true">🛡️</span>
+                    <span class="nav-label">إدارة الحسابات والأدوار</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+            </ul>
+          </div>
+        <?php endif; ?>
+
+        <!-- دليل المنصة والشاشات (متاح لجميع الأدوار) -->
+        <div class="nav-group">
+          <span class="nav-group-title">المساعدة والإرشاد</span>
+          <ul class="nav-list">
+            <li>
+              <a class="nav-item-link <?= $currentPage === 'guide' ? 'active' : '' ?>" href="<?= e(url('guide')) ?>">
+                <span class="nav-icon" aria-hidden="true">💡</span>
+                <span class="nav-label">دليل واجهات المنصة</span>
+              </a>
+            </li>
+          </ul>
+        </div>
+
+      </nav>
+
+      <!-- تذييل القائمة الجانبية (تسجيل الخروج) -->
+      <?php if ($user): ?>
+        <div class="sidebar-footer">
+          <form class="logout-form" method="post" action="<?= e(url('home')) ?>">
+            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="logout">
+            <button class="button button-logout button-full" type="submit">
+              <span class="logout-icon" aria-hidden="true">🚪</span>
+              <span>تسجيل الخروج</span>
+            </button>
+          </form>
+        </div>
+      <?php endif; ?>
+    </aside>
+
+    <!-- طبقة التعتيم الخلفية عند فتح القائمة بالهاتف -->
+    <div class="sidebar-backdrop" id="sidebar-backdrop" aria-hidden="true"></div>
+
+    <!-- المحتوى الرئيسي للموقع -->
+    <div class="app-main-layout">
+
+      <!-- شريط علوي للهاتف والشاشات الصغيرة مع زر القائمة اللمسي -->
+      <header class="app-mobile-topbar" aria-label="الشريط العلوي السريع">
+        <button class="sidebar-toggle-btn" id="sidebar-toggle-btn" type="button" aria-label="فتح القائمة الرئيسية" aria-expanded="false" aria-controls="app-sidebar">
+          <span class="toggle-icon-bars" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </span>
+          <span class="toggle-text">القائمة</span>
+        </button>
+
+        <a class="mobile-brand" href="<?= e(url('home')) ?>">
+          <img src="/assets/brand/icon.png" alt="الإسناد الأكاديمي" class="mobile-logo-img">
+          <span class="mobile-brand-title">الإسناد الأكاديمي</span>
+        </a>
+
+        <div class="mobile-quick-actions">
           <?php if ($user): ?>
-            <span><?= e($user['full_name']) ?></span>
-            <form class="inline-form" method="post" action="<?= e(url('home')) ?>">
-              <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-              <input type="hidden" name="action" value="logout">
-              <button class="nav-link" type="submit">تسجيل الخروج</button>
-            </form>
+            <span class="mobile-user-avatar" title="<?= e($user['full_name']) ?>"><?= mb_substr($user['full_name'], 0, 1) ?></span>
           <?php else: ?>
-            <a href="<?= e(url('login')) ?>">دخول</a>
-            <a href="<?= e(url('register')) ?>">إنشاء حساب</a>
+            <a class="button button-small button-primary" href="<?= e(url('login')) ?>">دخول</a>
           <?php endif; ?>
         </div>
-      </nav>
-    </header>
-  <?php else: ?>
-  <header class="site-header">
-    <a class="brand" href="<?= e(url('home')) ?>">
-      <img class="brand-logo" src="/assets/brand/al-warith-logo.jpg" alt="AL WARITH">
-      <span>الإسناد الأكاديمي<small>منصة التعليم السودانية</small></span>
-    </a>
-    <nav aria-label="القائمة الرئيسية">
-      <a href="<?= e(url('home')) ?>">الرئيسية</a>
-      <a href="<?= e(url('subjects')) ?>">المواد الدراسية</a>
-      <?php if ($user): ?><a href="<?= e(url('questions')) ?>">بنك الأسئلة</a><?php endif; ?>
-      <?php if ($user): ?>
-        <?php if (user_has_permission('academics.manage')): ?><a href="<?= e(url('academics')) ?>">إدارة المنهج</a><?php endif; ?>
-        <?php if (user_has_permission('content_access.manage')): ?><a href="<?= e(url('content_access')) ?>">صلاحيات الطلاب</a><?php endif; ?>
-        <?php if (user_has_permission('users.manage')): ?><a href="<?= e(url('staff')) ?>">حسابات الفريق</a><?php endif; ?>
-        <?php if (user_has_permission('roles.manage')): ?><a href="<?= e(url('accounts')) ?>">إدارة الحسابات</a><?php endif; ?>
-        <?php if (user_has_permission('messages.use')): ?><a href="<?= e(url('messages')) ?>">الرسائل</a><?php endif; ?>
-        <?php if (user_has_permission('sessions.manage') || user_has_permission('sessions.join')): ?><a href="<?= e(url('sessions')) ?>">الحصص</a><?php endif; ?>
-        <?php if (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review')): ?><a href="<?= e(url('library')) ?>">المكتبة والامتحانات</a><?php endif; ?>
-        <?php if (user_has_permission('quizzes.manage') || user_has_permission('quizzes.attempt')): ?><a href="<?= e(url('quizzes')) ?>">الاختبارات</a><?php endif; ?>
-        <span class="nav-user">مرحباً <?= e($user['full_name']) ?></span>
-        <form class="inline-form" method="post" action="<?= e(url('home')) ?>">
-          <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
-          <input type="hidden" name="action" value="logout">
-          <button class="nav-link" type="submit">تسجيل الخروج</button>
-        </form>
-      <?php else: ?>
-        <a href="<?= e(url('login')) ?>">دخول</a>
-        <a class="button button-small" href="<?= e(url('register')) ?>">إنشاء حساب</a>
+      </header>
+
+      <!-- تنبيهات النظام ورسائل النجاح والخطأ -->
+      <?php if (!empty($flashes)): ?>
+        <div class="messages" aria-live="polite">
+          <?php foreach ($flashes as $item): ?>
+            <div class="message <?= e($item['type']) ?>">
+              <span class="message-icon" aria-hidden="true"><?= $item['type'] === 'success' ? '✓' : 'ℹ' ?></span>
+              <span><?= e($item['message']) ?></span>
+            </div>
+          <?php endforeach; ?>
+        </div>
       <?php endif; ?>
-    </nav>
-  </header>
-  <?php endif; ?>
 
-  <?php if ($flashes): ?>
-    <div class="messages" aria-live="polite">
-      <?php foreach ($flashes as $item): ?>
-        <p class="message <?= e($item['type']) ?>"><?= e($item['message']) ?></p>
-      <?php endforeach; ?>
+      <?php if (!empty($errors)): ?>
+        <div class="messages" role="alert">
+          <?php foreach ($errors as $error): ?>
+            <div class="message error">
+              <span class="message-icon" aria-hidden="true">⚠</span>
+              <span><?= e($error) ?></span>
+            </div>
+          <?php endforeach; ?>
+        </div>
+      <?php endif; ?>
+
+      <!-- صفحة المحتوى المطلوبة -->
+      <main id="main-content" class="main-body">
+        <?php require $contentView; ?>
+      </main>
+
+      <!-- تذييل الصفحة المطور والمختصر (Modern Centered Minimal Footer) -->
+      <footer class="site-footer" role="contentinfo">
+        <div class="footer-centered-wrap">
+          <div class="footer-brand-centered">
+            <img src="/assets/brand/icon.png" alt="شعار منصة الإسناد الأكاديمي" class="footer-mini-logo">
+            <strong class="footer-brand-title">منصة الإسناد الأكاديمي</strong>
+            <span class="footer-dot-sep">·</span>
+            <span class="footer-brand-subtitle">المنهج السوداني المعتمد</span>
+          </div>
+
+          <nav class="footer-quick-links" aria-label="روابط سريعة">
+            <a href="<?= e(url('home')) ?>">الرئيسية</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a href="<?= e(url('subjects')) ?>">المواد والدروس</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a href="<?= e(url('questions')) ?>">بنك الأسئلة</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a href="<?= e(url('library')) ?>">المكتبة الرقمية</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a href="<?= e(url('sessions')) ?>">الحصص المباشرة</a>
+            <span class="sep" aria-hidden="true">•</span>
+            <a href="<?= e(url('guide')) ?>">دليل المنصة والواجهات</a>
+          </nav>
+
+          <div class="footer-meta-centered">
+            <span class="footer-copyright">جميع الحقوق محفوظة © <?= date('Y') ?> منصة الإسناد الأكاديمي</span>
+            <span class="footer-dot-sep">·</span>
+            <span class="footer-dev-credit">
+              إشراف وتطوير <strong>شركة AL WARITH</strong>
+              <img src="/assets/brand/al-warith-logo.jpg" alt="شعار شركة الوارث" class="footer-dev-logo">
+            </span>
+          </div>
+        </div>
+      </footer>
     </div>
-  <?php endif; ?>
+  </div>
 
-  <?php if ($errors): ?>
-    <div class="messages" role="alert">
-      <?php foreach ($errors as $error): ?>
-        <p class="message error"><?= e($error) ?></p>
-      <?php endforeach; ?>
-    </div>
-  <?php endif; ?>
-
-  <main><?php require $contentView; ?></main>
+  <!-- السكربتات التفاعلية العامة -->
+  <script src="/assets/js/main.js" defer></script>
   <?php if (($page ?? '') === 'home'): ?><script src="/assets/js/version3.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'questions'): ?><script src="/assets/js/questions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'library'): ?><script src="/assets/js/library.js" defer></script><?php endif; ?>
@@ -101,9 +329,5 @@ $user = current_user();
   <?php if (($page ?? '') === 'quiz_attempt'): ?><script src="/assets/js/quiz-attempt.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
-  <footer class="site-footer">
-    <span>منصة الإسناد الأكاديمي · AL WARITH</span>
-    <span>خطوتك القادمة تبدأ بالتعلّم</span>
-  </footer>
 </body>
 </html>

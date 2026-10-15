@@ -122,6 +122,8 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 ### رفع وتحرير المحتوى
 
 - `POST /api/v1/content/resources` يتطلب `content.upload` وملفًا، ويقبل `title`, `resource_type` (`PDF|VIDEO|AUDIO|DOCUMENT`), `class_subject_id`, `lesson_id` اختياري، `description`, `source_reference`, `source_owner`, `copyright_license`. يعود 201 بمورد في حالة `DRAFT`.
+- فيديوهات الموارد في واجهة المكتبة تستخدم مزودًا مستقلًا عن البث الحي يحدده `VIDEO_UPLOAD_PROVIDER` (`cloudflare_stream` افتراضيًا أو `mux`). `STREAM_PROVIDER` يبقى مسؤولًا عن الحصص المباشرة. ينشئ `POST /api/v1/content/video-uploads` جلسة رفع للمستخدم المخول ويعيد `upload_url`, `upload_method`, و`upload_token`؛ يستخدم Cloudflare `POST multipart` ويستخدم Mux `PUT` للملف مباشرة. ثم `POST /api/v1/content/video-uploads/complete` مع `{ "upload_token": "..." }` يتحقق من إنشاء الأصل ويثبت مزوده ومعرّفات التشغيل في المورد المسودة قبل إرساله للمراجعة. تنتهي الجلسة ورابط الرفع بعد أربع ساعات. حد الواجهة الحالي 200 ميغابايت؛ الرفع المجزأ والاستئناف غير مفعّلين.
+- استخدم `MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`, `MUX_SIGNING_KEY_ID`, و`MUX_SIGNING_KEY_PRIVATE` عند ضبط `VIDEO_UPLOAD_PROVIDER=mux`. يجب أن يكون أصل الموقع `APP_URL` مضبوطًا لمطابقة CORS. تشغيل الفيديوهات يتطلب Signed Playback IDs وتوقيع JWT على الخادم؛ لا تجعل سياسة التشغيل Public. تسجيل مزود كل فيديو يسمح بتغيير الإعداد للفيديوهات الجديدة لاحقًا دون كسر فيديوهات Mux أو Cloudflare الموجودة.
 - `POST /api/v1/content/past-exams` يتطلب `content.upload` وملفًا، ويقبل `title`, `class_subject_id`, `academic_year` اختياري وحقول المصدر والمالك والترخيص. يعود 201 في `DRAFT`.
 - `POST /api/v1/content/questions` يتطلب `questions.manage` ويقبل `class_subject_id`, `lesson_id` اختياري، `question_text`, `question_type` (`MCQ|TRUE_FALSE|ESSAY`), `difficulty` اختياري، `explanation`, حقول المصدر، و`options` الاختيارية كمصفوفة `{option_text,is_correct}`. قواعد الإرسال للمراجعة: MCQ بخيارين على الأقل وإجابة صحيحة واحدة، وصح/خطأ بخيارين وإجابة صحيحة واحدة، والمقالي بلا خيارات.
 - `PATCH /api/v1/content/{resources|past-exams|questions}/{id}` يحرر مسودة أو محتوى مرفوض يملكه المستخدم أو مدير النظام. تعديل المحتوى المرفوض يعيده إلى `DRAFT`. الصلاحية المطلوبة `content.upload` للملفات و`questions.manage` للسؤال.
@@ -139,6 +141,7 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 ### تنزيل الملفات الخاصة
 
 - `GET /api/v1/content/resources/{id}/download`, `GET /api/v1/content/resources/{id}/variants/{variant_id}/download`, `GET /api/v1/content/past-exams/{id}/download` تتطلب جلسة وصلاحية `content.read` أو `exams.read` على الترتيب.
+- مورد الفيديو المعتمد يستخدم مسار التنزيل نفسه كمدخل للمشاهدة؛ بعد فحص الصلاحية والمنحة اليدوية، يصدر الخادم رابط تشغيل قصير العمر وفق مزود الفيديو المسجل للمورد. Cloudflare يتطلب `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, و`CLOUDFLARE_STREAM_CUSTOMER_CODE`. Mux يتطلب مفتاح API ومفتاح URL Signing (`MUX_TOKEN_ID`, `MUX_TOKEN_SECRET`, `MUX_SIGNING_KEY_ID`, `MUX_SIGNING_KEY_PRIVATE`).
 - يشترط أن يكون المحتوى `APPROVED` وله `published_at` وسجل مراجعة موافق. الطالب يحتاج منحة وصول يدوية نشطة من المدير أو المراجع قبل تنزيل أي محتوى؛ لا تعتمد أهلية الإطلاق على الاشتراك. تنزيل النسخ البديلة يتطلب `resource_variants.is_downloadable=true`.
 - يدعم `Range: bytes=start-end` وطلبات suffix، ويعيد `206` مع `Content-Range` و`Accept-Ranges`. النطاق غير الصحيح يعيد `416` و`Content-Range: bytes */size`. النطاقات المتعددة غير مدعومة. يسجل التنزيل `content.download.started` في `audit_events`.
 - لا يعاد مفتاح التخزين ولا ينشأ رابط عام. أخطاء الوصول: `401 unauthenticated`, `403 forbidden|content_access_required`, `404 not_found`, `416 range_not_satisfiable`.
@@ -149,8 +152,9 @@ CSRF مطلوب. ينهي جلسة المستخدم؛ استجابة `200 {"data
 
 - `QUIZ_MAX_ATTEMPTS`: عدد المحاولات المحتسبة المسموح به، عدد صحيح موجب.
 - `QUIZ_DURATION_MINUTES`: مدة افتراضية بالدقائق عند عدم تحديد `duration_minutes` للاختبار.
-- `QUIZ_INCOMPLETE_ATTEMPT_POLICY`: `AUTO_SUBMIT` يصحح المحاولة المنتهية بإجاباتها المحفوظة؛ `CANCEL_COUNTED` يغلقها ويلتزم احتسابها؛ `CANCEL_FREE` يغلقها ولا يحتسبها من الحد. قبل انتهاء المهلة، يعيد بدء الاختبار المحاولة نفسها وإجاباتها المحفوظة.
-- `QUIZ_RESULT_VISIBILITY`: `IMMEDIATE` يعرض نتيجة المرسل مباشرة؛ `AFTER_WINDOW` يعرضها بعد `ends_at` ويتطلب تاريخ إغلاق؛ `AFTER_MANUAL_GRADING` ينتظر اكتمال تصحيح الإجابات المقالية.
+- `QUIZ_INCOMPLETE_ATTEMPT_POLICY`: للإطلاق `MANAGER_REVIEW`؛ عند انقضاء الوقت دون تسليم تتحول المحاولة إلى `INCOMPLETE` ولا تصحح تلقائيًا. يستطيع المدير منح إعادة واحدة إضافية فورًا، وتبدأ حتى إن انتهت نافذة الاختبار، مع مدة الاختبار المقررة؛ لا يتجاوز مجموع المحاولات الحد العام مع تلك الإعادة. قبل الموعد النهائي، يستأنف الطالب المحاولة نفسها وإجاباته المحفوظة.
+- `QUIZ_RESULT_VISIBILITY`: للإطلاق `AFTER_MANAGER_APPROVAL`؛ لا تظهر النتيجة للطالب إلا بعد اكتمال تصحيح الأستاذ واعتماد المدير لكل محاولة طالب على حدة. راجع `POST /api/v1/admin/attempts/{id}/review` بقرار `approve_result` أو `grant_retry`؛ القرار الثاني يقبل المحاولة غير المكتملة فقط.
+- يصنف المشغل الدوري المحاولات المنتهية باستخدام `php database/process_expired_quiz_attempts.php`؛ يوصى بجدولته كل دقيقة. الطلبات التي يرسلها الطالب بعد انتهاء المهلة تصنفها أيضًا مباشرة.
 
 أي إعداد مطلوب مفقود أو غير صالح يعيد `503 quiz_not_configured`. يجب اعتماد قيم البيئة والسياسات قبل إتاحة الاختبارات للطلاب (OD-20 وOD-22).
 

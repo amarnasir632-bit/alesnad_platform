@@ -1,0 +1,8 @@
+.git
+.env
+.env.*
+!.env.example
+storage/private/*
+storage/backups/*
+vendor
+.phase3-work

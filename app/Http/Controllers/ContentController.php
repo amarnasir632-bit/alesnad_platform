@@ -31,6 +31,20 @@ function api_upload_resource(array $input): never
     json_response(201, ['data' => ['resource' => $record]]);
 }
 
+function api_create_video_upload(array $input): never
+{
+    $actor = require_permission('content.upload');
+    json_response(201, ['data' => ['upload' => content_create_video_upload($actor, $input)]]);
+}
+
+function api_complete_video_upload(array $input): never
+{
+    $actor = require_permission('content.upload');
+    $token = $input['upload_token'] ?? null;
+    if (!is_string($token)) throw new ApiException(422, 'invalid_upload_token', 'رمز رفع الفيديو مطلوب.');
+    json_response(201, ['data' => ['resource' => content_complete_video_upload($actor, $token)]]);
+}
+
 function api_upload_past_exam(array $input): never
 {
     $actor = require_permission('content.upload');
@@ -100,6 +114,13 @@ function api_download_content(string $kind, int $id, ?int $variantId = null): ne
     if (in_array('student', $actor['roles'] ?? [], true)
         && !has_manual_content_access((int) $actor['id'])) {
         throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    }
+    if (content_has_video_asset($record)) {
+        content_audit_download($actor, $kind, $id, $variantId, false);
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        header('Location: ' . content_video_playback_url($record), true, 302);
+        exit;
     }
     $path = resolve_private_file((string) $record['storage_key']);
     if ($path === null) throw new ApiException(404, 'not_found', 'الملف غير متاح.');

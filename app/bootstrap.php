@@ -6,6 +6,7 @@ require_once PROJECT_ROOT . '/app/Support/env.php';
 load_environment(PROJECT_ROOT . '/.env');
 require_once PROJECT_ROOT . '/app/Support/config.php';
 require_once PROJECT_ROOT . '/app/Support/logger.php';
+require_once PROJECT_ROOT . '/app/Support/covers.php';
 
 date_default_timezone_set(env_value('APP_TIMEZONE', 'Africa/Khartoum'));
 ini_set('log_errors', '1');
@@ -51,6 +52,7 @@ require_once PROJECT_ROOT . '/app/Database/questions.php';
 require_once PROJECT_ROOT . '/app/Database/messages.php';
 require_once PROJECT_ROOT . '/app/Database/library.php';
 require_once PROJECT_ROOT . '/app/Database/quizzes.php';
+require_once PROJECT_ROOT . '/app/Database/announcements.php';
 require_once PROJECT_ROOT . '/app/Security/authorization.php';
 require_once PROJECT_ROOT . '/app/Security/audit.php';
 require_once PROJECT_ROOT . '/app/Security/login_throttle.php';

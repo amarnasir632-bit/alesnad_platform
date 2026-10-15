@@ -139,7 +139,8 @@ function list_available_quizzes(int $userId, bool $forTeacher): array
          FROM quizzes q JOIN class_subjects cs ON cs.id=q.class_subject_id JOIN classes c ON c.id=cs.class_id JOIN subjects s ON s.id=cs.subject_id
          JOIN students st ON st.user_id=:user_id JOIN users u ON u.id=st.user_id AND u.is_active
          WHERE q.is_published AND st.class_id=cs.class_id
-           AND (q.starts_at IS NULL OR q.starts_at<=CURRENT_TIMESTAMP) AND (q.ends_at IS NULL OR q.ends_at>CURRENT_TIMESTAMP)
+           AND (((q.starts_at IS NULL OR q.starts_at<=CURRENT_TIMESTAMP) AND (q.ends_at IS NULL OR q.ends_at>CURRENT_TIMESTAMP))
+                OR EXISTS (SELECT 1 FROM quiz_attempts retry WHERE retry.quiz_id=q.id AND retry.student_id=st.id AND ((retry.status='INCOMPLETE' AND retry.retry_granted_at IS NOT NULL AND retry.retry_grant_used_at IS NULL) OR retry.status='IN_PROGRESS')))
            AND EXISTS (SELECT 1 FROM manual_content_access a WHERE a.student_id=st.id AND a.revoked_at IS NULL)
          ORDER BY q.created_at DESC"
     );
@@ -182,7 +183,7 @@ function start_quiz_attempt(int $quizId, int $userId): int
 function get_quiz_attempt(int $attemptId, int $userId): array
 {
     $statement=database_connection()->prepare(
-        'SELECT a.id,a.quiz_id,a.status,a.started_at,a.deadline_at,a.submitted_at,a.score,q.title,q.duration_minutes,q.total_marks,q.passing_marks,
+        'SELECT a.id,a.quiz_id,a.status,a.started_at,a.deadline_at,a.submitted_at,a.score,a.result_approved_at,a.retry_granted_at,a.retry_grant_used_at,q.title,q.duration_minutes,q.total_marks,q.passing_marks,
                 st.user_id AS student_user_id,q.class_subject_id,
                 EXISTS(SELECT 1 FROM manual_content_access ca JOIN class_subjects acs ON acs.id=q.class_subject_id WHERE ca.student_id=st.id AND st.class_id=acs.class_id AND ca.revoked_at IS NULL) AS student_has_access,
                 EXISTS(SELECT 1 FROM users su WHERE su.id=st.user_id AND su.is_active) AS student_active,u.full_name AS student_name
@@ -271,7 +272,7 @@ function submit_quiz_attempt(int $attemptId,int $userId): void
 function list_quiz_attempts_for_teacher(int $quizId,int $userId): array
 {
     if(!user_can_manage_quiz($quizId,$userId)){throw new InvalidArgumentException('ليس لديك صلاحية عرض نتائج هذا الاختبار.');}
-    $statement=database_connection()->prepare('SELECT a.id,a.attempt_number,a.started_at,a.submitted_at,a.score,a.status,u.full_name FROM quiz_attempts a JOIN students st ON st.id=a.student_id JOIN users u ON u.id=st.user_id WHERE a.quiz_id=:quiz ORDER BY a.started_at DESC');
+    $statement=database_connection()->prepare('SELECT a.id,a.attempt_number,a.started_at,a.submitted_at,a.score,a.status,a.result_approved_at,a.retry_granted_at,u.full_name FROM quiz_attempts a JOIN students st ON st.id=a.student_id JOIN users u ON u.id=st.user_id WHERE a.quiz_id=:quiz ORDER BY a.started_at DESC');
     $statement->execute(['quiz'=>$quizId]);return $statement->fetchAll();
 }
 

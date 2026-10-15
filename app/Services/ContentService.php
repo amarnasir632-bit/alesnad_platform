@@ -74,6 +74,26 @@ function content_public_record(array $record): array
     return $record;
 }
 
+function content_has_video_asset(array $record): bool
+{
+    return !empty($record['video_asset_id']) || !empty($record['cloudflare_video_uid']);
+}
+
+function content_video_playback_url(array $record): string
+{
+    $providerCode = is_string($record['video_provider'] ?? null)
+        ? $record['video_provider']
+        : (!empty($record['cloudflare_video_uid']) ? 'cloudflare_stream' : '');
+    $playbackId = is_string($record['video_playback_id'] ?? null)
+        ? $record['video_playback_id']
+        : (string) ($record['cloudflare_video_uid'] ?? '');
+    if ($providerCode === '' || $playbackId === '') {
+        throw new ApiException(404, 'video_not_found', 'رابط مشاهدة الفيديو غير صالح.');
+    }
+    $duration = filter_var($record['video_duration_seconds'] ?? null, FILTER_VALIDATE_FLOAT);
+    return video_upload_provider($providerCode)->playbackUrl($playbackId, $duration === false ? 0 : (int) ceil((float) $duration));
+}
+
 function content_create_resource(array $actor, array $input, array $file): array
 {
     $type = is_string($input['resource_type'] ?? null) ? strtoupper(trim($input['resource_type'])) : '';
@@ -102,6 +122,7 @@ function content_create_resource(array $actor, array $input, array $file): array
         $employeeId = content_employee_id($db, (int) $actor['id']);
         content_assert_upload_scope($db, $actor, $employeeId, $classSubjectId);
         content_validate_lesson($db, $lessonId, $classSubjectId);
+        $db->exec('DELETE FROM cloudflare_video_uploads WHERE expires_at < CURRENT_TIMESTAMP AND resource_id IS NULL');
         $data['uploaded_by'] = $employeeId;
         $statement = $db->prepare(
             'INSERT INTO learning_resources
@@ -120,6 +141,116 @@ function content_create_resource(array $actor, array $input, array $file): array
     } catch (Throwable $error) {
         if ($db->inTransaction()) $db->rollBack();
         discard_private_file($stored['storage_key']);
+        throw $error;
+    }
+}
+
+function content_create_video_upload(array $actor, array $input): array
+{
+    $classSubjectId = content_positive_id($input['class_subject_id'] ?? null, 'class_subject_id');
+    $lessonId = ($input['lesson_id'] ?? '') === '' ? null : content_positive_id($input['lesson_id'], 'lesson_id');
+    $title = content_text($input['title'] ?? null, 'title', 200, true);
+    $description = content_text($input['description'] ?? null, 'description', 5000);
+    $sourceReference = content_text($input['source_reference'] ?? null, 'source_reference');
+    $sourceOwner = content_text($input['source_owner'] ?? null, 'source_owner', 200);
+    $license = content_text($input['copyright_license'] ?? null, 'copyright_license', 200);
+    $db = database_connection();
+    $provider = video_upload_provider();
+    $db->beginTransaction();
+    try {
+        $employeeId = content_employee_id($db, (int) $actor['id']);
+        content_assert_upload_scope($db, $actor, $employeeId, $classSubjectId);
+        content_validate_lesson($db, $lessonId, $classSubjectId);
+        $token = bin2hex(random_bytes(24));
+        $upload = $provider->createDirectUpload($title, $token);
+        $statement = $db->prepare(
+            'DELETE FROM video_upload_sessions WHERE expires_at < CURRENT_TIMESTAMP AND resource_id IS NULL'
+        );
+        $statement->execute();
+        $statement = $db->prepare(
+            'INSERT INTO video_upload_sessions
+             (upload_token, provider_code, provider_upload_id, user_id, employee_id, class_subject_id, lesson_id, title,
+              description, source_reference, source_owner, copyright_license, expires_at)
+             VALUES (:token, :provider_code, :provider_upload_id, :user_id, :employee_id, :class_subject_id, :lesson_id, :title,
+                     :description, :source_reference, :source_owner, :license, CURRENT_TIMESTAMP + INTERVAL \'4 hours\')'
+        );
+        $statement->execute([
+            'token' => $token, 'provider_code' => $provider->code(), 'provider_upload_id' => $upload['provider_upload_id'],
+            'user_id' => (int) $actor['id'], 'employee_id' => $employeeId,
+            'class_subject_id' => $classSubjectId, 'lesson_id' => $lessonId, 'title' => $title,
+            'description' => $description, 'source_reference' => $sourceReference, 'source_owner' => $sourceOwner,
+            'license' => $license,
+        ]);
+        $db->commit();
+        return [
+            'upload_token' => $token,
+            'provider_code' => $provider->code(),
+            'upload_url' => $upload['upload_url'],
+            'upload_method' => $upload['upload_method'],
+            'expires_in_seconds' => 14400,
+        ];
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
+        throw $error;
+    }
+}
+
+function content_complete_video_upload(array $actor, string $token): array
+{
+    if (!preg_match('/^[a-f0-9]{48}$/D', $token)) throw new ApiException(422, 'invalid_upload_token', 'رمز رفع الفيديو غير صالح.');
+    $db = database_connection();
+    $query = $db->prepare('SELECT * FROM video_upload_sessions WHERE upload_token = :token AND user_id = :user_id AND expires_at > CURRENT_TIMESTAMP');
+    $query->execute(['token' => $token, 'user_id' => (int) $actor['id']]);
+    $upload = $query->fetch();
+    if (!$upload) throw new ApiException(404, 'video_upload_not_found', 'جلسة رفع الفيديو غير موجودة أو انتهت.');
+    if ($upload['resource_id'] !== null) return ['id' => (int) $upload['resource_id'], 'status' => 'DRAFT'];
+
+    $video = video_upload_provider((string) $upload['provider_code'])->completeDirectUpload((string) $upload['provider_upload_id']);
+
+    $db->beginTransaction();
+    try {
+        $lock = $db->prepare('SELECT * FROM video_upload_sessions WHERE upload_token = :token AND user_id = :user_id FOR UPDATE');
+        $lock->execute(['token' => $token, 'user_id' => (int) $actor['id']]);
+        $upload = $lock->fetch();
+        if (!$upload) throw new ApiException(404, 'video_upload_not_found', 'جلسة رفع الفيديو غير موجودة.');
+        if ($upload['resource_id'] !== null) {
+            $db->commit();
+            return ['id' => (int) $upload['resource_id'], 'status' => 'DRAFT'];
+        }
+        $employeeId = content_employee_id($db, (int) $actor['id']);
+        content_assert_upload_scope($db, $actor, $employeeId, (int) $upload['class_subject_id']);
+        $insert = $db->prepare(
+            'INSERT INTO learning_resources
+             (class_subject_id, lesson_id, title, resource_type, description, cloudflare_video_uid, video_provider,
+              video_asset_id, video_playback_id, video_duration_seconds, original_filename, mime_type, file_size_bytes,
+              source_reference, source_owner, copyright_license, requires_subscription, status, uploaded_by)
+             VALUES (:class_subject_id, :lesson_id, :title, \'VIDEO\', :description, :cloudflare_uid, :provider_code,
+                     :asset_id, :playback_id, :duration, :filename, :mime_type, :size,
+                     :source_reference, :source_owner, :license, TRUE, \'DRAFT\', :employee_id)
+             RETURNING id, class_subject_id, lesson_id, title, resource_type, description, original_filename, mime_type,
+                       file_size_bytes, video_provider, video_asset_id, video_playback_id, video_duration_seconds,
+                       source_reference, source_owner, copyright_license, requires_subscription, status, uploaded_by, created_at'
+        );
+        $insert->execute([
+            'class_subject_id' => (int) $upload['class_subject_id'], 'lesson_id' => $upload['lesson_id'],
+            'title' => $upload['title'], 'description' => $upload['description'],
+            'cloudflare_uid' => $upload['provider_code'] === 'cloudflare_stream' ? $video['asset_id'] : null,
+            'provider_code' => $upload['provider_code'], 'asset_id' => $video['asset_id'],
+            'playback_id' => $video['playback_id'], 'duration' => $video['duration_seconds'],
+            'filename' => $upload['title'] . '.mp4',
+            'mime_type' => $upload['provider_code'] === 'cloudflare_stream' ? 'video/cloudflare-stream' : 'video/mux',
+            'size' => $video['file_size_bytes'],
+            'source_reference' => $upload['source_reference'], 'source_owner' => $upload['source_owner'],
+            'license' => $upload['copyright_license'], 'employee_id' => $employeeId,
+        ]);
+        $record = $insert->fetch();
+        $save = $db->prepare('UPDATE video_upload_sessions SET resource_id = :resource_id WHERE upload_token = :token');
+        $save->execute(['resource_id' => $record['id'], 'token' => $token]);
+        audit_log('content.uploaded', 'learning_resource', (int) $record['id'], ['resource_type' => 'VIDEO', 'provider' => $upload['provider_code']], (int) $actor['id']);
+        $db->commit();
+        return $record;
+    } catch (Throwable $error) {
+        if ($db->inTransaction()) $db->rollBack();
         throw $error;
     }
 }
@@ -397,7 +528,7 @@ function content_submit_for_review(array $actor, string $kind, int $id): array
             if (!is_string($row[$field] ?? null) || trim($row[$field]) === '') throw new ApiException(422, 'provenance_required', 'أدخل المصدر ومالك المحتوى والترخيص قبل الإرسال للمراجعة.');
         }
         if ($kind === 'question') content_validate_question_options($db, $row);
-        if ($kind !== 'question' && resolve_private_file((string) ($row['storage_key'] ?? '')) === null) throw new ApiException(422, 'file_unavailable', 'ملف المحتوى غير متاح داخل مساحة التخزين الخاصة.');
+        if ($kind !== 'question' && !content_has_video_asset($row) && resolve_private_file((string) ($row['storage_key'] ?? '')) === null) throw new ApiException(422, 'file_unavailable', 'ملف المحتوى غير متاح داخل مساحة التخزين الخاصة.');
         $employeeId = content_employee_id($db, (int) $actor['id']);
         content_assert_upload_scope($db, $actor, $employeeId, (int) $row['class_subject_id']);
         $table = match ($kind) { 'resource' => 'learning_resources', 'past_exam' => 'past_exams', 'question' => 'questions' };
@@ -423,7 +554,7 @@ function content_review(array $actor, string $kind, int $id, string $outcome, ?s
         $row = content_fetch_for_owner($db, $kind, $id, true);
         if ($row === null) throw new ApiException(404, 'not_found', 'المحتوى غير موجود.');
         if ($row['status'] !== 'PENDING_REVIEW') throw new ApiException(409, 'content_state_conflict', 'لا يمكن مراجعة محتوى غير معلق للمراجعة.');
-        if ($kind !== 'question' && resolve_private_file((string) ($row['storage_key'] ?? '')) === null) throw new ApiException(409, 'file_unavailable', 'ملف المحتوى غير متاح للمراجعة.');
+        if ($kind !== 'question' && !content_has_video_asset($row) && resolve_private_file((string) ($row['storage_key'] ?? '')) === null) throw new ApiException(409, 'file_unavailable', 'ملف المحتوى غير متاح للمراجعة.');
         $reviewerId = content_employee_id($db, (int) $actor['id']);
         if ($reviewerId === (int) ($row['uploaded_by'] ?? $row['created_by'])) throw new ApiException(403, 'self_review_forbidden', 'لا يجوز للمراجع مراجعة المحتوى الذي رفعه.');
         $targetColumn = match ($kind) { 'resource' => 'resource_id', 'past_exam' => 'past_exam_id', 'question' => 'question_id' };
@@ -477,7 +608,8 @@ function content_download_record(string $kind, int $id, ?int $variantId = null):
 {
     if ($kind === 'resource') {
         if ($variantId === null) {
-            $sql = "SELECT lr.id, lr.storage_key, lr.original_filename, lr.mime_type, lr.file_size_bytes, lr.requires_subscription
+            $sql = "SELECT lr.id, lr.storage_key, lr.cloudflare_video_uid, lr.video_provider, lr.video_asset_id, lr.video_playback_id,
+                           lr.video_duration_seconds, lr.original_filename, lr.mime_type, lr.file_size_bytes, lr.requires_subscription
                     FROM learning_resources lr WHERE lr.id = :id AND lr.status = 'APPROVED' AND lr.published_at IS NOT NULL
                     AND EXISTS (SELECT 1 FROM content_reviews cr WHERE cr.resource_id = lr.id AND cr.status = 'APPROVED')";
             $params = ['id' => $id];
