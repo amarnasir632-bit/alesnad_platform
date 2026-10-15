@@ -82,6 +82,15 @@ function authenticate_user(string $email, string $password): bool
     return true;
 }
 
+function user_has_role(string $roleCode): bool
+{
+    $user = current_user();
+    if ($user === null || $roleCode === '') {
+        return false;
+    }
+    return in_array($roleCode, $user['roles'] ?? [], true);
+}
+
 function user_has_permission(string $permissionCode): bool
 {
     $user = current_user();

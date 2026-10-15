@@ -22,7 +22,14 @@
   <?php endif; ?>
 
   <?php if (!$data['quizzes']): ?><div class="empty-state"><p>لا توجد اختبارات متاحة في هذا العرض.</p></div><?php else: ?><div class="quiz-list">
-    <?php foreach($data['quizzes'] as $quiz): ?><article class="detail-card quiz-card"><div class="quiz-card-meta"><span><?= e($quiz['class_name'].' · '.$quiz['subject_name']) ?></span><?php if ($data['can_manage']): ?><span class="status-pill"><?= database_bool($quiz['is_published'])?'منشور':'مسودة' ?></span><?php endif; ?></div><h2><?= e($quiz['title']) ?></h2><?php if($quiz['description']): ?><p><?= nl2br(e($quiz['description'])) ?></p><?php endif; ?><p class="muted"><?= (int)$quiz['question_count'] ?> سؤال · <?= e((string)$quiz['total_marks']) ?> درجة<?php if($quiz['duration_minutes']): ?> · <?= (int)$quiz['duration_minutes'] ?> دقيقة<?php endif; ?></p>
+    <?php foreach($data['quizzes'] as $quiz): ?>
+      <?php $qc = get_quiz_cover_data($quiz['title']); ?>
+      <article class="detail-card quiz-card">
+        <div class="card-smart-cover quiz-card-cover" style="background: <?= e($qc['gradient']) ?>;">
+          <span class="cover-symbol-watermark" aria-hidden="true"><?= e($qc['symbol']) ?></span>
+          <span class="cover-icon-badge" aria-hidden="true"><?= e($qc['icon']) ?></span>
+        </div>
+        <div class="quiz-card-meta"><span><?= e($quiz['class_name'].' · '.$quiz['subject_name']) ?></span><?php if ($data['can_manage']): ?><span class="status-pill"><?= database_bool($quiz['is_published'])?'منشور':'مسودة' ?></span><?php endif; ?></div><h2><?= e($quiz['title']) ?></h2><?php if($quiz['description']): ?><p><?= nl2br(e($quiz['description'])) ?></p><?php endif; ?><p class="muted"><?= (int)$quiz['question_count'] ?> سؤال · <?= e((string)$quiz['total_marks']) ?> درجة<?php if($quiz['duration_minutes']): ?> · <?= (int)$quiz['duration_minutes'] ?> دقيقة<?php endif; ?></p>
       <?php if($data['can_manage']): ?>
         <form method="post" action="<?= e(url('quizzes')) ?>" class="inline-form"><input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="action" value="quiz_publish"><input type="hidden" name="quiz_id" value="<?= (int)$quiz['id'] ?>"><input type="hidden" name="publish" value="<?= database_bool($quiz['is_published'])?'0':'1' ?>"><button class="button button-small" type="submit"><?= database_bool($quiz['is_published'])?'إيقاف النشر':'نشر الاختبار' ?></button></form>
         <details class="quiz-attempt-list"><summary>المحاولات (<?= (int)$quiz['attempt_count'] ?>)</summary><?php foreach(($data['attempts_by_quiz'][(int)$quiz['id']]??[]) as $attempt): ?><a class="quiz-attempt-link" href="<?= e(url('quiz_attempt',['id'=>(int)$attempt['id']])) ?>"><?= e($attempt['full_name']) ?> · <?= e(match($attempt['status']){'IN_PROGRESS'=>'قيد الأداء','SUBMITTED'=>'بانتظار التصحيح','GRADED'=>empty($attempt['result_approved_at'])?'بانتظار موافقة المدير':'تم اعتماد النتيجة','INCOMPLETE'=>'غير مكتملة — قرار الإعادة مطلوب','CANCELLED'=>'ملغاة',default=>$attempt['status']}) ?><?php if($attempt['score']!==null): ?> · <?= e((string)$attempt['score']) ?><?php endif; ?></a><?php endforeach; ?></details>

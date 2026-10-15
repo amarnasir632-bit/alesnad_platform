@@ -9,31 +9,118 @@ $statusNames = ['DRAFT' => 'مسودة', 'PENDING_REVIEW' => 'بانتظار ا�
   <p class="page-intro">تُصنّف الأسئلة حسب المرحلة والصف والمادة والدرس والنوع والصعوبة. لا يظهر السؤال للطلاب قبل اعتماده.</p>
 
   <?php if ($data['can_create']): ?>
-  <details class="detail-card question-create">
-    <summary class="button">إضافة سؤال</summary>
-    <form method="post" action="<?= e(url('questions')) ?>" class="admin-form">
+  <details class="detail-card question-create" open>
+    <summary class="button button-primary">إضافة سؤال جديد إلى بنك الأسئلة</summary>
+    <form method="post" action="<?= e(url('questions')) ?>" class="admin-form multi-step-form" id="question-create-form">
       <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
       <input type="hidden" name="action" value="question_create">
-      <div class="form-field"><label for="question_subject">المرحلة والصف والمادة</label>
-        <select id="question_subject" name="class_subject_id" required><option value="">اختر المادة المسندة</option>
-          <?php foreach ($data['subjects'] as $subject): ?><option value="<?= (int) $subject['class_subject_id'] ?>"><?= e($subject['stage_name'] . ' · ' . $subject['class_name'] . ' · ' . $subject['subject_name']) ?></option><?php endforeach; ?>
-        </select>
-      </div>
-      <div class="form-field"><label for="question_lesson">الدرس (اختياري)</label>
-        <select id="question_lesson" name="lesson_id"><option value="">بدون ربط بدرس</option>
-          <?php foreach ($data['lessons_by_subject'] as $subjectId => $lessons): foreach ($lessons as $lesson): ?><option data-subject="<?= (int) $subjectId ?>" value="<?= (int) $lesson['id'] ?>"><?= e($lesson['title']) ?></option><?php endforeach; endforeach; ?>
-        </select>
-      </div>
-      <div class="form-field"><label for="question_type">نوع السؤال</label><select id="question_type" name="question_type"><option value="MCQ">اختيار من متعدد</option><option value="TRUE_FALSE">صح أو خطأ</option><option value="ESSAY">مقالي</option></select></div>
-      <div class="form-field"><label for="question_difficulty">الصعوبة</label><select id="question_difficulty" name="difficulty"><option value="EASY">سهل</option><option value="MEDIUM" selected>متوسط</option><option value="HARD">متقدم</option></select></div>
-      <div class="form-field"><label for="question_text">نص السؤال</label><textarea id="question_text" name="question_text" rows="4" maxlength="10000" required></textarea></div>
-      <fieldset class="question-options"><legend>خيارات الإجابة (للاختيار من متعدد)</legend>
-        <?php for ($i = 0; $i < 4; $i++): ?><label class="question-option"><input type="radio" name="correct_option" value="<?= $i ?>" <?= $i === 0 ? 'checked' : '' ?>><input name="options[]" maxlength="2000" placeholder="الخيار <?= $i + 1 ?>"></label><?php endfor; ?>
+
+      <!-- الخطوة 1: تصنيف السؤال والمادة -->
+      <fieldset class="form-step" data-step="1" data-step-title="المادة والتصنيف">
+        <legend class="step-legend">الخطوة الأولى: تحديد المادة والدرس ونوع السؤال</legend>
+        <p class="step-desc">اختر المادة والدرس وحدد نوع السؤال ودرجة صعوبته.</p>
+
+        <div class="form-field">
+          <label for="question_subject">المرحلة والصف والمادة الدراسية</label>
+          <select id="question_subject" name="class_subject_id" required>
+            <option value="">-- اضغط لاختيار المادة المسندة إليك --</option>
+            <?php foreach ($data['subjects'] as $subject): ?>
+              <option value="<?= (int) $subject['class_subject_id'] ?>"><?= e($subject['stage_name'] . ' · ' . $subject['class_name'] . ' · ' . $subject['subject_name']) ?></option>
+            <?php endforeach; ?>
+          </select>
+          <small class="field-hint">المواد المرتبطة بجدول تدريسك المعتمد.</small>
+        </div>
+
+        <div class="form-field">
+          <label for="question_lesson">الدرس المحدد (اختياري)</label>
+          <select id="question_lesson" name="lesson_id">
+            <option value="">-- بدون ربط بدرس محدد (للمنهج ككل) --</option>
+            <?php foreach ($data['lessons_by_subject'] as $subjectId => $lessons): foreach ($lessons as $lesson): ?>
+              <option data-subject="<?= (int) $subjectId ?>" value="<?= (int) $lesson['id'] ?>"><?= e($lesson['title']) ?></option>
+            <?php endforeach; endforeach; ?>
+          </select>
+          <small class="field-hint">يتغير بناءً على المادة المختارة أعلاه.</small>
+        </div>
+
+        <div class="form-grid-2">
+          <div class="form-field">
+            <label for="question_type">نوع السؤال</label>
+            <select id="question_type" name="question_type">
+              <option value="MCQ">اختيار من متعدد</option>
+              <option value="TRUE_FALSE">صح أو خطأ</option>
+              <option value="ESSAY">مقالي</option>
+            </select>
+          </div>
+
+          <div class="form-field">
+            <label for="question_difficulty">مستوى الصعوبة</label>
+            <select id="question_difficulty" name="difficulty">
+              <option value="EASY">سهل</option>
+              <option value="MEDIUM" selected>متوسط</option>
+              <option value="HARD">متقدم</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="step-actions"></div>
       </fieldset>
-      <div class="form-field question-tf-answer"><label for="correct_tf">الإجابة الصحيحة (للصح والخطأ)</label><select id="correct_tf" name="correct_option_tf"><option value="0">صحيح</option><option value="1">خطأ</option></select></div>
-      <div class="form-field"><label for="question_explanation">التفسير (اختياري)</label><textarea id="question_explanation" name="explanation" rows="2" maxlength="10000"></textarea></div>
-      <div class="form-field"><label for="question_status">الحفظ</label><select id="question_status" name="status"><option value="PENDING_REVIEW">إرسال للمراجعة</option><option value="DRAFT">حفظ كمسودة</option></select></div>
-      <button class="button" type="submit">حفظ السؤال</button>
+
+      <!-- الخطوة 2: نص السؤال والإجابات -->
+      <fieldset class="form-step" data-step="2" data-step-title="نص السؤال والإجابات">
+        <legend class="step-legend">الخطوة الثانية: صياغة السؤال والخيارات</legend>
+        <p class="step-desc">اكتب نص السؤال بوضوح وحدد خيارات الإجابة والحل الصحيح.</p>
+
+        <div class="form-field">
+          <label for="question_text">نص السؤال</label>
+          <textarea id="question_text" name="question_text" rows="4" maxlength="10000" placeholder="اكتب نص السؤال بدقة ووضوح..." required></textarea>
+        </div>
+
+        <fieldset class="question-options">
+          <legend>خيارات الإجابة (للاختيار من متعدد) - اختر الإجابة الصحيحة بالضغط على الدائرة</legend>
+          <?php for ($i = 0; $i < 4; $i++): ?>
+            <label class="question-option">
+              <input type="radio" name="correct_option" value="<?= $i ?>" <?= $i === 0 ? 'checked' : '' ?>>
+              <input name="options[]" maxlength="2000" placeholder="الخيار رقم <?= $i + 1 ?>">
+            </label>
+          <?php endfor; ?>
+        </fieldset>
+
+        <div class="form-field question-tf-answer">
+          <label for="correct_tf">الإجابة الصحيحة (للصح والخطأ)</label>
+          <select id="correct_tf" name="correct_option_tf">
+            <option value="0">صحيح</option>
+            <option value="1">خطأ</option>
+          </select>
+        </div>
+
+        <div class="step-actions"></div>
+      </fieldset>
+
+      <!-- الخطوة 3: التفسير وحفظ السؤال -->
+      <fieldset class="form-step" data-step="3" data-step-title="التفسير والاعتماد">
+        <legend class="step-legend">الخطوة الثالثة: تفسير الإجابة وحالة الحفظ</legend>
+        <p class="step-desc">أضف تفسيراً تعليمياً للطلاب واختر إرسال السؤال للمراجعة.</p>
+
+        <div class="form-field">
+          <label for="question_explanation">تفسير الإجابة وشرحها (اختياري للطلاب)</label>
+          <textarea id="question_explanation" name="explanation" rows="3" maxlength="10000" placeholder="شرح مبسط يظهر للطالب عند مراجعة النتيجة..."></textarea>
+        </div>
+
+        <div class="form-field">
+          <label for="question_status">حالة الحفظ</label>
+          <select id="question_status" name="status">
+            <option value="PENDING_REVIEW">إرسال للمراجعة والاعتماد (يظهر للمراجع)</option>
+            <option value="DRAFT">حفظ كمسودة خاصة بي (للتعديل لاحقاً)</option>
+          </select>
+          <small class="field-hint">السؤال المعتمد فقط هو الذي يُتاح للإدراج في الاختبارات المدرسية.</small>
+        </div>
+
+        <div class="step-actions">
+          <button class="button button-primary button-large" type="submit">
+            <span>✓ حفظ السؤال في بنك الأسئلة</span>
+          </button>
+        </div>
+      </fieldset>
     </form>
   </details>
   <?php endif; ?>

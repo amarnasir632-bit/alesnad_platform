@@ -11,6 +11,10 @@ interface LiveMeetingProvider
     public function listReadyRecordings(array $session): array;
     /** @return array{stream_url:string,expires_at:string,filename:string} */
     public function recordingSource(array $recording, array $participant): array;
+    /** @return array{uid:string,upload_url:string} */
+    public function createDirectUpload(string $title, string $creator, int $maxDurationSeconds): array;
+    public function videoPlaybackUrl(string $uid, int $lifetimeSeconds = 3600): array;
+    public function getUploadedVideo(string $uid): array;
 }
 
 final class CloudflareStreamProvider implements LiveMeetingProvider
@@ -66,6 +70,40 @@ final class CloudflareStreamProvider implements LiveMeetingProvider
         $token = $result['token'] ?? null;
         if (!is_string($token) || $token === '') throw new ApiException(502, 'broadcast_provider_invalid_response', 'لم يصدر مزود البث رابط مشاهدة.');
         return $token;
+    }
+
+    public function createDirectUpload(string $title, string $creator, int $maxDurationSeconds): array
+    {
+        $expiry = gmdate(DateTimeInterface::ATOM, time() + 14400);
+        $origin = parse_url((string) env_value('APP_URL', ''), PHP_URL_HOST);
+        $result = $this->request('POST', '/stream/direct_upload', [
+            'maxDurationSeconds' => $maxDurationSeconds,
+            'requireSignedURLs' => true,
+            'creator' => $creator,
+            'expiry' => $expiry,
+            'allowedOrigins' => is_string($origin) && $origin !== '' ? [$origin] : [],
+            'meta' => ['name' => $title],
+        ]);
+        if (!is_string($result['uid'] ?? null) || $result['uid'] === ''
+            || !is_string($result['uploadURL'] ?? null) || $result['uploadURL'] === '') {
+            throw new ApiException(502, 'broadcast_provider_invalid_response', 'لم يصدر Cloudflare رابط رفع الفيديو.');
+        }
+        return ['uid' => $result['uid'], 'upload_url' => $result['uploadURL']];
+    }
+
+    public function videoPlaybackUrl(string $uid, int $lifetimeSeconds = 3600): array
+    {
+        $lifetimeSeconds = max(60, min(86400, $lifetimeSeconds));
+        $signed = $this->signedToken($uid, $lifetimeSeconds);
+        return [
+            'url' => 'https://customer-' . $this->customerCode . '.cloudflarestream.com/' . rawurlencode($signed) . '/iframe',
+            'expires_at' => gmdate(DateTimeInterface::ATOM, time() + $lifetimeSeconds),
+        ];
+    }
+
+    public function getUploadedVideo(string $uid): array
+    {
+        return $this->request('GET', '/stream/' . rawurlencode($uid));
     }
 
     public function createMeeting(array $session): array

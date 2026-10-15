@@ -256,8 +256,11 @@ function get_authorized_library_download(string $kind, int $itemId, int $userId)
     if (!in_array($kind, ['resource','exam'], true) || $itemId < 1) { throw new InvalidArgumentException('الملف غير موجود.'); }
     $table = $kind === 'resource' ? 'learning_resources' : 'past_exams';
     $column = $kind === 'resource' ? 'resource_id' : 'past_exam_id';
+    $videoColumns = $kind === 'resource'
+        ? 'x.cloudflare_video_uid,x.video_provider,x.video_asset_id,x.video_playback_id,x.video_duration_seconds'
+        : 'NULL::VARCHAR AS cloudflare_video_uid,NULL::VARCHAR AS video_provider,NULL::VARCHAR AS video_asset_id,NULL::VARCHAR AS video_playback_id,NULL::NUMERIC AS video_duration_seconds';
     $statement = database_connection()->prepare(
-        "SELECT x.storage_key,x.original_filename,x.mime_type,x.status,x.class_subject_id,
+        "SELECT x.storage_key,{$videoColumns},x.original_filename,x.mime_type,x.status,x.class_subject_id,
                 EXISTS (SELECT 1 FROM users requesting WHERE requesting.id=:requester_id AND requesting.is_active) AS requester_active,
                 e.user_id AS owner_user_id, EXISTS (SELECT 1 FROM manual_content_access a JOIN students st ON st.id=a.student_id JOIN class_subjects acs ON acs.id=x.class_subject_id WHERE st.user_id=:access_user AND st.class_id=acs.class_id AND a.revoked_at IS NULL) AS has_access,
                 EXISTS (SELECT 1 FROM employees me JOIN teaching_assignments ta ON ta.employee_id=me.id WHERE me.user_id=:teacher_user AND me.is_active AND ta.class_subject_id=x.class_subject_id) AS assigned_teacher,
@@ -266,12 +269,21 @@ function get_authorized_library_download(string $kind, int $itemId, int $userId)
     );
     $statement->execute(['requester_id'=>$userId,'access_user'=>$userId,'teacher_user'=>$userId,'reviewer_user'=>$userId,'id'=>$itemId]);
     $row = $statement->fetch();
-    if (!$row || !$row['storage_key']) { throw new InvalidArgumentException('الملف غير موجود أو رابط خارجي.'); }
+    if (!$row || (!$row['storage_key'] && !$row['cloudflare_video_uid'] && !$row['video_asset_id'])) { throw new InvalidArgumentException('الملف غير موجود أو رابط خارجي.'); }
     if (!(bool)$row['requester_active']) { throw new RuntimeException('الحساب غير نشط.'); }
     $allowed = $row['status'] === 'APPROVED' && ((bool)$row['has_access'] || user_has_permission('roles.manage'));
     $allowed = $allowed || (int)$row['owner_user_id'] === $userId || (bool)$row['assigned_teacher'] || (bool)$row['reviewed_by_me'];
     $allowed = $allowed || (user_has_permission('content.review') && in_array($row['status'], ['PENDING_REVIEW','DRAFT','REJECTED'], true));
     if (!$allowed) { throw new RuntimeException('ليس لديك صلاحية تنزيل هذا الملف.'); }
+    if (!empty($row['cloudflare_video_uid']) || !empty($row['video_asset_id'])) {
+        return [
+            'cloudflare_video_uid' => $row['cloudflare_video_uid'],
+            'video_provider' => $row['video_provider'],
+            'video_asset_id' => $row['video_asset_id'],
+            'video_playback_id' => $row['video_playback_id'],
+            'video_duration_seconds' => $row['video_duration_seconds'],
+        ];
+    }
     $path = legacy_library_storage_root() . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $row['storage_key']);
     $root = legacy_library_storage_root() . DIRECTORY_SEPARATOR;
     $real = realpath($path);

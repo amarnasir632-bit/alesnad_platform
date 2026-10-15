@@ -6,7 +6,7 @@ function handle_web_request(): void
 header('X-Content-Type-Options: nosniff');
 header('Referrer-Policy: strict-origin-when-cross-origin');
 header('X-Frame-Options: DENY');
-header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self' data:; script-src 'self'; frame-src https://*.cloudflarestream.com; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+header("Content-Security-Policy: default-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self' data:; script-src 'self'; connect-src 'self' https://upload.videodelivery.net https://storage.googleapis.com; frame-src https://*.cloudflarestream.com https://player.mux.com; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
 
 $page = is_string($_GET['page'] ?? null) ? $_GET['page'] : 'home';
 $errors = [];
@@ -355,6 +355,224 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         $receiverId = filter_var($_POST['receiver_id'] ?? null, FILTER_VALIDATE_INT);
         redirect(url('messages', $receiverId !== false && $receiverId > 0 ? ['with' => $receiverId] : []));
+    } elseif ($action === 'message_request_decision') {
+        try {
+            $user = require_permission('messages.use');
+            if (!in_array('teacher', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط الأستاذ يمكنه الرد على طلبات المراسلة.');
+            }
+            $studentId = filter_var($_POST['student_id'] ?? null, FILTER_VALIDATE_INT);
+            $decision = post_string('decision');
+            $reason = post_string('rejection_reason');
+
+            if ($studentId === false || $studentId < 1) {
+                throw new InvalidArgumentException('معرف الطالب غير صحيح.');
+            }
+
+            if ($decision === 'accept') {
+                update_message_request_status((int) $user['id'], $studentId, 'ACCEPTED');
+                flash('success', 'تم قبول طلب المراسلة بنجاح. يمكنك الآن التحدث مع الطالب.');
+            } elseif ($decision === 'ignore') {
+                update_message_request_status((int) $user['id'], $studentId, 'IGNORED');
+                flash('success', 'تم تجاهل الطلب دون إشعار الطالب.');
+            } elseif ($decision === 'reject') {
+                if ($reason === '') {
+                    throw new InvalidArgumentException('يرجى توضيح سبب الاعتذار للطالب.');
+                }
+                update_message_request_status((int) $user['id'], $studentId, 'REJECTED', $reason);
+                flash('success', 'تم الاعتذار وتوضيح السبب للطالب.');
+            }
+        } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('message_request_decision_failed', $error);
+            flash('error', 'تعذر تحديث طلب المراسلة الآن.');
+        }
+        $studentId = filter_var($_POST['student_id'] ?? null, FILTER_VALIDATE_INT);
+        redirect(url('messages', $studentId !== false && $studentId > 0 ? ['with' => $studentId] : []));
+    } elseif ($action === 'admin_freeze_conversation') {
+        $teacherId = filter_var($_POST['teacher_id'] ?? null, FILTER_VALIDATE_INT);
+        $studentId = filter_var($_POST['student_id'] ?? null, FILTER_VALIDATE_INT);
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بتجميد المحادثات.');
+            }
+            if (!$studentId || !$teacherId) {
+                throw new InvalidArgumentException('بيانات المحادثة غير صحيحة.');
+            }
+            freeze_conversation($studentId, $teacherId, (int) $user['id']);
+            flash('success', 'تم تجميد المحادثة بين الطالب والأستاذ بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages', ['teacher_id' => $teacherId, 'student_id' => $studentId]));
+    } elseif ($action === 'admin_unfreeze_conversation') {
+        $teacherId = filter_var($_POST['teacher_id'] ?? null, FILTER_VALIDATE_INT);
+        $studentId = filter_var($_POST['student_id'] ?? null, FILTER_VALIDATE_INT);
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بفك تجميد المحادثات.');
+            }
+            if (!$studentId || !$teacherId) {
+                throw new InvalidArgumentException('بيانات المحادثة غير صحيحة.');
+            }
+            unfreeze_conversation($studentId, $teacherId);
+            flash('success', 'تم فك تجميد المحادثة بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages', ['teacher_id' => $teacherId, 'student_id' => $studentId]));
+    } elseif ($action === 'admin_freeze_teacher') {
+        $teacherId = filter_var($_POST['teacher_id'] ?? null, FILTER_VALIDATE_INT);
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بتجميد محادثات المعلم.');
+            }
+            if (!$teacherId) {
+                throw new InvalidArgumentException('معرف المعلم غير صحيح.');
+            }
+            freeze_all_teacher_conversations($teacherId, (int) $user['id']);
+            flash('success', 'تم تجميد كافة محادثات المعلم المختار بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages', ['teacher_id' => $teacherId]));
+    } elseif ($action === 'admin_unfreeze_teacher') {
+        $teacherId = filter_var($_POST['teacher_id'] ?? null, FILTER_VALIDATE_INT);
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بفك تجميد محادثات المعلم.');
+            }
+            if (!$teacherId) {
+                throw new InvalidArgumentException('معرف المعلم غير صحيح.');
+            }
+            unfreeze_all_teacher_conversations($teacherId);
+            flash('success', 'تم فك تجميد كافة محادثات المعلم المختار بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages', ['teacher_id' => $teacherId]));
+    } elseif ($action === 'admin_freeze_all') {
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بتجميد كافة المحادثات.');
+            }
+            freeze_all_platform_conversations((int) $user['id']);
+            flash('success', 'تم تجميد كافة المحادثات عبر كامل المنصة بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages'));
+    } elseif ($action === 'admin_unfreeze_all') {
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بفك تجميد كافة المحادثات.');
+            }
+            unfreeze_all_platform_conversations();
+            flash('success', 'تم فك تجميد كافة المحادثات عبر كامل المنصة بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages'));
+    } elseif ($action === 'admin_freeze_selected') {
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بتجميد المحادثات المحددة.');
+            }
+            $pairs = (array) ($_POST['selected_conversations'] ?? []);
+            foreach ($pairs as $pair) {
+                $parts = explode(':', (string) $pair);
+                if (count($parts) === 2) {
+                    $tId = (int) $parts[0];
+                    $sId = (int) $parts[1];
+                    if ($tId > 0 && $sId > 0) {
+                        freeze_conversation($sId, $tId, (int) $user['id']);
+                    }
+                }
+            }
+            flash('success', 'تم تجميد المحادثات المحددة بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages'));
+    } elseif ($action === 'admin_unfreeze_selected') {
+        try {
+            $user = require_login();
+            if (!in_array('admin', $user['roles'] ?? [], true)) {
+                throw new InvalidArgumentException('فقط مدير النظام مخول بفك تجميد المحادثات المحددة.');
+            }
+            $pairs = (array) ($_POST['selected_conversations'] ?? []);
+            foreach ($pairs as $pair) {
+                $parts = explode(':', (string) $pair);
+                if (count($parts) === 2) {
+                    $tId = (int) $parts[0];
+                    $sId = (int) $parts[1];
+                    if ($tId > 0 && $sId > 0) {
+                        unfreeze_conversation($sId, $tId);
+                    }
+                }
+            }
+            flash('success', 'تم فك تجميد المحادثات المحددة بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('messages'));
+    } elseif ($action === 'announcement_create') {
+        try {
+            $user = require_login();
+            $isAdmin = in_array('admin', $user['roles'] ?? [], true);
+            $isTeacher = in_array('teacher', $user['roles'] ?? [], true);
+            if (!$isAdmin && !$isTeacher) {
+                throw new InvalidArgumentException('ليس لديك صلاحية لنشر إعلانات.');
+            }
+            $title = post_string('title');
+            $content = post_string('content');
+            $badge = post_string('badge_label');
+            $priority = post_string('priority');
+            $cover = post_string('cover_style');
+            $classSubjectId = filter_var($_POST['class_subject_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($classSubjectId === false || $classSubjectId < 1) {
+                $classSubjectId = null;
+            }
+            create_announcement_record((int) $user['id'], $title, $content, $badge, $priority, $cover, $classSubjectId, $isAdmin);
+            flash('success', 'تم نشر الإعلان المدرسي بنجاح.');
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('announcements'));
+    } elseif ($action === 'announcement_toggle') {
+        try {
+            $user = require_login();
+            $isAdmin = in_array('admin', $user['roles'] ?? [], true);
+            $id = filter_var($_POST['announcement_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($id && $id > 0) {
+                toggle_announcement_status((int) $id, (int) $user['id'], $isAdmin);
+                flash('success', 'تم تحديث حالة ظهور الإعلان.');
+            }
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('announcements'));
+    } elseif ($action === 'announcement_delete') {
+        try {
+            $user = require_login();
+            $isAdmin = in_array('admin', $user['roles'] ?? [], true);
+            $id = filter_var($_POST['announcement_id'] ?? null, FILTER_VALIDATE_INT);
+            if ($id && $id > 0) {
+                delete_announcement_record((int) $id, (int) $user['id'], $isAdmin);
+                flash('success', 'تم حذف الإعلان بنجاح.');
+            }
+        } catch (Throwable $e) {
+            flash('error', $e->getMessage());
+        }
+        redirect(url('announcements'));
     } elseif ($action === 'staff_invite') {
         try {
             $user = require_permission('users.manage');
@@ -472,23 +690,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($sortOrder === false) {
                     throw new InvalidArgumentException('أدخل ترتيب عرض صحيحًا.');
                 }
-                create_academic_stage(post_string('code'), post_string('name'), $sortOrder, $user['id']);
-                flash('success', 'تمت إضافة المرحلة.');
+                $name = post_string('name');
+                $code = post_string('code');
+                if ($code === '') {
+                    $code = 'STG_' . strtoupper(substr(md5($name . microtime(true)), 0, 6));
+                }
+                create_academic_stage($code, $name, $sortOrder, $user['id']);
+                flash('success', 'تمت إضافة المرحلة التعليمية بنجاح.');
             } elseif ($action === 'academics_add_class') {
                 $stageId = filter_var($_POST['stage_id'] ?? null, FILTER_VALIDATE_INT);
                 $sortOrder = filter_var($_POST['sort_order'] ?? null, FILTER_VALIDATE_INT);
                 if ($stageId === false || $stageId < 1 || $sortOrder === false) {
                     throw new InvalidArgumentException('اختر مرحلة وأدخل ترتيب عرض صحيحًا.');
                 }
-                create_academic_class($stageId, post_string('code'), post_string('name'), $sortOrder, $user['id']);
-                flash('success', 'تمت إضافة الصف.');
+                $name = post_string('name');
+                $code = post_string('code');
+                if ($code === '') {
+                    $code = 'CLS_' . strtoupper(substr(md5($name . microtime(true)), 0, 6));
+                }
+                create_academic_class($stageId, $code, $name, $sortOrder, $user['id']);
+                flash('success', 'تمت إضافة الصف الدراسي بنجاح.');
             } else {
                 $classId = filter_var($_POST['class_id'] ?? null, FILTER_VALIDATE_INT);
                 if ($classId === false || $classId < 1) {
                     throw new InvalidArgumentException('اختر صفًا صحيحًا.');
                 }
-                create_subject_assignment($classId, post_string('name'), post_string('code'), $user['id']);
-                flash('success', 'تمت إضافة المادة وربطها بالصف.');
+                $name = post_string('name');
+                $code = post_string('code');
+                if ($code === '') {
+                    $code = 'SUB_' . strtoupper(substr(md5($name . microtime(true)), 0, 6));
+                }
+                create_subject_assignment($classId, $name, $code, $user['id']);
+                flash('success', 'تمت إضافة المادة وربطها بالصف بنجاح.');
             }
         } catch (InvalidArgumentException $error) {
             flash('error', $error->getMessage());
@@ -576,6 +809,12 @@ try {
         try {
             if ($downloadId === false || $downloadId === null || $downloadId < 1) { throw new InvalidArgumentException('الملف غير موجود.'); }
             $download = get_authorized_library_download(is_string($_GET['kind'] ?? null) ? $_GET['kind'] : '', $downloadId, (int) $user['id']);
+            if (content_has_video_asset($download)) {
+                header('Cache-Control: no-store');
+                header('Referrer-Policy: no-referrer');
+                header('Location: ' . content_video_playback_url($download), true, 302);
+                exit;
+            }
             header('Content-Type: ' . $download['mime']);
             header('Content-Length: ' . (string) filesize($download['path']));
             header('Content-Disposition: attachment; filename="document.pdf"; filename*=UTF-8\'\'' . rawurlencode($download['filename']));
@@ -676,29 +915,86 @@ try {
         $title = 'بنك الأسئلة';
         $contentView = PROJECT_ROOT . '/app/Views/questions.php';
     } elseif ($page === 'messages') {
-        $user = require_permission('messages.use');
+        $user = require_login();
         $userId = (int) $user['id'];
-        $data['contacts'] = list_message_contacts($userId);
-        $data['conversations'] = list_message_conversations($userId);
-        $data['peer'] = null;
-        $data['thread'] = [];
-        $peerId = filter_input(INPUT_GET, 'with', FILTER_VALIDATE_INT);
-        if ($peerId !== false && $peerId !== null && $peerId > 0) {
-            foreach ($data['contacts'] as $contact) {
-                if ((int) $contact['id'] === $peerId) {
-                    $data['peer'] = $contact;
-                    break;
+        $data['is_admin'] = in_array('admin', $user['roles'] ?? [], true);
+        $data['is_student'] = in_array('student', $user['roles'] ?? [], true);
+        $data['is_teacher'] = in_array('teacher', $user['roles'] ?? [], true);
+
+        if ($data['is_admin']) {
+            $data['admin_overview'] = admin_list_messaging_overview();
+            $teacherId = filter_input(INPUT_GET, 'teacher_id', FILTER_VALIDATE_INT);
+            $studentId = filter_input(INPUT_GET, 'student_id', FILTER_VALIDATE_INT);
+            $data['selected_teacher_id'] = ($teacherId !== false && $teacherId > 0) ? $teacherId : null;
+            $data['selected_student_id'] = ($studentId !== false && $studentId > 0) ? $studentId : null;
+            $data['admin_teacher'] = null;
+            $data['admin_student'] = null;
+            $data['thread'] = [];
+            $data['request'] = null;
+
+            if ($data['selected_teacher_id'] && $data['selected_student_id']) {
+                $stmt = database_connection()->prepare("SELECT id, full_name, email FROM users WHERE id IN (:tid, :sid)");
+                $stmt->execute(['tid' => $data['selected_teacher_id'], 'sid' => $data['selected_student_id']]);
+                $uRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($uRows as $ur) {
+                    if ((int)$ur['id'] === $data['selected_teacher_id']) $data['admin_teacher'] = $ur;
+                    if ((int)$ur['id'] === $data['selected_student_id']) $data['admin_student'] = $ur;
+                }
+                if ($data['admin_teacher'] && $data['admin_student']) {
+                    $data['thread'] = admin_list_message_thread($data['selected_teacher_id'], $data['selected_student_id']);
+                    $data['request'] = get_message_request($data['selected_student_id'], $data['selected_teacher_id']);
+                    $data['peer'] = ['id' => $data['selected_student_id'], 'full_name' => $data['admin_student']['full_name'], 'role_name' => 'طالب'];
                 }
             }
-            if ($data['peer']) {
-                mark_message_thread_read($userId, $peerId);
-                $data['thread'] = list_message_thread($userId, $peerId);
-            } else {
-                flash('error', 'جهة الاتصال غير متاحة للمراسلة.');
+        } else {
+            require_permission('messages.use');
+            $data['contacts'] = list_message_contacts($userId);
+            $data['conversations'] = list_message_conversations($userId);
+            $data['peer'] = null;
+            $data['thread'] = [];
+            $data['request'] = null;
+            $peerId = filter_input(INPUT_GET, 'with', FILTER_VALIDATE_INT);
+            if ($peerId !== false && $peerId !== null && $peerId > 0) {
+                foreach ($data['contacts'] as $contact) {
+                    if ((int) $contact['id'] === $peerId) {
+                        $data['peer'] = $contact;
+                        break;
+                    }
+                }
+                if ($data['peer']) {
+                    mark_message_thread_read($userId, $peerId);
+                    $data['thread'] = list_message_thread($userId, $peerId);
+
+                    // إدارة طلب المراسلة بحسب الدور
+                    if ($data['is_student']) {
+                        $data['request'] = ensure_message_request($userId, $peerId);
+                    } elseif ($data['is_teacher']) {
+                        $data['request'] = get_message_request($peerId, $userId);
+                    }
+                } else {
+                    flash('error', 'جهة الاتصال غير متاحة للمراسلة.');
+                }
             }
         }
-        $title = 'الرسائل';
+        $title = 'المراسلة والتواصل المباشر';
         $contentView = PROJECT_ROOT . '/app/Views/messages.php';
+    } elseif ($page === 'announcements') {
+        $user = require_login();
+        $isAdmin = in_array('admin', $user['roles'] ?? [], true);
+        $isTeacher = in_array('teacher', $user['roles'] ?? [], true);
+        if (!$isAdmin && !$isTeacher) {
+            http_response_code(403);
+            $title = 'غير مصرح';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } else {
+            $data['is_admin'] = $isAdmin;
+            $data['is_teacher'] = $isTeacher;
+            $data['announcements'] = $isAdmin ? list_admin_announcements() : list_teacher_announcements((int) $user['id']);
+            $data['teachingAssignments'] = $isTeacher ? academic_teacher_assignments((int) $user['id']) : [];
+            $data['allSubjects'] = $isAdmin ? list_active_teaching_subjects() : [];
+            $title = 'إدارة الإعلانات المدرسية';
+            $contentView = PROJECT_ROOT . '/app/Views/announcements.php';
+        }
     } elseif ($page === 'content_access') {
         require_permission('content_access.manage');
         $requestedPage = filter_input(INPUT_GET, 'page_num', FILTER_VALIDATE_INT);
@@ -727,6 +1023,16 @@ try {
         }
     } elseif ($page === 'subjects' || $page === 'home') {
         $data['subjects'] = list_class_subjects($page === 'home' ? 3 : 50);
+        if ($page === 'home') {
+            $studentClassId = null;
+            if (!empty($_SESSION['user']['id']) && in_array('student', $_SESSION['user']['roles'] ?? [], true)) {
+                $stmt = database_connection()->prepare("SELECT class_id FROM students WHERE user_id = :uid");
+                $stmt->execute(['uid' => $_SESSION['user']['id']]);
+                $cVal = $stmt->fetchColumn();
+                $studentClassId = $cVal ? (int) $cVal : null;
+            }
+            $data['published_announcements'] = list_published_announcements($studentClassId, 5);
+        }
         if ($page === 'subjects') {
             $title = 'المواد الدراسية';
             $contentView = PROJECT_ROOT . '/app/Views/subjects.php';
@@ -752,6 +1058,9 @@ try {
         $data['classes'] = academic_list_classes(null);
         $title = 'إنشاء حساب';
         $contentView = PROJECT_ROOT . '/app/Views/register.php';
+    } elseif ($page === 'guide') {
+        $title = 'دليل استخدام المنصة والواجهات';
+        $contentView = PROJECT_ROOT . '/app/Views/guide.php';
     } elseif ($page === 'login') {
         $title = 'تسجيل الدخول';
         $contentView = PROJECT_ROOT . '/app/Views/login.php';

@@ -94,7 +94,15 @@ STREAM_PROVIDER=cloudflare_stream
 CLOUDFLARE_ACCOUNT_ID=<معرّف-الحساب>
 CLOUDFLARE_API_TOKEN=<رمز-سري>
 CLOUDFLARE_STREAM_CUSTOMER_CODE=<رمز-عميل-Stream>
+VIDEO_UPLOAD_PROVIDER=cloudflare_stream
+# عند اختيار Mux لرفع الفيديو فقط: VIDEO_UPLOAD_PROVIDER=mux
+MUX_TOKEN_ID=<Mux-Token-ID>
+MUX_TOKEN_SECRET=<Mux-Token-Secret>
+MUX_SIGNING_KEY_ID=<Mux-Signing-Key-ID>
+MUX_SIGNING_KEY_PRIVATE=<Base64-encoded-Mux-private-key>
 ```
+
+تغيير `VIDEO_UPLOAD_PROVIDER` لا يغير مزود البث الحي ولا ينقل الملفات الموجودة. عند الرجوع إلى `cloudflare_stream` سترفع الفيديوهات الجديدة عبر Cloudflare، بينما تستمر الموارد القديمة في استخدام مزودها المسجل. احتفظ بأسرار Mux ومفتاح التوقيع ما دامت هناك فيديوهات Mux محفوظة؛ حذفها يوقف تشغيل تلك الفيديوهات.
 
 إذا كانت ميزة الاشتراكات المستقبلية لا تستخدم، لا تضبطها كشرط لمنح محتوى الإطلاق؛ سياسة الإطلاق هي منحة وصول يدوية. تأكد أن PHP-FPM وخادم الويب يطبقان حد الرفع المعتمد نفسه. لا تختر `DB_SSLMODE` عشوائيًا؛ اتبع هل قاعدة البيانات محلية أم على مضيف منفصل ومتطلبات المزود.
 
