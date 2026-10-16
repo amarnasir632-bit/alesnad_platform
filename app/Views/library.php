@@ -46,6 +46,11 @@
             <textarea id="library_description" name="description" rows="3" maxlength="5000" placeholder="ملاحظات توضيحية للطلاب حول موضوعات هذا المورد..."></textarea>
           </div>
 
+          <div class="form-field">
+            <label for="library_lesson_id">معرف الدرس المرتبط (اختياري)</label>
+            <input type="number" id="library_lesson_id" name="lesson_id" min="1" placeholder="مثال: 12 (اتركه فارغاً إن كان المورد عاماً لكامل المادة)">
+          </div>
+
           <div class="step-actions"></div>
         </fieldset>
 

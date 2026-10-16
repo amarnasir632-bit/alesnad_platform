@@ -71,6 +71,11 @@
             </div>
           <?php endif; ?>
 
+          <div class="form-field">
+            <label for="session_lesson_id">معرف الدرس المرتبط (اختياري)</label>
+            <input id="session_lesson_id" name="lesson_id" type="number" min="1" placeholder="مثال: 5">
+          </div>
+
           <div class="form-field form-span-2">
             <label for="session_desc">وصف المحاضرة والمحاور المستهدفة</label>
             <textarea id="session_desc" name="description" maxlength="5000" rows="3" placeholder="ملاحظات وتوجيهات للطلاب للاستعداد للحصة..."></textarea>

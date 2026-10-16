@@ -45,6 +45,12 @@ function api_complete_video_upload(array $input): never
     json_response(201, ['data' => ['resource' => content_complete_video_upload($actor, $token)]]);
 }
 
+function api_video_upload_status(string $token): never
+{
+    $actor = require_permission('content.upload');
+    json_response(200, ['data' => ['upload_status' => content_video_upload_status($actor, $token)]]);
+}
+
 function api_upload_past_exam(array $input): never
 {
     $actor = require_permission('content.upload');

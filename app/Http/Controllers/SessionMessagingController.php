@@ -112,3 +112,31 @@ function api_delete_message(int $id): never
     sm_delete_message($actor, $id);
     json_response(200, ['data' => ['deleted' => true]]);
 }
+
+function api_request_voice_participation(int $sessionId): never
+{
+    $actor = refresh_authenticated_user();
+    if ($actor === null) throw new ApiException(401, 'unauthenticated', 'سجل الدخول أولًا.');
+    require_permission('sessions.join');
+    json_response(201, ['data' => ['voice_request' => sm_request_voice_participation($actor, $sessionId)]]);
+}
+
+function api_list_voice_requests(int $sessionId): never
+{
+    $actor = require_permission('sessions.manage');
+    json_response(200, ['data' => ['voice_requests' => sm_list_voice_requests($actor, $sessionId)]]);
+}
+
+function api_update_voice_request(int $sessionId, int $requestId, array $input): never
+{
+    $actor = require_permission('sessions.manage');
+    json_response(200, ['data' => ['voice_request' => sm_update_voice_request($actor, $sessionId, $requestId, $input)]]);
+}
+
+function api_my_voice_request(int $sessionId): never
+{
+    $actor = refresh_authenticated_user();
+    if ($actor === null) throw new ApiException(401, 'unauthenticated', 'سجل الدخول أولًا.');
+    json_response(200, ['data' => ['voice_status' => sm_my_voice_status($actor, $sessionId)]]);
+}
+

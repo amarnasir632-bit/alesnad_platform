@@ -32,10 +32,11 @@
       const csrfResult = await csrfResponse.json();
       if (!csrfResponse.ok) throw new Error(csrfResult?.error?.message || 'تعذر تهيئة الطلب الآمن.');
       const csrfToken = csrfResult?.data?.csrf_token || csrfResult?.csrf_token;
-      const values = new FormData(form);
+      const lessonVal = values.get('lesson_id');
       const metadata = {
         title: values.get('title'), description: values.get('description'),
         class_subject_id: Number(values.get('class_subject_id')),
+        lesson_id: lessonVal ? Number(lessonVal) : null,
         source_owner: values.get('source_owner'), source_reference: values.get('source_reference'),
         copyright_license: values.get('copyright_license'),
       };

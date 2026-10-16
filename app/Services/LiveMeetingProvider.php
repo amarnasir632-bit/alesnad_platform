@@ -27,7 +27,12 @@ final class CloudflareStreamProvider implements LiveMeetingProvider
     {
         $this->accountId = trim((string) env_value('CLOUDFLARE_ACCOUNT_ID', ''));
         $this->token = trim((string) env_value('CLOUDFLARE_API_TOKEN', ''));
-        $this->customerCode = trim((string) env_value('CLOUDFLARE_STREAM_CUSTOMER_CODE', ''));
+        $rawCode = trim((string) env_value('CLOUDFLARE_STREAM_CUSTOMER_CODE', ''));
+        if (preg_match('/^(?:customer-)?([A-Za-z0-9_-]+)(?:\.cloudflarestream\.com)?$/i', $rawCode, $match)) {
+            $this->customerCode = $match[1];
+        } else {
+            $this->customerCode = $rawCode;
+        }
         if ($this->accountId === '' || $this->token === '' || $this->customerCode === '') {
             throw new ApiException(503, 'broadcast_provider_not_configured', 'إعداد Cloudflare Stream غير مكتمل.');
         }
@@ -122,12 +127,14 @@ final class CloudflareStreamProvider implements LiveMeetingProvider
             || !is_string($rtmps['url'] ?? null) || !is_string($rtmps['streamKey'] ?? null)) {
             throw new ApiException(502, 'broadcast_provider_invalid_response', 'لم تصل بيانات إعداد البث من Cloudflare.');
         }
+        $whipUrl = is_string($input['webRTC']['url'] ?? null) ? $input['webRTC']['url'] : null;
         return [
             'provider_code' => 'cloudflare_stream',
             'provider_session_ref' => $uid,
             'meeting_url' => '',
             'ingest_url' => $rtmps['url'],
             'stream_key' => $rtmps['streamKey'],
+            'whip_url' => $whipUrl,
         ];
     }
 

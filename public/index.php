@@ -13,6 +13,7 @@ require_once dirname(__DIR__) . '/app/Services/ContentService.php';
 require_once dirname(__DIR__) . '/app/Services/QuizService.php';
 require_once dirname(__DIR__) . '/app/Services/LiveMeetingProvider.php';
 require_once dirname(__DIR__) . '/app/Services/VideoUploadProvider.php';
+require_once dirname(__DIR__) . '/app/Services/CloudflareWebhookService.php';
 require_once dirname(__DIR__) . '/app/Services/SessionMessagingService.php';
 require_once dirname(__DIR__) . '/app/Http/Controllers/ContentController.php';
 require_once dirname(__DIR__) . '/app/Http/Controllers/QuizController.php';

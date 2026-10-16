@@ -222,14 +222,14 @@ function content_complete_video_upload(array $actor, string $token): array
         $insert = $db->prepare(
             'INSERT INTO learning_resources
              (class_subject_id, lesson_id, title, resource_type, description, cloudflare_video_uid, video_provider,
-              video_asset_id, video_playback_id, video_duration_seconds, original_filename, mime_type, file_size_bytes,
+              video_asset_id, video_playback_id, video_duration_seconds, video_processing_status, original_filename, mime_type, file_size_bytes,
               source_reference, source_owner, copyright_license, requires_subscription, status, uploaded_by)
              VALUES (:class_subject_id, :lesson_id, :title, \'VIDEO\', :description, :cloudflare_uid, :provider_code,
-                     :asset_id, :playback_id, :duration, :filename, :mime_type, :size,
+                     :asset_id, :playback_id, :duration, :processing_status, :filename, :mime_type, :size,
                      :source_reference, :source_owner, :license, TRUE, \'DRAFT\', :employee_id)
              RETURNING id, class_subject_id, lesson_id, title, resource_type, description, original_filename, mime_type,
                        file_size_bytes, video_provider, video_asset_id, video_playback_id, video_duration_seconds,
-                       source_reference, source_owner, copyright_license, requires_subscription, status, uploaded_by, created_at'
+                       video_processing_status, source_reference, source_owner, copyright_license, requires_subscription, status, uploaded_by, created_at'
         );
         $insert->execute([
             'class_subject_id' => (int) $upload['class_subject_id'], 'lesson_id' => $upload['lesson_id'],
@@ -237,6 +237,7 @@ function content_complete_video_upload(array $actor, string $token): array
             'cloudflare_uid' => $upload['provider_code'] === 'cloudflare_stream' ? $video['asset_id'] : null,
             'provider_code' => $upload['provider_code'], 'asset_id' => $video['asset_id'],
             'playback_id' => $video['playback_id'], 'duration' => $video['duration_seconds'],
+            'processing_status' => is_string($video['status'] ?? null) && $video['status'] !== '' ? $video['status'] : 'ready',
             'filename' => $upload['title'] . '.mp4',
             'mime_type' => $upload['provider_code'] === 'cloudflare_stream' ? 'video/cloudflare-stream' : 'video/mux',
             'size' => $video['file_size_bytes'],
@@ -253,6 +254,57 @@ function content_complete_video_upload(array $actor, string $token): array
         if ($db->inTransaction()) $db->rollBack();
         throw $error;
     }
+}
+
+function content_video_upload_status(array $actor, string $token): array
+{
+    if (!preg_match('/^[a-f0-9]{48}$/D', $token)) {
+        throw new ApiException(422, 'invalid_upload_token', 'رمز رفع الفيديو غير صالح.');
+    }
+    $db = database_connection();
+    $query = $db->prepare('SELECT * FROM video_upload_sessions WHERE upload_token = :token AND user_id = :user_id');
+    $query->execute(['token' => $token, 'user_id' => (int) $actor['id']]);
+    $upload = $query->fetch();
+    if (!$upload) throw new ApiException(404, 'video_upload_not_found', 'جلسة رفع الفيديو غير موجودة.');
+
+    if ($upload['resource_id'] !== null) {
+        $stmt = $db->prepare('SELECT id, title, video_provider, video_asset_id, video_playback_id, video_duration_seconds, video_processing_status, status FROM learning_resources WHERE id = :id');
+        $stmt->execute(['id' => $upload['resource_id']]);
+        $resource = $stmt->fetch();
+        return [
+            'upload_token' => $token,
+            'is_completed' => true,
+            'processing_status' => $resource['video_processing_status'] ?? 'ready',
+            'resource' => $resource,
+        ];
+    }
+
+    $providerCode = (string) $upload['provider_code'];
+    $providerUploadId = (string) $upload['provider_upload_id'];
+    $processingState = 'uploading';
+    try {
+        if ($providerCode === 'cloudflare_stream') {
+            $stream = live_meeting_provider();
+            $info = $stream->getUploadedVideo($providerUploadId);
+            $state = $info['status']['state'] ?? 'uploading';
+            $processingState = match ($state) {
+                'ready' => 'ready',
+                'inprogress' => 'processing',
+                'queued' => 'queued',
+                'error' => 'error',
+                default => 'uploading',
+            };
+        }
+    } catch (Throwable) {
+        // Fall back to uploading state
+    }
+
+    return [
+        'upload_token' => $token,
+        'is_completed' => false,
+        'processing_status' => $processingState,
+        'resource' => null,
+    ];
 }
 
 function content_create_past_exam(array $actor, array $input, array $file): array

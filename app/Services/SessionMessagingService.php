@@ -86,9 +86,11 @@ function sm_create_session(array $actor, array $input): array
             ? filter_var($input['teacher_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])
             : null;
         if ($teacherId === false) throw new ApiException(422, 'validation_failed', 'teacher_id غير صالح.');
+        $lessonId = filter_var($input['lesson_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($lessonId === false) $lessonId = null;
         $employeeId = sm_employee_for_class($db, $actor, (int) $classSubjectId, $teacherId);
-        $stmt = $db->prepare("INSERT INTO live_sessions (class_subject_id, teacher_id, title, description, scheduled_at, duration_minutes, status) VALUES (:class_subject_id, :teacher_id, :title, :description, :scheduled_at, :duration_minutes, 'SCHEDULED') RETURNING id, class_subject_id, teacher_id, title, description, scheduled_at, duration_minutes, status, created_at");
-        $stmt->execute(['class_subject_id' => $classSubjectId, 'teacher_id' => $employeeId, 'title' => $title, 'description' => $description, 'scheduled_at' => $scheduledAt, 'duration_minutes' => $duration]);
+        $stmt = $db->prepare("INSERT INTO live_sessions (class_subject_id, lesson_id, teacher_id, title, description, scheduled_at, duration_minutes, status) VALUES (:class_subject_id, :lesson_id, :teacher_id, :title, :description, :scheduled_at, :duration_minutes, 'SCHEDULED') RETURNING id, class_subject_id, lesson_id, teacher_id, title, description, scheduled_at, duration_minutes, status, created_at");
+        $stmt->execute(['class_subject_id' => $classSubjectId, 'lesson_id' => $lessonId, 'teacher_id' => $employeeId, 'title' => $title, 'description' => $description, 'scheduled_at' => $scheduledAt, 'duration_minutes' => $duration]);
         $row = $stmt->fetch();
         audit_log('session.created', 'live_session', (int) $row['id'], ['class_subject_id' => (int) $classSubjectId], (int) $actor['id']);
         $db->commit();
@@ -98,7 +100,7 @@ function sm_create_session(array $actor, array $input): array
 
 function sm_update_session(array $actor, int $sessionId, array $input): array
 {
-    $allowed = ['title', 'description', 'scheduled_at', 'duration_minutes', 'status', 'meeting_url'];
+    $allowed = ['title', 'description', 'scheduled_at', 'duration_minutes', 'status', 'meeting_url', 'lesson_id'];
     foreach ($input as $key => $_) if ($key !== '_csrf' && !in_array($key, $allowed, true)) throw new ApiException(422, 'validation_failed', "الحقل {$key} غير قابل للتعديل.");
     unset($input['_csrf']);
     if ($input === []) throw new ApiException(422, 'validation_failed', 'أرسل حقلاً واحدًا على الأقل.');
@@ -196,7 +198,13 @@ function sm_provision_stream(array $actor, int $sessionId): array
     if ($stmt->fetchColumn() === false) throw new ApiException(409, 'stream_already_provisioned', 'أُعد مدخل بث لهذه الحصة بالتزامن.');
     audit_log('session.stream.provisioned', 'live_session', $sessionId, ['provider' => $meeting['provider_code']], (int) $actor['id']);
     // The RTMPS stream key is only returned once and is never stored by this application.
-    return ['session_id' => $sessionId, 'provider_code' => $meeting['provider_code'], 'ingest_url' => $meeting['ingest_url'], 'stream_key' => $meeting['stream_key']];
+    return [
+        'session_id' => $sessionId,
+        'provider_code' => $meeting['provider_code'],
+        'ingest_url' => $meeting['ingest_url'],
+        'stream_key' => $meeting['stream_key'],
+        'whip_url' => $meeting['whip_url'] ?? null,
+    ];
 }
 
 function sm_sync_stream_recordings(array $actor, int $sessionId): array
@@ -360,3 +368,94 @@ function sm_delete_message(array $actor, int $messageId): void
         $db->commit();
     } catch (Throwable $error) { if ($db->inTransaction()) $db->rollBack(); throw $error; }
 }
+
+function sm_request_voice_participation(array $actor, int $sessionId): array
+{
+    $session = sm_session($actor, $sessionId);
+    if (!in_array('student', $actor['roles'] ?? [], true)) {
+        throw new ApiException(403, 'student_role_required', 'طلب التحدث مخصص للطلاب.');
+    }
+    if (!has_manual_content_access((int) $actor['id'])) {
+        throw new ApiException(403, 'content_access_required', 'يلزم صلاحية محتوى سارية للمشاركة.');
+    }
+    $db = database_connection();
+    $studentStmt = $db->prepare('SELECT id FROM students WHERE user_id = :user_id');
+    $studentStmt->execute(['user_id' => (int) $actor['id']]);
+    $studentId = $studentStmt->fetchColumn();
+    if ($studentId === false) {
+        throw new ApiException(403, 'student_profile_required', 'ملف الطالب غير موجود.');
+    }
+    $stmt = $db->prepare("
+        INSERT INTO session_voice_requests (session_id, student_id, status)
+        VALUES (:session_id, :student_id, 'PENDING')
+        ON CONFLICT (session_id, student_id)
+        DO UPDATE SET status = 'PENDING', updated_at = CURRENT_TIMESTAMP
+        RETURNING id, session_id, student_id, status, created_at, updated_at
+    ");
+    $stmt->execute(['session_id' => $sessionId, 'student_id' => (int) $studentId]);
+    audit_log('session.voice.requested', 'live_session', $sessionId, ['student_id' => (int) $studentId], (int) $actor['id']);
+    return $stmt->fetch();
+}
+
+function sm_list_voice_requests(array $actor, int $sessionId): array
+{
+    $session = sm_session($actor, $sessionId);
+    if (!in_array('admin', $actor['roles'] ?? [], true)) {
+        $employeeId = sm_employee_for_class(database_connection(), $actor, (int) $session['class_subject_id']);
+        if ($employeeId !== (int) $session['teacher_id']) {
+            throw new ApiException(403, 'session_teacher_required', 'يمكن للأستاذ المسند أو المدير مراجعة طلبات التحدث.');
+        }
+    }
+    $stmt = database_connection()->prepare("
+        SELECT svr.id, svr.session_id, svr.student_id, svr.status, svr.created_at, svr.updated_at,
+               u.full_name AS student_name, u.email AS student_email
+        FROM session_voice_requests svr
+        JOIN students st ON st.id = svr.student_id
+        JOIN users u ON u.id = st.user_id
+        WHERE svr.session_id = :session_id
+        ORDER BY svr.updated_at DESC
+    ");
+    $stmt->execute(['session_id' => $sessionId]);
+    return $stmt->fetchAll();
+}
+
+function sm_update_voice_request(array $actor, int $sessionId, int $requestId, array $input): array
+{
+    $session = sm_session($actor, $sessionId);
+    if (!in_array('admin', $actor['roles'] ?? [], true)) {
+        $employeeId = sm_employee_for_class(database_connection(), $actor, (int) $session['class_subject_id']);
+        if ($employeeId !== (int) $session['teacher_id']) {
+            throw new ApiException(403, 'session_teacher_required', 'يمكن للأستاذ المسند أو المدير تعديل حالة طلب التحدث.');
+        }
+    }
+    $status = strtoupper(trim((string) ($input['status'] ?? '')));
+    if (!in_array($status, ['APPROVED', 'REJECTED', 'REVOKED', 'PENDING'], true)) {
+        throw new ApiException(422, 'validation_failed', 'حالة الطلب غير صالحة.');
+    }
+    $stmt = database_connection()->prepare("
+        UPDATE session_voice_requests
+        SET status = :status, updated_at = CURRENT_TIMESTAMP
+        WHERE id = :id AND session_id = :session_id
+        RETURNING id, session_id, student_id, status, created_at, updated_at
+    ");
+    $stmt->execute(['status' => $status, 'id' => $requestId, 'session_id' => $sessionId]);
+    $row = $stmt->fetch();
+    if (!$row) throw new ApiException(404, 'not_found', 'طلب التحدث غير موجود.');
+    audit_log('session.voice.moderated', 'live_session', $sessionId, ['request_id' => $requestId, 'status' => $status], (int) $actor['id']);
+    return $row;
+}
+
+function sm_my_voice_status(array $actor, int $sessionId): array
+{
+    $session = sm_session($actor, $sessionId);
+    $stmt = database_connection()->prepare("
+        SELECT svr.id, svr.session_id, svr.student_id, svr.status, svr.created_at, svr.updated_at
+        FROM session_voice_requests svr
+        JOIN students st ON st.id = svr.student_id
+        WHERE svr.session_id = :session_id AND st.user_id = :user_id
+    ");
+    $stmt->execute(['session_id' => $sessionId, 'user_id' => (int) $actor['id']]);
+    $row = $stmt->fetch();
+    return $row ?: ['session_id' => $sessionId, 'status' => 'NONE'];
+}
+
