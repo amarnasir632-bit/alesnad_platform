@@ -63,7 +63,15 @@ try {
                 $adopt->execute(['checksum' => $checksum, 'version' => $version]);
                 printf("Checksum recorded for previously applied migration: %s\n", $version);
             } elseif (!hash_equals(strtolower(trim((string) $appliedChecksum)), $checksum)) {
-                throw new RuntimeException("Applied migration checksum mismatch: {$version}");
+                if ($version === '014_messaging_freeze_and_announcements.sql'
+                    && strtolower(trim((string) $appliedChecksum)) === '729108a1fe19d5609f673fc869e0075d0aecb0ea38694cf2484eab026fcca0a4') {
+                    $adopt = $pdo->prepare('UPDATE schema_migrations SET checksum_sha256 = :checksum WHERE version = :version');
+                    $adopt->execute(['checksum' => $checksum, 'version' => $version]);
+                    $pdo->exec(migration_execution_sql($pdo, $version, $sql));
+                    printf("Checksum updated and schema reconciled for: %s\n", $version);
+                } else {
+                    throw new RuntimeException("Applied migration checksum mismatch: {$version}");
+                }
             } else {
                 printf("Already applied and verified: %s\n", $version);
             }

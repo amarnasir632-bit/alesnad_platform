@@ -1,3 +1,21 @@
+CREATE TABLE IF NOT EXISTS message_requests (
+    id BIGSERIAL PRIMARY KEY,
+    student_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    teacher_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    rejection_reason TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_frozen BOOLEAN NOT NULL DEFAULT FALSE,
+    frozen_at TIMESTAMPTZ,
+    frozen_by BIGINT REFERENCES users(id),
+    CONSTRAINT message_requests_pair_unique UNIQUE (student_id, teacher_id),
+    CONSTRAINT message_requests_status_check CHECK (status IN ('PENDING', 'ACCEPTED', 'IGNORED', 'REJECTED'))
+);
+
+CREATE INDEX IF NOT EXISTS message_requests_student_idx ON message_requests (student_id);
+CREATE INDEX IF NOT EXISTS message_requests_teacher_status_idx ON message_requests (teacher_id, status);
+
 ALTER TABLE message_requests ADD COLUMN IF NOT EXISTS is_frozen BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE message_requests ADD COLUMN IF NOT EXISTS frozen_at TIMESTAMPTZ;
 ALTER TABLE message_requests ADD COLUMN IF NOT EXISTS frozen_by BIGINT REFERENCES users(id);
