@@ -233,3 +233,155 @@ function is_admin_account(PDO $pdo, int $id): bool
     $query->execute(['id' => $id]);
     return database_boolean($query->fetchColumn());
 }
+
+function get_user_account_details(int $userId): array
+{
+    $pdo = database_connection();
+    $stmt = $pdo->prepare('SELECT id, full_name, email, phone, is_active, created_at, last_login_at FROM users WHERE id = :id');
+    $stmt->execute(['id' => $userId]);
+    $user = $stmt->fetch();
+    if (!$user) {
+        throw new OutOfBoundsException('المستخدم غير موجود.');
+    }
+
+    $rolesStmt = $pdo->prepare('SELECT r.code FROM roles r JOIN user_roles ur ON ur.role_id = r.id WHERE ur.user_id = :id ORDER BY r.code');
+    $rolesStmt->execute(['id' => $userId]);
+    $user['roles'] = $rolesStmt->fetchAll(PDO::FETCH_COLUMN);
+
+    $studentStmt = $pdo->prepare(
+        'SELECT st.id, st.student_number, st.class_id, st.parent_phone, st.date_of_birth,
+                c.name AS class_name, s.name AS stage_name
+         FROM students st
+         LEFT JOIN classes c ON c.id = st.class_id
+         LEFT JOIN stages s ON s.id = c.stage_id
+         WHERE st.user_id = :id'
+    );
+    $studentStmt->execute(['id' => $userId]);
+    $student = $studentStmt->fetch();
+
+    if ($student) {
+        if (empty($student['student_number'])) {
+            $defaultNumber = 'STD-' . str_pad((string) $student['id'], 5, '0', STR_PAD_LEFT);
+            try {
+                $updateNum = $pdo->prepare("UPDATE students SET student_number = :num WHERE id = :id AND (student_number IS NULL OR student_number = '')");
+                $updateNum->execute(['num' => $defaultNumber, 'id' => $student['id']]);
+                $student['student_number'] = $defaultNumber;
+            } catch (Throwable) {
+                $student['student_number'] = $defaultNumber;
+            }
+        }
+    }
+
+    $employeeStmt = $pdo->prepare('SELECT id, staff_number, job_title FROM employees WHERE user_id = :id');
+    $employeeStmt->execute(['id' => $userId]);
+    $employee = $employeeStmt->fetch();
+
+    $teachingSubjects = [];
+    if ($employee) {
+        $teachingStmt = $pdo->prepare(
+            'SELECT cs.id AS class_subject_id, sub.name AS subject_name, c.name AS class_name, stg.name AS stage_name
+             FROM teaching_assignments ta
+             JOIN class_subjects cs ON cs.id = ta.class_subject_id
+             JOIN subjects sub ON sub.id = cs.subject_id
+             JOIN classes c ON c.id = cs.class_id
+             JOIN stages stg ON stg.id = c.stage_id
+             WHERE ta.employee_id = :employee_id
+             ORDER BY stg.name, c.name, sub.name'
+        );
+        $teachingStmt->execute(['employee_id' => $employee['id']]);
+        $teachingSubjects = $teachingStmt->fetchAll();
+    }
+
+    $hasContentAccess = student_has_manual_content_access($userId);
+
+    return [
+        'user' => $user,
+        'student' => $student ?: null,
+        'employee' => $employee ?: null,
+        'teaching_subjects' => $teachingSubjects,
+        'has_content_access' => $hasContentAccess,
+    ];
+}
+
+function update_user_self_profile(int $userId, array $data): void
+{
+    $name = trim((string) ($data['full_name'] ?? ''));
+    $nameLength = preg_match_all('/./us', $name);
+    if ($nameLength === false || $nameLength < 2 || $nameLength > 150) {
+        throw new InvalidArgumentException('الاسم الكامل يجب أن يكون بين محرفين و 150 محرفًا.');
+    }
+
+    $phone = trim((string) ($data['phone'] ?? ''));
+    if ($phone !== '' && !preg_match('/^[+0-9()\-\s]{7,32}$/', $phone)) {
+        throw new InvalidArgumentException('رقم الهاتف غير صحيح (يجب أن يحتوي على أرقام فقط بين 7 و 32 خانة).');
+    }
+
+    $parentPhone = trim((string) ($data['parent_phone'] ?? ''));
+    if ($parentPhone !== '' && !preg_match('/^[+0-9()\-\s]{7,32}$/', $parentPhone)) {
+        throw new InvalidArgumentException('رقم هاتف ولي الأمر غير صحيح.');
+    }
+
+    $pdo = database_connection();
+    $pdo->beginTransaction();
+    try {
+        $userStmt = $pdo->prepare('UPDATE users SET full_name = :name, phone = :phone WHERE id = :id');
+        $userStmt->execute([
+            'name' => $name,
+            'phone' => $phone !== '' ? $phone : null,
+            'id' => $userId,
+        ]);
+
+        $studentStmt = $pdo->prepare('UPDATE students SET parent_phone = :parent_phone WHERE user_id = :id');
+        $studentStmt->execute([
+            'parent_phone' => $parentPhone !== '' ? $parentPhone : null,
+            'id' => $userId,
+        ]);
+
+        audit_log('profile.updated', 'user', $userId, ['name' => $name], $userId);
+        $pdo->commit();
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $e;
+    }
+
+    if (isset($_SESSION['user']) && is_array($_SESSION['user'])) {
+        $_SESSION['user']['full_name'] = $name;
+    }
+}
+
+function change_user_password(int $userId, string $currentPassword, string $newPassword, string $confirmPassword): void
+{
+    if ($currentPassword === '') {
+        throw new InvalidArgumentException('يرجى إدخال كلمة المرور الحالية.');
+    }
+    if ($newPassword === '') {
+        throw new InvalidArgumentException('يرجى إدخال كلمة المرور الجديدة.');
+    }
+    if ($newPassword !== $confirmPassword) {
+        throw new InvalidArgumentException('كلمة المرور الجديدة غير متطابقة مع التأكيد.');
+    }
+    if ($newPassword === $currentPassword) {
+        throw new InvalidArgumentException('كلمة المرور الجديدة يجب أن تكون مختلفة عن كلمة المرور الحالية.');
+    }
+
+    validate_password_or_throw($newPassword);
+
+    $pdo = database_connection();
+    $stmt = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id');
+    $stmt->execute(['id' => $userId]);
+    $user = $stmt->fetch();
+    if (!$user || !password_verify($currentPassword, (string) $user['password_hash'])) {
+        throw new InvalidArgumentException('كلمة المرور الحالية غير صحيحة.');
+    }
+
+    $update = $pdo->prepare('UPDATE users SET password_hash = :hash WHERE id = :id');
+    $update->execute([
+        'hash' => password_hash($newPassword, PASSWORD_DEFAULT),
+        'id' => $userId,
+    ]);
+
+    audit_log('password.changed', 'user', $userId, [], $userId);
+}
+

@@ -51,13 +51,16 @@ if ($user) {
 
       <!-- بطاقة المستخدم السريعة داخل القائمة الجانبية -->
       <?php if ($user): ?>
-        <div class="sidebar-user-card">
-          <div class="user-avatar" aria-hidden="true"><?= mb_substr($user['full_name'], 0, 1) ?></div>
-          <div class="user-details">
-            <strong class="user-name"><?= e($user['full_name']) ?></strong>
-            <span class="user-role-badge"><?= e($roleBadge) ?></span>
+        <a href="<?= e(url('account')) ?>" class="sidebar-user-card-link" title="عرض وتعديل الملف الشخصي والحساب">
+          <div class="sidebar-user-card">
+            <div class="user-avatar" aria-hidden="true"><?= mb_substr($user['full_name'], 0, 1) ?></div>
+            <div class="user-details">
+              <strong class="user-name"><?= e($user['full_name']) ?></strong>
+              <span class="user-role-badge"><?= e($roleBadge) ?></span>
+              <span class="user-account-subtext">⚙️ حسابي والملف الشخصي</span>
+            </div>
           </div>
-        </div>
+        </a>
       <?php else: ?>
         <div class="sidebar-guest-card">
           <p class="guest-text">مرحباً بك في منصة الإسناد الأكاديمي</p>
@@ -81,6 +84,14 @@ if ($user) {
                 <span class="nav-label">الصفحة الرئيسية</span>
               </a>
             </li>
+            <?php if ($user): ?>
+              <li>
+                <a class="nav-item-link <?= ($currentPage === 'account' || $currentPage === 'profile') ? 'active' : '' ?>" href="<?= e(url('account')) ?>">
+                  <span class="nav-icon" aria-hidden="true">👤</span>
+                  <span class="nav-label">الملف الشخصي والحساب</span>
+                </a>
+              </li>
+            <?php endif; ?>
             <li>
               <a class="nav-item-link <?= ($currentPage === 'subjects' || $currentPage === 'subject') ? 'active' : '' ?>" href="<?= e(url('subjects')) ?>">
                 <span class="nav-icon" aria-hidden="true">📚</span>
@@ -248,7 +259,17 @@ if ($user) {
 
         <div class="mobile-quick-actions">
           <?php if ($user): ?>
-            <span class="mobile-user-avatar" title="<?= e($user['full_name']) ?>"><?= mb_substr($user['full_name'], 0, 1) ?></span>
+            <a href="<?= e(url('account')) ?>" class="mobile-account-link" title="الملف الشخصي والحساب">
+              <span class="mobile-user-avatar" title="<?= e($user['full_name']) ?>"><?= mb_substr($user['full_name'], 0, 1) ?></span>
+            </a>
+            <form class="mobile-logout-form" method="post" action="<?= e(url('home')) ?>">
+              <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+              <input type="hidden" name="action" value="logout">
+              <button class="button-mobile-logout" type="submit" title="تسجيل الخروج" aria-label="تسجيل الخروج">
+                <span class="mobile-logout-icon" aria-hidden="true">🚪</span>
+                <span class="mobile-logout-text">خروج</span>
+              </button>
+            </form>
           <?php else: ?>
             <a class="button button-small button-primary" href="<?= e(url('login')) ?>">دخول</a>
           <?php endif; ?>

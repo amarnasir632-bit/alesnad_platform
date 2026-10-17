@@ -86,6 +86,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         logout_user();
         flash('success', 'تم تسجيل الخروج.');
         redirect(url('home'));
+    } elseif ($action === 'update_profile') {
+        $user = require_login();
+        try {
+            $fullName = post_string('full_name');
+            $phone = post_string('phone');
+            $parentPhone = post_string('parent_phone');
+            update_user_self_profile((int) $user['id'], [
+                'full_name' => $fullName,
+                'phone' => $phone,
+                'parent_phone' => $parentPhone,
+            ]);
+            flash('success', 'تم حفظ التعديلات والبيانات بنجاح.');
+        } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('legacy_web_action_failed', $error);
+            flash('error', 'تعذر حفظ البيانات الآن. حاول مرة أخرى لاحقًا.');
+        }
+        redirect(url('account'));
+    } elseif ($action === 'change_password') {
+        $user = require_login();
+        try {
+            $currentPassword = (string) ($_POST['current_password'] ?? '');
+            $newPassword = (string) ($_POST['new_password'] ?? '');
+            $confirmPassword = (string) ($_POST['new_password_confirmation'] ?? '');
+            change_user_password((int) $user['id'], $currentPassword, $newPassword, $confirmPassword);
+            flash('success', 'تم تحديث كلمة المرور بنجاح.');
+        } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('legacy_web_action_failed', $error);
+            flash('error', 'تعذر تحديث كلمة المرور الآن. حاول مرة أخرى لاحقًا.');
+        }
+        redirect(url('account'));
     } elseif ($action === 'question_create') {
         try {
             $user = require_permission('questions.manage');
@@ -1054,6 +1088,16 @@ try {
             $title = $data['subject']['subject_name'] . ' | المواد الدراسية';
             $contentView = PROJECT_ROOT . '/app/Views/subject.php';
         }
+    } elseif ($page === 'account' || $page === 'profile') {
+        $user = require_login();
+        $accountDetails = get_user_account_details((int) $user['id']);
+        $data['accountUser'] = $accountDetails['user'];
+        $data['studentInfo'] = $accountDetails['student'];
+        $data['employeeInfo'] = $accountDetails['employee'];
+        $data['teachingSubjects'] = $accountDetails['teaching_subjects'];
+        $data['hasContentAccess'] = $accountDetails['has_content_access'];
+        $title = 'الملف الشخصي والحساب';
+        $contentView = PROJECT_ROOT . '/app/Views/account.php';
     } elseif ($page === 'register') {
         $data['classes'] = academic_list_classes(null);
         $title = 'إنشاء حساب';
