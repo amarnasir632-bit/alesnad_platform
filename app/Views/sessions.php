@@ -82,8 +82,10 @@
           </div>
         </div>
 
+        <div id="session-form-feedback" class="messages" aria-live="polite" style="margin-top: 14px;"></div>
+
         <div class="form-actions-bar">
-          <button class="button button-primary button-large" type="submit">
+          <button id="session-submit-btn" class="button button-primary button-large" type="submit">
             <span>🎥 اعتماد وجدولة الحصة الآن</span>
           </button>
         </div>
@@ -147,9 +149,18 @@
             <?php endif; ?>
 
             <div class="session-actions-toolbar">
-              <button class="button button-primary button-small" type="button" data-action="join">
-                <span>▶ انضمام / مشاهدة البث</span>
-              </button>
+              <?php if ($data['sessionCanManage']): ?>
+                <button class="button button-primary button-small" type="button" data-action="provision">
+                  <span>🎥 استوديو وبدء البث المباشر</span>
+                </button>
+                <button class="button button-outline button-small" type="button" data-action="join">
+                  <span>👁️ معاينة المشاهدة (كطالب)</span>
+                </button>
+              <?php else: ?>
+                <button class="button button-primary button-small" type="button" data-action="join">
+                  <span>▶ انضمام / مشاهدة البث</span>
+                </button>
+              <?php endif; ?>
 
               <button class="button button-secondary button-small" type="button" data-action="recordings">
                 <span>📼 عرض التسجيلات</span>
@@ -157,9 +168,6 @@
 
               <?php if ($data['sessionCanManage']): ?>
                 <div class="manager-session-actions">
-                  <button class="button button-small button-outline" type="button" data-action="provision">
-                    <span>🔑 إعداد البث</span>
-                  </button>
                   <button class="button button-small button-outline" type="button" data-action="sync">
                     <span>🔄 مزامنة التسجيلات</span>
                   </button>

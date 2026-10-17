@@ -171,9 +171,11 @@ function sm_join_session(array $actor, int $sessionId): array
     if ($session['status'] === 'CANCELLED') throw new ApiException(409, 'session_cancelled', 'الحصة ملغاة.');
     $now = new DateTimeImmutable('now');
     $start = new DateTimeImmutable($session['scheduled_at']);
-    if ($now < $start) throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
-    if ($session['duration_minutes'] === null || $now > $start->modify('+' . (int) $session['duration_minutes'] . ' minutes')) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
-    if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    if (in_array('student', $actor['roles'] ?? [], true)) {
+        if ($now < $start) throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
+        if ($session['duration_minutes'] === null || $now > $start->modify('+' . (int) $session['duration_minutes'] . ' minutes')) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
+        if (!has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    }
     $joinUrl = is_string($session['meeting_url']) && trim($session['meeting_url']) !== ''
         ? $session['meeting_url']
         : live_meeting_provider()->joinUrl($session, $actor);
@@ -188,8 +190,19 @@ function sm_provision_stream(array $actor, int $sessionId): array
         $employeeId = sm_employee_for_class(database_connection(), $actor, (int) $session['class_subject_id']);
         if ($employeeId !== (int) $session['teacher_id']) throw new ApiException(403, 'session_teacher_required', 'يمكن للأستاذ المسند أو المدير إعداد بث الحصة فقط.');
     }
-    if (!empty($session['provider_session_ref'])) throw new ApiException(409, 'stream_already_provisioned', 'أُعد مدخل بث لهذه الحصة من قبل.');
     if ($session['status'] === 'CANCELLED' || $session['status'] === 'COMPLETED') throw new ApiException(409, 'session_not_provisionable', 'لا يمكن إعداد بث لحصة ملغاة أو مكتملة.');
+
+    if (!empty($session['provider_session_ref'])) {
+        $details = live_meeting_provider()->getLiveInputDetails($session);
+        return [
+            'session_id' => $sessionId,
+            'provider_code' => $session['provider_code'] ?? 'cloudflare_stream',
+            'ingest_url' => $details['ingest_url'],
+            'stream_key' => $details['stream_key'],
+            'whip_url' => $details['whip_url'] ?? null,
+            'already_provisioned' => true,
+        ];
+    }
 
     // Do not hold a database transaction while calling Cloudflare.
     $meeting = live_meeting_provider()->createMeeting($session);

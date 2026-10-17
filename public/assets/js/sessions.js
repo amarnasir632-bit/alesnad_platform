@@ -1,19 +1,54 @@
 (() => {
   const feedback = document.querySelector('#session-feedback');
+  const formFeedback = document.querySelector('#session-form-feedback');
   const form = document.querySelector('#session-create-form');
+  const submitBtn = document.querySelector('#session-submit-btn');
   let csrfToken = '';
 
   const classSubjectSelect = document.querySelector('#admin-class-subject');
+  const teacherInput = document.querySelector('#session_teacher_id');
+  const assignmentMap = {};
+
   if (classSubjectSelect) {
+    let teacherHint = teacherInput?.parentElement?.querySelector('.teacher-hint-msg');
+    if (!teacherHint && teacherInput?.parentElement) {
+      teacherHint = document.createElement('small');
+      teacherHint.className = 'teacher-hint-msg';
+      teacherHint.style.display = 'block';
+      teacherHint.style.marginTop = '6px';
+      teacherHint.style.fontSize = '0.85rem';
+      teacherInput.parentElement.append(teacherHint);
+    }
+
     api('/api/v1/admin/academics/class-subjects').then(({ class_subjects: assignments }) => {
-      classSubjectSelect.replaceChildren(new Option('اختر الصف والمادة', ''));
-      assignments.forEach((assignment) => classSubjectSelect.add(new Option(
-        `${assignment.stage_name} · ${assignment.class_name} · ${assignment.subject_name}`,
-        assignment.class_subject_id,
-      )));
+      classSubjectSelect.replaceChildren(new Option('-- اختر الصف والمادة المعتمدة --', ''));
+      assignments.forEach((assignment) => {
+        assignmentMap[assignment.class_subject_id] = assignment;
+        const teacherText = assignment.default_teacher_name ? ` (أ. ${assignment.default_teacher_name})` : ' (لا يوجد أستاذ مسند)';
+        classSubjectSelect.add(new Option(
+          `${assignment.stage_name} · ${assignment.class_name} · ${assignment.subject_name}${teacherText}`,
+          assignment.class_subject_id,
+        ));
+      });
     }).catch((error) => {
       classSubjectSelect.replaceChildren(new Option('تعذر تحميل الصفوف والمواد', ''));
-      showMessage(feedback, error.message, true);
+      showMessage(formFeedback || feedback, error.message, true);
+    });
+
+    classSubjectSelect.addEventListener('change', () => {
+      const selected = assignmentMap[classSubjectSelect.value];
+      if (selected && teacherInput) {
+        if (selected.default_teacher_id) {
+          teacherInput.value = selected.default_teacher_id;
+          if (teacherHint) {
+            teacherHint.textContent = `✓ تم تحديد الأستاذ المسند تلقائياً: ${selected.default_teacher_name} (رقم الملف: ${selected.default_teacher_id})`;
+            teacherHint.style.color = '#15803d';
+          }
+        } else if (teacherHint) {
+          teacherHint.textContent = '⚠️ لم يتم إسناد أستاذ لهذه المادة بعد؛ أدخل رقم ملف الأستاذ يدوياً.';
+          teacherHint.style.color = '#b45309';
+        }
+      }
     });
   }
 
@@ -41,6 +76,7 @@
   }
 
   function showMessage(target, message, isError = false) {
+    if (!target) return;
     target.replaceChildren();
     const p = document.createElement('p');
     p.className = `message ${isError ? 'error' : 'success'}`;
@@ -50,18 +86,46 @@
 
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const values = Object.fromEntries(new FormData(form));
-    values.class_subject_id = Number(values.class_subject_id);
-    values.duration_minutes = Number(values.duration_minutes);
-    if (values.teacher_id) values.teacher_id = Number(values.teacher_id);
-    if (values.lesson_id) values.lesson_id = Number(values.lesson_id);
-    else delete values.lesson_id;
-    values.scheduled_at = new Date(values.scheduled_at).toISOString();
+    const targetFeedback = formFeedback || feedback;
+    targetFeedback.replaceChildren();
+
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>⏳ جارٍ اعتماد وجدولة الحصة…</span>';
+    }
+
     try {
+      const values = Object.fromEntries(new FormData(form));
+      values.class_subject_id = Number(values.class_subject_id);
+      values.duration_minutes = Number(values.duration_minutes);
+      if (values.teacher_id) values.teacher_id = Number(values.teacher_id);
+      if (values.lesson_id) values.lesson_id = Number(values.lesson_id);
+      else delete values.lesson_id;
+
+      if (!values.scheduled_at) {
+        throw new Error('يرجى تحديد موعد وتاريخ بداية الحصة.');
+      }
+      const parsedDate = new Date(values.scheduled_at);
+      if (isNaN(parsedDate.getTime())) {
+        throw new Error('تاريخ ووقت الحصة غير صالح.');
+      }
+      values.scheduled_at = parsedDate.toISOString();
+
       await api('/api/v1/teacher/sessions', 'POST', values);
-      showMessage(feedback, 'تمت جدولة الحصة. حدّث الصفحة لبدء إعداد البث.');
-      form.reset();
-    } catch (error) { showMessage(feedback, error.message, true); }
+      showMessage(targetFeedback, '✅ تمت جدولة الحصة بنجاح! جارٍ تحديث الجدول الآن…', false);
+      if (feedback && feedback !== targetFeedback) {
+        showMessage(feedback, '✅ تمت جدولة الحصة بنجاح!', false);
+      }
+      setTimeout(() => {
+        window.location.reload();
+      }, 900);
+    } catch (error) {
+      showMessage(targetFeedback, '❌ ' + (error.message || 'تعذر جدولة الحصة.'), true);
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = '<span>🎥 اعتماد وجدولة الحصة الآن</span>';
+      }
+    }
   });
 
   let activePeerConnection = null;
@@ -372,7 +436,24 @@
         wrap.append(frame, voiceBar);
         output.replaceChildren(wrap);
       }
-    } catch (error) { showMessage(output, error.message, true); }
+    } catch (error) {
+      if (error.message && (error.message.includes('Cloudflare Stream') || error.message.includes('مزود البث'))) {
+        output.innerHTML = `
+          <div class="message error" style="padding: 14px; border-radius: 8px; line-height: 1.7; text-align: right;">
+            <strong style="display:block; margin-bottom: 6px;">⚠️ لم يتم تفعيل خدمة البث المباشر (Cloudflare Stream) في الخادم:</strong>
+            لتشغيل استوديو البث بالكاميرا والمايكروفون فعلياً، يلزم توفير مفاتيح حساب Cloudflare Stream في ملف <code>.env</code> أو في إعدادات البيئة (Render Environment):<br>
+            • <code>STREAM_PROVIDER=cloudflare_stream</code><br>
+            • <code>CLOUDFLARE_ACCOUNT_ID</code><br>
+            • <code>CLOUDFLARE_API_TOKEN</code><br>
+            • <code>CLOUDFLARE_STREAM_CUSTOMER_CODE</code><br>
+            <span style="font-size: 0.88rem; color: #64748b; margin-top: 6px; display: inline-block;">
+              يمكنك متابعة تجربة باقي وظائف المنصة (المقررات، بنك الأسئلة، الامتحانات، التسجيل) بشكل كامل.
+            </span>
+          </div>`;
+      } else {
+        showMessage(output, '⚠️ ' + error.message, true);
+      }
+    }
     finally { button.disabled = false; }
   });
 })();

@@ -50,9 +50,13 @@ function api_admin_class_subjects(): never
 {
     require_permission('academics.manage');
     $statement = database_connection()->prepare(
-        'SELECT cs.id AS class_subject_id, c.name AS class_name, st.name AS stage_name, s.name AS subject_name
+        'SELECT cs.id AS class_subject_id, c.name AS class_name, st.name AS stage_name, s.name AS subject_name,
+                ta.employee_id AS default_teacher_id, u.full_name AS default_teacher_name
          FROM class_subjects cs JOIN classes c ON c.id = cs.class_id JOIN stages st ON st.id = c.stage_id
          JOIN subjects s ON s.id = cs.subject_id
+         LEFT JOIN teaching_assignments ta ON ta.class_subject_id = cs.id
+         LEFT JOIN employees e ON e.id = ta.employee_id AND e.is_active = TRUE
+         LEFT JOIN users u ON u.id = e.user_id AND u.is_active = TRUE
          WHERE cs.is_active = TRUE AND c.is_active = TRUE AND st.is_active = TRUE AND s.is_active = TRUE
          ORDER BY st.sort_order, c.sort_order, s.sort_order, cs.id'
     );

@@ -4,8 +4,10 @@ declare(strict_types=1);
 /** Cloudflare Stream adapter. Provider credentials are returned only during provisioning. */
 interface LiveMeetingProvider
 {
-    /** @return array{provider_code:string,provider_session_ref:string,meeting_url:string,ingest_url:string,stream_key:string} */
+    /** @return array{provider_code:string,provider_session_ref:string,meeting_url:string,ingest_url:string,stream_key:string,whip_url:?string} */
     public function createMeeting(array $session): array;
+    /** @return array{provider_code:string,provider_session_ref:string,meeting_url:string,ingest_url:string,stream_key:string,whip_url:?string} */
+    public function getLiveInputDetails(array $session): array;
     public function joinUrl(array $session, array $participant): string;
     /** @return list<array<string,mixed>> */
     public function listReadyRecordings(array $session): array;
@@ -136,6 +138,36 @@ final class CloudflareStreamProvider implements LiveMeetingProvider
             'stream_key' => $rtmps['streamKey'],
             'whip_url' => $whipUrl,
         ];
+    }
+
+    public function getLiveInputDetails(array $session): array
+    {
+        $uid = (string) ($session['provider_session_ref'] ?? '');
+        if ($uid === '') {
+            throw new ApiException(503, 'stream_not_provisioned', 'لم يُجهز مدخل البث لهذه الحصة بعد.');
+        }
+        $whipUrl = 'https://customer-' . $this->customerCode . '.cloudflarestream.com/' . rawurlencode($uid) . '/webRTC/publish';
+        try {
+            $input = $this->request('GET', '/stream/live_inputs/' . rawurlencode($uid));
+            $rtmps = $input['rtmps'] ?? null;
+            return [
+                'provider_code' => 'cloudflare_stream',
+                'provider_session_ref' => $uid,
+                'meeting_url' => '',
+                'ingest_url' => is_array($rtmps) && is_string($rtmps['url'] ?? null) ? $rtmps['url'] : 'rtmps://live.cloudflare.com:443/live/',
+                'stream_key' => is_array($rtmps) && is_string($rtmps['streamKey'] ?? null) ? $rtmps['streamKey'] : 'تم إصداره مسبقاً',
+                'whip_url' => is_string($input['webRTC']['url'] ?? null) ? $input['webRTC']['url'] : $whipUrl,
+            ];
+        } catch (Throwable) {
+            return [
+                'provider_code' => 'cloudflare_stream',
+                'provider_session_ref' => $uid,
+                'meeting_url' => '',
+                'ingest_url' => 'rtmps://live.cloudflare.com:443/live/',
+                'stream_key' => 'تم إصداره مسبقاً',
+                'whip_url' => $whipUrl,
+            ];
+        }
     }
 
     public function joinUrl(array $session, array $participant): string
