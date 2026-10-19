@@ -61,19 +61,27 @@ if (user_has_role('admin')) {
           <div class="academic-badge-box">
             <span class="badge-label">الرقم الدراسي المعتمد</span>
             <div class="badge-number-row">
-              <strong class="student-number-val"><?= e($student['student_number'] ?: ('STD-' . str_pad((string)$student['id'], 5, '0', STR_PAD_LEFT))) ?></strong>
+              <strong class="student-number-val" dir="ltr"><?= e($student['student_number'] ?? student_number_for_id((int) $student['id'])) ?></strong>
             </div>
             <small class="badge-note">استخدم هذا الرقم عند مراجعة إدارة المدرسة والمعلمين</small>
           </div>
 
           <ul class="academic-info-list">
             <li>
+              <span class="info-label">سنة القبول:</span>
+              <strong class="info-value"><?= e($student['admission_year'] ?? 'غير محددة') ?></strong>
+            </li>
+            <li>
               <span class="info-label">المرحلة الدراسية:</span>
               <strong class="info-value"><?= e($student['stage_name'] ?? 'غير محدد') ?></strong>
             </li>
             <li>
-              <span class="info-label">الصف الدراسي (الفصل):</span>
+              <span class="info-label">الصف الحالي:</span>
               <strong class="info-value"><?= e($student['class_name'] ?? 'غير محدد') ?></strong>
+            </li>
+            <li>
+              <span class="info-label">الفصل الدراسي:</span>
+              <strong class="info-value"><?= e($student['semester_name'] ?? 'غير محدد') ?></strong>
             </li>
             <li>
               <span class="info-label">صلاحية تفعيل المحتوى:</span>
@@ -164,7 +172,7 @@ if (user_has_role('admin')) {
           <span class="card-icon" aria-hidden="true">✏️</span>
           <div>
             <h2>تعديل البيانات ورقم الهاتف</h2>
-            <p class="card-subtext">قم بتحديث اسمك أو رقم هاتفك الخاص لسهولة التواصل والتنبيهات</p>
+            <p class="card-subtext"><?= $student ? 'أرسل طلبًا لمسؤول التسجيل والقبول لتحديث بياناتك الدراسية والشخصية.' : 'قم بتحديث اسمك أو رقم هاتفك الخاص لسهولة التواصل والتنبيهات.' ?></p>
           </div>
         </div>
 
@@ -193,6 +201,11 @@ if (user_has_role('admin')) {
               <div class="form-field form-span-2">
                 <label for="prof_parent_phone">رقم هاتف ولي الأمر (للتنبيهات والمتابعة)</label>
                 <input id="prof_parent_phone" name="parent_phone" type="tel" maxlength="32" placeholder="مثال: +249912345678" value="<?= e($student['parent_phone'] ?? '') ?>">
+              </div>
+              <div class="form-field form-span-2">
+                <label for="correction_reason">سبب طلب التعديل</label>
+                <textarea id="correction_reason" name="correction_reason" minlength="5" maxlength="1000" rows="3" required></textarea>
+                <small class="field-hint">لن تُعتمد بيانات الطالب إلا بعد مراجعتها من مسؤول التسجيل والقبول.</small>
               </div>
             <?php endif; ?>
           </div>

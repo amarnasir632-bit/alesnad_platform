@@ -6,19 +6,22 @@ $hasStudentContentAccess = !$user || !user_has_role('student')
     || (array_key_exists('student_has_content_access', $data ?? [])
         ? (bool) $data['student_has_content_access']
         : student_has_manual_content_access((int) $user['id']));
-$isTeacherOnly = $user && user_has_role('teacher') && !user_has_role('admin') && !user_has_role('content_reviewer');
-$isAuthOnlyShell = !$user && in_array($currentPage, ['login', 'register'], true);
+$isTeacherOnly = $user && user_has_role('teacher') && !user_has_role('admin') && !user_has_role('content_reviewer') && !user_has_role('registrar');
+$isAuthOnlyShell = !$user && in_array($currentPage, ['login', 'register', 'forgot_password', 'reset_password', 'complete_admission'], true);
 $homeLabel = !$user ? 'الصفحة الرئيسية'
     : (user_has_role('admin') ? 'لوحة الإدارة'
         : (user_has_role('content_reviewer') ? 'لوحة المراجعة'
-            : (user_has_role('teacher') ? 'لوحة العمل'
-                : (user_has_role('student') ? 'مساحتي التعليمية' : 'الرئيسية'))));
+            : (user_has_role('registrar') ? 'تسجيل وقبول الطلاب'
+                : (user_has_role('teacher') ? 'لوحة العمل'
+                    : (user_has_role('student') ? 'مساحتي التعليمية' : 'الرئيسية')))));
 
 // تحديد مسمى الدور باللغة العربية لعرضه بوضوح
 $roleBadge = 'زائر';
 if ($user) {
     if (user_has_role('admin')) {
         $roleBadge = 'مدير النظام';
+    } elseif (user_has_role('registrar')) {
+        $roleBadge = 'مسؤول التسجيل والقبول';
     } elseif (user_has_role('content_reviewer')) {
         $roleBadge = 'مراجع محتوى';
     } elseif (user_has_role('teacher')) {
@@ -204,7 +207,7 @@ if ($user) {
         <?php endif; ?>
 
         <!-- القسم الثالث: إدارة المنصة (للمسؤولين فقط) -->
-        <?php if ($user && (user_has_permission('academics.manage') || user_has_permission('content_access.manage') || user_has_permission('users.manage') || user_has_permission('roles.manage'))): ?>
+        <?php if ($user && (user_has_permission('academics.manage') || user_has_permission('content_access.manage') || user_has_permission('users.manage') || user_has_permission('roles.manage') || user_has_permission('admissions.manage'))): ?>
           <div class="nav-group">
             <span class="nav-group-title"><?= user_has_role('admin') ? 'إدارة المنصة' : 'مراجعة المحتوى' ?></span>
             <ul class="nav-list">
@@ -245,6 +248,14 @@ if ($user) {
                   <a class="nav-item-link <?= $currentPage === 'accounts' ? 'active' : '' ?>" href="<?= e(url('accounts')) ?>">
                     <span class="nav-icon"><?= ui_icon('shield') ?></span>
                     <span class="nav-label">إدارة الحسابات والأدوار</span>
+                  </a>
+                </li>
+              <?php endif; ?>
+              <?php if (user_has_permission('admissions.manage')): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'admissions' ? 'active' : '' ?>" href="<?= e(url('admissions')) ?>">
+                    <span class="nav-icon"><?= ui_icon('users') ?></span>
+                    <span class="nav-label">التسجيل والقبول</span>
                   </a>
                 </li>
               <?php endif; ?>
@@ -397,6 +408,8 @@ if ($user) {
   <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'school_schedule' && !empty($data['canManageSchedule'])): ?><script src="/assets/js/school-schedule.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'admissions'): ?><script src="/assets/js/admissions.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'admissions'): ?><script src="/assets/js/admissions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'lesson'): ?><script src="/assets/js/lesson.js" defer></script><?php endif; ?>
 </body>
 </html>

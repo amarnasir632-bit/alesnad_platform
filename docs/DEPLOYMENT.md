@@ -23,12 +23,23 @@
 3. تثبيت TLS وضبط Cloudflare على Full (strict)، وتعطيل التخزين المؤقت لصفحات الجلسات والمحتوى الخاص.
 4. إنشاء مستخدم محدود للتطبيق وفصل صلاحيات تعديل المخطط عن مستخدم التشغيل إذا أمكن.
 5. إعداد الأسرار خارج Git، وتعيين `APP_ENV=production` و`APP_DEBUG=0` و`APP_URL` و`SESSION_SECURE=1` والاتصال الآمن بقاعدة البيانات.
-6. تشغيل `php database/migrate.php` بإجراء نشر مضبوط. ترحيلات المخطط الحالية تصل إلى `011_quiz_manager_approval_and_retry.sql`؛ يتحقق المشغل من checksums ويستخدم advisory lock.
+6. تشغيل `php database/migrate.php` بإجراء نشر مضبوط؛ يطبق المشغل كل الترحيلات غير المطبقة، ويتحقق من checksums ويستخدم advisory lock.
 7. إنشاء حساب المدير الأول من طرفية آمنة، دون كلمة مرور افتراضية.
 8. إعداد التخزين الخاص خارج web root، وضبط حدود PHP للرفع بما يوافق `UPLOAD_MAX_BYTES`.
 9. إعداد نسخة احتياطية مشفرة ومجدولة خارج الخادم وتجربة استعادة على قاعدة منفصلة.
 10. جدولة `php database/process_expired_quiz_attempts.php` كل دقيقة. في Render المجاني لا توجد جدولة دورية مضمونة؛ الطلبات تصنف المحاولات المنتهية عند التفاعل، وهذا كافٍ للعرض التجريبي فقط.
 11. اختبار الصلاحيات وCSRF والرفع الخاص والدعوات والبث والنسخ والاستعادة على بيئة ما قبل الإنتاج قبل فتح الموقع للطلاب.
+
+## إعداد البريد المعاملاتي
+
+استعادة كلمة المرور وروابط استكمال طلبات القبول تستخدم Cloudflare Email Sending عبر REST API، ولا تحتاج إلى تثبيت Wrangler. قبل تفعيلها:
+
+1. تأكد من أهلية حساب Cloudflare للإرسال إلى عناوين خارجية؛ توثيق Cloudflare الحالي يشترط خطة Workers Paid للإرسال إلى مستلمين عشوائيين. الإرسال إلى بريد طالب خارجي لا يعمل على حساب غير مؤهل.
+2. فعّل Email Sending لنطاق الإرسال من لوحة Cloudflare، واستخدم عنوان `CLOUDFLARE_EMAIL_FROM` ضمن النطاق المهيأ.
+3. أنشئ API Token مخصصًا بأقل صلاحية تسمح بالإرسال، واضبط `CLOUDFLARE_ACCOUNT_ID` و`CLOUDFLARE_EMAIL_API_TOKEN` و`CLOUDFLARE_EMAIL_FROM` كأسرار بيئية.
+4. اضبط `APP_URL` على أصل HTTPS العام للموقع حتى تشير روابط الاستعادة والاستكمال إلى الموقع المنشور.
+5. طبّق `php database/migrate.php` بعد مراجعة النسخ الاحتياطية؛ يضيف هذا الإصدار مخطط الاستعادة والقبول في `019_password_recovery.sql` و`020_student_admissions.sql`.
+6. اختبر الإرسال والاستعادة على حسابات بريد تملكها في بيئة ما قبل الإنتاج، وتحقق من سجلات Cloudflare. واجهة طلب الاستعادة تعرض ردًا موحدًا لمنع كشف وجود الحساب؛ فشل الإرسال يُسجل في سجل التطبيق ولا يميز البريد المسجل للمستخدم.
 
 ## متطلبات ما قبل الإطلاق العام
 
@@ -47,3 +58,5 @@
 - [Neon الاتصال بقاعدة البيانات](https://neon.com/docs/get-started/connect-neon)
 - [Cloudflare Full (strict)](https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/full-strict/)
 - [Cloudflare Stream الروابط الموقعة](https://developers.cloudflare.com/stream/viewing-videos/securing-your-stream/)
+- [Cloudflare Email Sending REST API](https://developers.cloudflare.com/email-service/api/send-emails/rest-api/)
+- [أهلية Cloudflare Email Service](https://developers.cloudflare.com/email-service/)

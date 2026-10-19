@@ -3,7 +3,7 @@
     <div class="auth-header">
       <span class="eyebrow">ابدأ رحلتك التعليمية</span>
       <h1>إنشاء حساب طالب جديد</h1>
-      <p class="auth-intro">أدخل بياناتك خطوة بخطوة للوصول إلى المواد الدراسية وبنك الأسئلة.</p>
+      <p class="auth-intro">أدخل بياناتك خطوة بخطوة لإرسال طلب تسجيل يراجعه مسؤول التسجيل والقبول.</p>
     </div>
 
     <?php if (empty($data['classes'])): ?>
@@ -96,7 +96,7 @@
         <div class="step-actions">
           <!-- يضاف زر السابق هنا -->
           <button class="button button-primary button-large" type="submit" <?= empty($data['classes']) ? 'disabled' : '' ?>>
-            <span>✓ إتمام التسجيل وإنشاء الحساب</span>
+            <span>إرسال طلب التسجيل</span>
           </button>
         </div>
       </fieldset>

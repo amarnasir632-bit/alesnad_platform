@@ -54,6 +54,25 @@ function dispatch_request(): void
         if (!$isWebhook && in_array($method, ['POST', 'PUT', 'PATCH', 'DELETE'], true)) require_api_csrf($body);
         $route = $method . ' ' . rtrim($path, '/');
         if ($route === 'GET /api/v1/csrf') api_csrf();
+        if ($route === 'POST /api/v1/auth/password-reset-requests') api_request_password_reset($body);
+        if ($route === 'POST /api/v1/auth/password-resets') api_complete_password_reset($body);
+        if ($route === 'POST /api/v1/admissions/complete') api_complete_admission($body);
+        if ($route === 'POST /api/v1/student/profile-correction-requests') api_request_profile_correction($body);
+        if (preg_match('#^GET /api/v1/admin/admissions/export$#', $route)) api_export_student_admissions();
+        if ($route === 'GET /api/v1/admin/admissions') {
+            require_permission('admissions.manage');
+            $limit = filter_input(INPUT_GET, 'limit', FILTER_VALIDATE_INT);
+            $offset = filter_input(INPUT_GET, 'offset', FILTER_VALIDATE_INT);
+            json_response(200, ['data' => ['admissions' => list_student_admissions($_GET, $limit ?: 100, $offset ?: 0)]]);
+        }
+        if ($route === 'GET /api/v1/admin/profile-correction-requests') {
+            require_permission('admissions.manage');
+            $status = is_string($_GET['status'] ?? null) ? strtoupper($_GET['status']) : 'PENDING';
+            json_response(200, ['data' => ['requests' => list_profile_correction_requests($status)]]);
+        }
+        if (preg_match('#^GET /api/v1/admin/admissions/([1-9][0-9]*)$#', $route, $match)) api_reviewed_admission_request((int) $match[1]);
+        if (preg_match('#^PATCH /api/v1/admin/admissions/([1-9][0-9]*)$#', $route, $match)) api_review_student_admission((int) $match[1], $body);
+        if (preg_match('#^PATCH /api/v1/admin/profile-correction-requests/([1-9][0-9]*)$#', $route, $match)) api_review_profile_correction((int) $match[1], $body);
         if ($route === 'GET /api/v1/subscription-plans') api_list_subscription_plans();
         if ($route === 'GET /api/v1/subscriptions/me') api_current_subscriptions();
         if ($route === 'GET /api/v1/admin/subscription-plans') api_admin_subscription_plans();

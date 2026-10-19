@@ -1,5 +1,8 @@
 <section class="auth-wrap">
   <div class="auth-card login-card">
+    <div class="auth-brand-mark">
+      <img src="/assets/brand/icon.png" alt="شعار منصة الإسناد الأكاديمي" width="64" height="64">
+    </div>
     <div class="auth-header">
       <span class="eyebrow">الإسناد الأكاديمي</span>
       <h1>تسجيل الدخول</h1>
@@ -22,6 +25,8 @@
           <button class="password-toggle" type="button" aria-controls="password" aria-label="إظهار كلمة المرور" aria-pressed="false">إظهار</button>
         </div>
       </div>
+
+      <a class="login-forgot-link" href="<?= e(url('forgot_password')) ?>">نسيت كلمة المرور؟</a>
 
       <button class="button button-primary button-large button-full" type="submit">
         <span data-submit-label>دخول إلى حسابي</span>

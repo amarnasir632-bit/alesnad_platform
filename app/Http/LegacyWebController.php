@@ -14,7 +14,7 @@ $old = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $actor = current_user();
-    if ($actor === null && !in_array($page, ['login', 'register', 'accept_invitation'], true)) {
+    if ($actor === null && !in_array($page, ['login', 'register', 'forgot_password', 'reset_password', 'complete_admission', 'accept_invitation'], true)) {
         if ($page === 'home') {
             $page = 'login';
         } else {
@@ -59,8 +59,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             try {
                 register_student($fullName, $email, $phone, $password, (int) $classId);
-                flash('success', 'تم إنشاء الحساب. إتاحة المحتوى تتطلب موافقة يدوية من إدارة المنصة.');
-                redirect(url('home'));
+                flash('success', 'تم استلام طلب التسجيل. سيبقى الحساب غير متاح للدخول حتى تراجعه إدارة التسجيل والقبول.');
+                redirect(url('login'));
             } catch (InvalidArgumentException $error) {
                 $errors[] = $error->getMessage();
             } catch (PDOException $error) {
@@ -76,6 +76,112 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
         $page = 'register';
+    } elseif ($action === 'request_password_reset') {
+        $email = strtolower(post_string('email'));
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            flash('error', 'أدخل بريدًا إلكترونيًا صحيحًا.');
+        } else {
+            try {
+                request_password_reset($email);
+            } catch (Throwable $error) {
+                app_log_error('password_reset_email_failed', $error);
+            }
+            flash('success', 'إذا كان البريد مرتبطًا بحساب، فستصلك رسالة برابط استعادة صالح لمدة محدودة.');
+        }
+        redirect(url('login'));
+    } elseif ($action === 'reset_password') {
+        $token = post_string('token');
+        $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
+        $confirmation = is_string($_POST['password_confirmation'] ?? null) ? $_POST['password_confirmation'] : '';
+        try {
+            if (!hash_equals($password, $confirmation)) throw new InvalidArgumentException('تأكيد كلمة المرور غير مطابق.');
+            consume_password_reset($token, $password);
+            flash('success', 'تم تغيير كلمة المرور. يمكنك تسجيل الدخول الآن.');
+            redirect(url('login'));
+        } catch (InvalidArgumentException $error) {
+            $errors[] = $error->getMessage();
+            $page = 'reset_password';
+            $data['token'] = $token;
+            $data['reset_token_valid'] = password_reset_token_is_valid($token);
+        } catch (Throwable $error) {
+            app_log_error('password_reset_completion_failed', $error);
+            $errors[] = 'تعذر تغيير كلمة المرور الآن. حاول مرة أخرى.';
+            $page = 'reset_password';
+            $data['token'] = $token;
+            $data['reset_token_valid'] = password_reset_token_is_valid($token);
+        }
+    } elseif ($action === 'complete_admission') {
+        $token = post_string('token');
+        try {
+            complete_student_admission($token, [
+                'full_name' => post_string('full_name'),
+                'phone' => post_string('phone'),
+                'class_id' => $_POST['class_id'] ?? null,
+            ]);
+            flash('success', 'تم إرسال البيانات المحدّثة لمراجعة التسجيل والقبول.');
+            redirect(url('login'));
+        } catch (InvalidArgumentException $error) {
+            $errors[] = $error->getMessage();
+            $page = 'complete_admission';
+            $data['token'] = $token;
+            $data['admission_token_valid'] = admission_completion_is_valid($token);
+        } catch (Throwable $error) {
+            app_log_error('admission_completion_failed', $error);
+            $errors[] = 'تعذر استكمال الطلب الآن. حاول مرة أخرى.';
+            $page = 'complete_admission';
+            $data['token'] = $token;
+            $data['admission_token_valid'] = admission_completion_is_valid($token);
+        }
+    } elseif ($action === 'review_admission') {
+        $studentId = filter_var($_POST['student_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        if ($studentId === false) {
+            flash('error', 'رقم طلب التسجيل غير صالح.');
+        } else {
+            $actor = require_permission('admissions.manage');
+            try {
+                $year = ($_POST['admission_year'] ?? '') === '' ? null : filter_var($_POST['admission_year'], FILTER_VALIDATE_INT);
+                if ($year === false) throw new InvalidArgumentException('سنة القبول غير صالحة.');
+                $classId = ($_POST['class_id'] ?? '') === '' ? null : filter_var($_POST['class_id'], FILTER_VALIDATE_INT);
+                if ($classId === false) throw new InvalidArgumentException('الصف الدراسي غير صالح.');
+                review_student_admission((int) $studentId, (int) $actor['id'], [
+                    'status' => post_string('status'),
+                    'reason' => post_string('reason'),
+                    'class_id' => $classId,
+                    'admission_year' => $year,
+                    'academic_semester' => ($_POST['academic_semester'] ?? '') === '' ? null : post_string('academic_semester'),
+                ]);
+                flash('success', 'تم تحديث حالة طلب التسجيل.');
+            } catch (Throwable $error) {
+                if ($error instanceof InvalidArgumentException || $error instanceof OutOfBoundsException) {
+                    flash('error', $error->getMessage());
+                } else {
+                    app_log_error('admission_review_failed', $error);
+                    flash('error', 'تعذر حفظ قرار التسجيل الآن.');
+                }
+            }
+        }
+        redirect(url('admissions'));
+    } elseif ($action === 'review_profile_correction') {
+        $requestId = filter_var($_POST['request_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $actor = require_permission('admissions.manage');
+        try {
+            if ($requestId === false) throw new InvalidArgumentException('رقم طلب التصحيح غير صالح.');
+            review_profile_correction_request(
+                (int) $requestId,
+                (int) $actor['id'],
+                post_string('status'),
+                post_string('resolution_reason')
+            );
+            flash('success', 'تم البت في طلب تصحيح بيانات الطالب.');
+        } catch (Throwable $error) {
+            if ($error instanceof InvalidArgumentException || $error instanceof OutOfBoundsException) {
+                flash('error', $error->getMessage());
+            } else {
+                app_log_error('profile_correction_review_failed', $error);
+                flash('error', 'تعذر حفظ قرار تصحيح البيانات الآن.');
+            }
+        }
+        redirect(url('admissions'));
     } elseif ($action === 'login') {
         $email = strtolower(post_string('email'));
         $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
@@ -105,12 +211,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $fullName = post_string('full_name');
             $phone = post_string('phone');
             $parentPhone = post_string('parent_phone');
-            update_user_self_profile((int) $user['id'], [
-                'full_name' => $fullName,
-                'phone' => $phone,
-                'parent_phone' => $parentPhone,
-            ]);
-            flash('success', 'تم حفظ التعديلات والبيانات بنجاح.');
+            if (user_has_role('student')) {
+                $requestId = submit_student_profile_correction((int) $user['id'], [
+                    'full_name' => $fullName,
+                    'phone' => $phone,
+                    'parent_phone' => $parentPhone,
+                    'reason' => post_string('correction_reason'),
+                ]);
+                flash('success', 'تم إرسال طلب تصحيح البيانات رقم ' . $requestId . ' إلى مسؤول التسجيل والقبول.');
+            } else {
+                update_user_self_profile((int) $user['id'], [
+                    'full_name' => $fullName,
+                    'phone' => $phone,
+                    'parent_phone' => $parentPhone,
+                ]);
+                flash('success', 'تم حفظ التعديلات والبيانات بنجاح.');
+            }
         } catch (InvalidArgumentException $error) {
             flash('error', $error->getMessage());
         } catch (Throwable $error) {
@@ -1303,6 +1419,14 @@ try {
                 $data['sessions'] = user_has_permission('sessions.join') ? sm_list_sessions($user) : [];
                 $data['published_announcements'] = list_published_announcements($studentClassId, 5);
             }
+            if (user_has_permission('admissions.manage')) {
+                $pendingAdmissions = database_connection()->query("SELECT COUNT(*) FROM students WHERE registration_status = 'PENDING'")->fetchColumn();
+                $pendingCorrections = database_connection()->query("SELECT COUNT(*) FROM student_profile_correction_requests WHERE status = 'PENDING'")->fetchColumn();
+                $data['admissionsOverview'] = [
+                    'pending_admissions' => (int) $pendingAdmissions,
+                    'pending_corrections' => (int) $pendingCorrections,
+                ];
+            }
             if ($page === 'home' && $user && user_has_role('admin') && user_has_permission('roles.manage')) {
                 $data['adminOverview'] = admin_dashboard_summary();
             }
@@ -1380,6 +1504,44 @@ try {
     } elseif ($page === 'login') {
         $title = 'تسجيل الدخول';
         $contentView = PROJECT_ROOT . '/app/Views/login.php';
+    } elseif ($page === 'forgot_password') {
+        $title = 'استعادة كلمة المرور';
+        $contentView = PROJECT_ROOT . '/app/Views/forgot_password.php';
+    } elseif ($page === 'reset_password') {
+        $data['token'] = is_string($_GET['token'] ?? null) ? $_GET['token'] : ($data['token'] ?? '');
+        $data['reset_token_valid'] ??= password_reset_token_is_valid($data['token']);
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer', true);
+        $title = 'تعيين كلمة مرور جديدة';
+        $contentView = PROJECT_ROOT . '/app/Views/reset_password.php';
+    } elseif ($page === 'complete_admission') {
+        $data['token'] = is_string($_GET['token'] ?? null) ? $_GET['token'] : ($data['token'] ?? '');
+        $data['admission_token_valid'] ??= admission_completion_is_valid($data['token']);
+        $data['classes'] = academic_list_classes(null);
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer', true);
+        $title = 'استكمال طلب التسجيل';
+        $contentView = PROJECT_ROOT . '/app/Views/complete_admission.php';
+    } elseif ($page === 'admissions') {
+        require_permission('admissions.manage');
+        $filters = [
+            'q' => is_string($_GET['q'] ?? null) ? $_GET['q'] : '',
+            'status' => is_string($_GET['status'] ?? null) ? $_GET['status'] : 'PENDING',
+            'class_id' => is_string($_GET['class_id'] ?? null) ? $_GET['class_id'] : '',
+            'from' => is_string($_GET['from'] ?? null) ? $_GET['from'] : '',
+            'to' => is_string($_GET['to'] ?? null) ? $_GET['to'] : '',
+        ];
+        $data['admissions'] = [];
+        $data['corrections'] = list_profile_correction_requests('PENDING');
+        $data['classes'] = academic_list_classes(null);
+        $data['filters'] = $filters;
+        try {
+            $data['admissions'] = list_student_admissions($filters, 100, 0);
+        } catch (InvalidArgumentException $error) {
+            $data['admissionsPageError'] = $error->getMessage();
+        }
+        $title = 'التسجيل والقبول';
+        $contentView = PROJECT_ROOT . '/app/Views/admissions.php';
     } else {
         http_response_code(404);
         $title = 'الصفحة غير موجودة';

@@ -55,9 +55,66 @@ $class->execute(['stage' => $registrationStageId, 'code' => 'P1_' . strtoupper($
 $registrationClassId = (int) $class->fetchColumn();
 $studentEmail = 'phase1-student-' . $suffix . '@example.invalid';
 register_student('Phase 1 Test Student', $studentEmail, '', 'test-password-123', $registrationClassId);
-$registeredStudent = $pdo->prepare('SELECT class_id FROM students WHERE user_id=(SELECT id FROM users WHERE email=:email)');
+$registeredStudent = $pdo->prepare('SELECT id, user_id, class_id, student_number, academic_semester, admission_year, registration_status FROM students WHERE user_id=(SELECT id FROM users WHERE email=:email)');
 $registeredStudent->execute(['email' => $studentEmail]);
-$assert((int) $registeredStudent->fetchColumn() === $registrationClassId, 'self-registration stores the selected active class on the student profile');
+$registeredStudentRow = $registeredStudent->fetch();
+$assert((int) $registeredStudentRow['class_id'] === $registrationClassId, 'self-registration stores the selected active class on the student profile');
+$assert($registeredStudentRow['student_number'] === student_number_for_id((int) $registeredStudentRow['id']), 'self-registration assigns a stable STU student number from the student profile ID');
+$assert($registeredStudentRow['academic_semester'] === null, 'new student profiles leave the academic semester unset until assigned by an administrator');
+$assert($registeredStudentRow['admission_year'] === null, 'new student profiles leave the admission year unset until assigned by an administrator');
+$assert($registeredStudentRow['registration_status'] === 'PENDING', 'self-registration enters the registrar review queue');
+$pendingAccount = $pdo->prepare('SELECT is_active FROM users WHERE id = :id');
+$pendingAccount->execute(['id' => $registeredStudentRow['user_id']]);
+$assert(!database_boolean($pendingAccount->fetchColumn()), 'student cannot log in before registrar approval');
+$assert(!authenticate_user($studentEmail, 'test-password-123'), 'pending student credentials cannot establish a login session');
+$updatedStudent = update_managed_account((int) $registeredStudentRow['user_id'], ['academic_semester' => 'FIRST', 'admission_year' => (int) date('Y')]);
+$assert($updatedStudent['academic_semester'] === 'FIRST', 'administrator can assign a semester to a student account');
+$assert($updatedStudent['admission_year'] === (int) date('Y'), 'administrator can assign an admission year to a student account');
+$invalidSemesterRejected = false;
+try {
+    update_managed_account((int) $registeredStudentRow['user_id'], ['academic_semester' => 'THIRD']);
+} catch (InvalidArgumentException) {
+    $invalidSemesterRejected = true;
+}
+$assert($invalidSemesterRejected, 'student semester assignment rejects unsupported values');
+$invalidAdmissionYearRejected = false;
+try {
+    update_managed_account((int) $registeredStudentRow['user_id'], ['admission_year' => (int) date('Y') + 1]);
+} catch (InvalidArgumentException) {
+    $invalidAdmissionYearRejected = true;
+}
+$assert($invalidAdmissionYearRejected, 'student admission year rejects future years');
+$assert(has_permission('admissions.manage'), 'administrator gets the admission management permission');
+$registrar = create_managed_account([
+    'full_name' => 'Phase 1 Test Registrar',
+    'email' => 'phase1-registrar-' . $suffix . '@example.invalid',
+    'phone' => '',
+    'password' => 'test-password-123',
+    'roles' => ['registrar'],
+], $adminId);
+$_SESSION['user'] = ['id' => $registrar['id']];
+$assert(has_permission('admissions.manage'), 'registrar role grants admission management');
+$assert(!has_permission('roles.manage') && !has_permission('academics.manage'), 'registrar role does not grant role or curriculum administration');
+$_SESSION['user'] = ['id' => $adminId];
+$admin = refresh_authenticated_user();
+$approvedAdmission = review_student_admission((int) $registeredStudentRow['id'], $adminId, [
+    'status' => 'APPROVED',
+    'reason' => '',
+    'class_id' => $registrationClassId,
+    'admission_year' => (int) date('Y'),
+    'academic_semester' => 'FIRST',
+]);
+$assert($approvedAdmission['registration_status'] === 'APPROVED', 'registrar can approve a pending student after assigning academic details');
+$pendingAccount->execute(['id' => $registeredStudentRow['user_id']]);
+$assert(database_boolean($pendingAccount->fetchColumn()), 'approved student account becomes active');
+$correctionId = submit_student_profile_correction((int) $registeredStudentRow['user_id'], [
+    'phone' => '+249123456789',
+    'reason' => 'تصحيح رقم الهاتف المسجل في الحساب',
+]);
+review_profile_correction_request($correctionId, $adminId, 'APPROVED', 'تم التحقق من الرقم.');
+$correctedPhone = $pdo->prepare('SELECT phone FROM users WHERE id = :id');
+$correctedPhone->execute(['id' => $registeredStudentRow['user_id']]);
+$assert($correctedPhone->fetchColumn() === '+249123456789', 'registrar can approve a validated student profile correction request');
 
 $teacher = create_managed_account([
     'full_name' => 'Phase 1 Test Teacher', 'email' => $teacherEmail, 'phone' => '',

@@ -2,8 +2,9 @@
 $user = current_user();
 $isAdmin = $user && user_has_role('admin');
 $isReviewer = $user && user_has_role('content_reviewer') && !$isAdmin;
-$isTeacher = $user && user_has_role('teacher') && !$isAdmin && !$isReviewer;
-$isStudent = $user && user_has_role('student') && !$isAdmin && !$isReviewer && !$isTeacher;
+$isRegistrar = $user && user_has_permission('admissions.manage') && !$isAdmin && !$isReviewer;
+$isTeacher = $user && user_has_role('teacher') && !$isAdmin && !$isReviewer && !$isRegistrar;
+$isStudent = $user && user_has_role('student') && !$isAdmin && !$isReviewer && !$isTeacher && !$isRegistrar;
 $announcements = $data['published_announcements'] ?? [];
 $topAnnouncement = $announcements[0] ?? null;
 
@@ -222,6 +223,36 @@ foreach ($data['sessions'] ?? [] as $session) {
         <p>لا تعرض هذه الصفحة أدوات لا يملك حسابك صلاحية استخدامها.</p>
       </div>
     <?php endif; ?>
+  </section>
+
+<?php elseif ($isRegistrar): ?>
+  <section class="dashboard-panel registrar-dashboard">
+    <div class="dashboard-welcome">
+      <div class="welcome-text">
+        <span class="eyebrow">مساحة التسجيل والقبول</span>
+        <h1>مرحبًا، <?= e($user['full_name']) ?></h1>
+        <p class="dashboard-intro">راجع طلبات الطلاب، تحقق من بياناتهم الدراسية، وتابع طلبات تصحيح البيانات.</p>
+      </div>
+      <div class="welcome-actions">
+        <a class="button button-primary" href="<?= e(url('admissions')) ?>">فتح طلبات التسجيل</a>
+      </div>
+    </div>
+    <?php if (isset($data['admissionsOverview'])): ?>
+      <div class="admin-metrics-grid registrar-metrics-grid">
+        <article class="admin-metric-card"><span>طلبات تسجيل قيد المراجعة</span><strong><?= (int) $data['admissionsOverview']['pending_admissions'] ?></strong></article>
+        <article class="admin-metric-card"><span>طلبات تصحيح البيانات</span><strong><?= (int) $data['admissionsOverview']['pending_corrections'] ?></strong></article>
+      </div>
+    <?php endif; ?>
+    <div class="admin-quick-actions-grid">
+      <article class="quick-action-card">
+        <div class="action-icon" aria-hidden="true"><?= ui_icon('users') ?></div>
+        <div class="action-info"><h2>طلبات التسجيل</h2><p>قبول الطلاب أو رفض الطلب أو إعادته لاستكمال البيانات.</p><a class="button button-small button-secondary" href="<?= e(url('admissions', ['status' => 'PENDING'])) ?>">مراجعة الطلبات</a></div>
+      </article>
+      <article class="quick-action-card">
+        <div class="action-icon" aria-hidden="true"><?= ui_icon('shield') ?></div>
+        <div class="action-info"><h2>تصحيح البيانات</h2><p>مراجعة طلبات تحديث بيانات الطلاب مع حفظ القرار في سجل التدقيق.</p><a class="button button-small button-secondary" href="<?= e(url('admissions', ['status' => ''])) ?>#correction-queue">طلبات التصحيح</a></div>
+      </article>
+    </div>
   </section>
 
 <?php elseif ($isTeacher): ?>

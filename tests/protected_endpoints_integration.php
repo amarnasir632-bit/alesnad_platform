@@ -75,7 +75,7 @@ try {
     $usersInsert = $pdo->prepare('INSERT INTO users(full_name,email,password_hash) VALUES(:name,:email,:password) RETURNING id');
     $roleQuery = $pdo->prepare('SELECT id FROM roles WHERE code=:code');
     $roleInsert = $pdo->prepare('INSERT INTO user_roles(user_id,role_id) VALUES(:user,:role)');
-    foreach (['admin', 'teacher', 'student', 'content_reviewer'] as $roleCode) {
+    foreach (['admin', 'teacher', 'student', 'content_reviewer', 'registrar'] as $roleCode) {
         $email = 'phase8-' . $roleCode . '-' . $suffix . '@example.invalid';
         $usersInsert->execute(['name' => 'Phase 8 ' . $roleCode, 'email' => $email, 'password' => password_hash($password, PASSWORD_DEFAULT)]);
         $userId = (int) $usersInsert->fetchColumn();
@@ -125,6 +125,11 @@ try {
     $apiPlanCode = 'API_' . strtoupper($suffix);
     $cases = [
         ['GET', '/api/v1/admin/users', 'admin', 'student'],
+        ['GET', '/api/v1/admin/admissions', 'registrar', 'teacher'],
+        ['GET', '/api/v1/admin/admissions/999999', 'registrar', 'teacher'],
+        ['PATCH', '/api/v1/admin/admissions/999999', 'registrar', 'teacher', ['status' => 'APPROVED']],
+        ['GET', '/api/v1/admin/profile-correction-requests?status=PENDING', 'registrar', 'teacher'],
+        ['POST', '/api/v1/student/profile-correction-requests', 'student', 'teacher', ['phone' => '+249123456789', 'reason' => 'مرحلة اختبار طلب تصحيح البيانات']],
         ['GET', '/api/v1/admin/roles', 'admin', 'student'],
         ['GET', '/api/v1/admin/academics/class-subjects', 'admin', 'student'],
         ['POST', '/api/v1/admin/users', 'admin', 'student', []],

@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/bootstrap.php';
 require_once dirname(__DIR__) . '/app/Services/AccountService.php';
+require_once dirname(__DIR__) . '/app/Services/PasswordResetService.php';
+require_once dirname(__DIR__) . '/app/Services/AdmissionService.php';
 require_once dirname(__DIR__) . '/app/Http/Response.php';
 require_once dirname(__DIR__) . '/app/Http/Controllers/AuthController.php';
 require_once dirname(__DIR__) . '/app/Http/Controllers/AccountController.php';

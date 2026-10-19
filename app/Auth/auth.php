@@ -1,6 +1,14 @@
 <?php
 declare(strict_types=1);
 
+function student_number_for_id(int $studentId): string
+{
+    if ($studentId < 1) {
+        throw new InvalidArgumentException('معرف الطالب غير صالح.');
+    }
+    return 'STU-' . str_pad((string) $studentId, 6, '0', STR_PAD_LEFT);
+}
+
 function authenticate_user(string $email, string $password): bool
 {
     if (strlen($password) > 72) {
@@ -141,8 +149,8 @@ function register_student(string $fullName, string $email, string $phone, string
         $class->execute(['id' => $classId]);
         if ($class->fetchColumn() === false) throw new InvalidArgumentException('الصف الذي اخترته غير متاح.');
         $userStatement = $pdo->prepare(
-            'INSERT INTO users (full_name, email, phone, password_hash)
-             VALUES (:full_name, :email, :phone, :password_hash)
+            'INSERT INTO users (full_name, email, phone, password_hash, is_active)
+             VALUES (:full_name, :email, :phone, :password_hash, FALSE)
              RETURNING id, full_name, email'
         );
         $userStatement->execute([
@@ -162,20 +170,21 @@ function register_student(string $fullName, string $email, string $phone, string
 
         $pdo->prepare('INSERT INTO user_roles (user_id, role_id) VALUES (:user_id, :role_id)')
             ->execute(['user_id' => $user['id'], 'role_id' => $roleId]);
-        $pdo->prepare('INSERT INTO students (user_id, class_id) VALUES (:user_id, :class_id)')
-            ->execute(['user_id' => $user['id'], 'class_id' => $classId]);
+        $studentInsert = $pdo->prepare(
+            "INSERT INTO students (user_id, class_id, registration_status)
+             VALUES (:user_id, :class_id, 'PENDING') RETURNING id"
+        );
+        $studentInsert->execute(['user_id' => $user['id'], 'class_id' => $classId]);
+        $studentId = (int) $studentInsert->fetchColumn();
+        $pdo->prepare('UPDATE students SET student_number = :student_number WHERE id = :id')
+            ->execute(['student_number' => student_number_for_id($studentId), 'id' => $studentId]);
+        $pdo->prepare(
+            "INSERT INTO student_admission_events (student_id, previous_status, new_status, reason, actor_user_id)
+             VALUES (:student_id, NULL, 'PENDING', '', :actor_user_id)"
+        )->execute(['student_id' => $studentId, 'actor_user_id' => $user['id']]);
         audit_log('auth.registered', 'user', (int) $user['id'], ['role' => 'student', 'class_id' => $classId], (int) $user['id']);
 
         $pdo->commit();
-        session_regenerate_id(true);
-        $_SESSION['user'] = [
-            'id' => (int) $user['id'],
-            'full_name' => $user['full_name'],
-            'email' => $user['email'],
-            'roles' => ['student'],
-        ];
-        unset($_SESSION['csrf_token']);
-        csrf_token();
     } catch (Throwable $error) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();

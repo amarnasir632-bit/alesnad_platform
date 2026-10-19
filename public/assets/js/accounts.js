@@ -2,6 +2,7 @@
   const list = document.querySelector('#account-list');
   const feedback = document.querySelector('#accounts-feedback');
   const classTemplate = document.querySelector('#account-class-options');
+  const semesterTemplate = document.querySelector('#account-semester-options');
   let csrfToken = '';
   let roles = [];
 
@@ -63,6 +64,17 @@
     identity.append(id);
     row.append(identity);
 
+    const admissionCell = document.createElement('td');
+    admissionCell.dataset.label = 'سنة القبول';
+    const admissionField = field('سنة القبول', 'admission_year', account.admission_year ?? '', 'number');
+    const admissionInput = admissionField.querySelector('input');
+    admissionInput.min = '1900';
+    admissionInput.max = String(new Date().getFullYear());
+    admissionInput.inputMode = 'numeric';
+    admissionInput.disabled = !account.roles.includes('student');
+    admissionCell.append(admissionField);
+    row.append(admissionCell);
+
     const classCell = document.createElement('td');
     classCell.dataset.label = 'الصف الدراسي';
     const classSelect = document.createElement('select');
@@ -72,6 +84,17 @@
     classSelect.disabled = !account.roles.includes('student');
     classCell.append(classSelect);
     row.append(classCell);
+
+    const semesterCell = document.createElement('td');
+    semesterCell.dataset.label = 'الفصل الدراسي';
+    const semesterSelect = document.createElement('select');
+    semesterSelect.name = 'academic_semester';
+    semesterSelect.setAttribute('aria-label', 'الفصل الدراسي للطالب');
+    semesterSelect.replaceChildren(semesterTemplate.content.cloneNode(true));
+    semesterSelect.value = account.academic_semester || '';
+    semesterSelect.disabled = !account.roles.includes('student');
+    semesterCell.append(semesterSelect);
+    row.append(semesterCell);
 
     const activeCell = document.createElement('td');
     activeCell.dataset.label = 'حالة الحساب';
@@ -132,7 +155,7 @@
     if (!accounts.length) {
       const row = document.createElement('tr');
       const cell = document.createElement('td');
-      cell.colSpan = 5;
+      cell.colSpan = 7;
       cell.textContent = 'لا توجد حسابات في القائمة.';
       row.append(cell);
       list.append(row);
@@ -157,6 +180,10 @@
           is_active: value('is_active').checked,
         };
         if (!classSelect.disabled) body.class_id = classSelect.value ? Number(classSelect.value) : null;
+        const semesterSelect = value('academic_semester');
+        if (!semesterSelect.disabled) body.academic_semester = semesterSelect.value || null;
+        const admissionYear = value('admission_year');
+        if (!admissionYear.disabled) body.admission_year = admissionYear.value ? Number(admissionYear.value) : null;
         await api(`/api/v1/admin/users/${row.dataset.accountId}`, 'PATCH', body);
         notify('تم حفظ بيانات الحساب.');
       } else {

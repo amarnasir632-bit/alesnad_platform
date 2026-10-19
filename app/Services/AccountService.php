@@ -7,18 +7,23 @@ function account_public_fields(array $row): array
         'id' => (int) $row['id'], 'full_name' => $row['full_name'], 'email' => $row['email'],
         'phone' => $row['phone'], 'is_active' => database_boolean($row['is_active']),
         'roles' => $row['roles'] ?? [], 'class_id' => isset($row['class_id']) ? (int) $row['class_id'] : null,
-        'class_name' => $row['class_name'] ?? null, 'created_at' => $row['created_at'] ?? null,
+        'class_name' => $row['class_name'] ?? null,
+        'academic_semester' => $row['academic_semester'] ?? null,
+        'admission_year' => isset($row['admission_year']) ? (int) $row['admission_year'] : null,
+        'created_at' => $row['created_at'] ?? null,
     ];
 }
 
 function list_accounts(int $limit = 50, int $offset = 0): array
 {
     $statement = database_connection()->prepare(
-        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, st.class_id, c.name AS class_name,
+        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at,
+                st.class_id, st.academic_semester, st.admission_year, c.name AS class_name,
                 COALESCE(array_agg(r.code ORDER BY r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::VARCHAR[]) AS roles
          FROM users u LEFT JOIN students st ON st.user_id = u.id LEFT JOIN classes c ON c.id = st.class_id
          LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
-         GROUP BY u.id, st.class_id, c.name ORDER BY u.id DESC LIMIT :limit OFFSET :offset'
+         GROUP BY u.id, st.class_id, st.academic_semester, st.admission_year, c.name
+         ORDER BY u.id DESC LIMIT :limit OFFSET :offset'
     );
     $statement->bindValue('limit', max(1, min($limit, 100)), PDO::PARAM_INT);
     $statement->bindValue('offset', max(0, $offset), PDO::PARAM_INT);
@@ -29,11 +34,13 @@ function list_accounts(int $limit = 50, int $offset = 0): array
 function find_account(int $id): ?array
 {
     $statement = database_connection()->prepare(
-        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at, st.class_id, c.name AS class_name,
+        'SELECT u.id, u.full_name, u.email, u.phone, u.is_active, u.created_at,
+                st.class_id, st.academic_semester, st.admission_year, c.name AS class_name,
                 COALESCE(array_agg(r.code ORDER BY r.code) FILTER (WHERE r.code IS NOT NULL), ARRAY[]::VARCHAR[]) AS roles
          FROM users u LEFT JOIN students st ON st.user_id = u.id LEFT JOIN classes c ON c.id = st.class_id
          LEFT JOIN user_roles ur ON ur.user_id = u.id LEFT JOIN roles r ON r.id = ur.role_id
-         WHERE u.id = :id GROUP BY u.id, st.class_id, c.name'
+         WHERE u.id = :id
+         GROUP BY u.id, st.class_id, st.academic_semester, st.admission_year, c.name'
     );
     $statement->execute(['id' => $id]);
     $row = $statement->fetch();
@@ -95,7 +102,8 @@ function update_managed_account(int $id, array $input): array
         if (!$user) throw new OutOfBoundsException('الحساب غير موجود.');
         $sets = [];
         $params = ['id' => $id];
-        $studentClassChange = false;
+        $studentFields = [];
+        $studentParams = ['id' => $id];
         if (array_key_exists('full_name', $input)) {
             if (!is_string($input['full_name'])) throw new InvalidArgumentException('الاسم يجب أن يكون نصًا.');
             $name = trim((string) $input['full_name']);
@@ -126,10 +134,6 @@ function update_managed_account(int $id, array $input): array
             $sets[] = 'is_active=:active'; $params['active'] = $input['is_active'];
         }
         if (array_key_exists('class_id', $input)) {
-            $student = $pdo->prepare('SELECT id FROM students WHERE user_id = :id FOR UPDATE');
-            $student->execute(['id' => $id]);
-            $studentId = $student->fetchColumn();
-            if ($studentId === false) throw new InvalidArgumentException('تعيين الصف متاح لحساب الطالب فقط.');
             $classId = $input['class_id'] === null ? null : filter_var($input['class_id'], FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
             if ($classId === false) throw new InvalidArgumentException('الصف غير صالح.');
             if ($classId !== null) {
@@ -137,16 +141,37 @@ function update_managed_account(int $id, array $input): array
                 $class->execute(['id' => $classId]);
                 if ($class->fetchColumn() === false) throw new InvalidArgumentException('الصف غير نشط أو غير موجود.');
             }
-            $studentClassChange = true;
-            $params['class_id'] = $classId;
+            $studentFields[] = 'class_id = :class_id';
+            $studentParams['class_id'] = $classId;
         }
-        if (!$sets && !$studentClassChange) throw new InvalidArgumentException('لا توجد حقول قابلة للتعديل.');
+        if (array_key_exists('academic_semester', $input)) {
+            $semester = $input['academic_semester'];
+            if ($semester !== null && (!is_string($semester) || !in_array($semester, ['FIRST', 'SECOND'], true))) {
+                throw new InvalidArgumentException('الفصل الدراسي غير صالح.');
+            }
+            $studentFields[] = 'academic_semester = :academic_semester';
+            $studentParams['academic_semester'] = $semester;
+        }
+        if (array_key_exists('admission_year', $input)) {
+            $admissionYear = $input['admission_year'];
+            if ($admissionYear !== null
+                && (!is_int($admissionYear) || $admissionYear < 1900 || $admissionYear > (int) date('Y'))) {
+                throw new InvalidArgumentException('سنة القبول غير صحيحة.');
+            }
+            $studentFields[] = 'admission_year = :admission_year';
+            $studentParams['admission_year'] = $admissionYear;
+        }
+        if (!$sets && !$studentFields) throw new InvalidArgumentException('لا توجد حقول قابلة للتعديل.');
         if ($sets) {
             $update = $pdo->prepare('UPDATE users SET ' . implode(', ', $sets) . ' WHERE id=:id');
             $update->execute($params);
         }
-        if ($studentClassChange) {
-            $pdo->prepare('UPDATE students SET class_id = :class_id WHERE user_id = :id')->execute(['class_id' => $params['class_id'], 'id' => $id]);
+        if ($studentFields) {
+            $student = $pdo->prepare('SELECT id FROM students WHERE user_id = :id FOR UPDATE');
+            $student->execute(['id' => $id]);
+            if ($student->fetchColumn() === false) throw new InvalidArgumentException('تعديل بيانات القيد متاح لحساب الطالب فقط.');
+            $updateStudent = $pdo->prepare('UPDATE students SET ' . implode(', ', $studentFields) . ' WHERE user_id = :id');
+            $updateStudent->execute($studentParams);
         }
         audit_log('account.updated', 'user', $id, ['fields' => array_keys($input)]);
         $pdo->commit();
@@ -205,7 +230,19 @@ function set_roles_in_transaction(PDO $pdo, int $userId, array $roles, int $acto
 
 function ensure_account_profiles(PDO $pdo, int $id, array $roles): void
 {
-    if (in_array('student', $roles, true)) $pdo->prepare('INSERT INTO students(user_id) VALUES(:id) ON CONFLICT(user_id) DO NOTHING')->execute(['id' => $id]);
+    if (in_array('student', $roles, true)) {
+        $pdo->prepare('INSERT INTO students(user_id) VALUES(:id) ON CONFLICT(user_id) DO NOTHING')->execute(['id' => $id]);
+        $student = $pdo->prepare('SELECT id, student_number FROM students WHERE user_id = :id');
+        $student->execute(['id' => $id]);
+        $studentRow = $student->fetch();
+        if ($studentRow && empty($studentRow['student_number'])) {
+            $pdo->prepare('UPDATE students SET student_number = :student_number WHERE id = :id')
+                ->execute([
+                    'student_number' => student_number_for_id((int) $studentRow['id']),
+                    'id' => $studentRow['id'],
+                ]);
+        }
+    }
     $employeeRoles = ['teacher' => 'أستاذ', 'content_reviewer' => 'مراجع محتوى', 'admin' => 'مدير النظام'];
     foreach ($employeeRoles as $role => $title) {
         if (in_array($role, $roles, true)) $pdo->prepare('INSERT INTO employees(user_id,job_title) VALUES(:id,:title) ON CONFLICT(user_id) DO UPDATE SET job_title=EXCLUDED.job_title')->execute(['id' => $id, 'title' => $title]);
@@ -249,7 +286,8 @@ function get_user_account_details(int $userId): array
     $user['roles'] = $rolesStmt->fetchAll(PDO::FETCH_COLUMN);
 
     $studentStmt = $pdo->prepare(
-        'SELECT st.id, st.student_number, st.class_id, st.parent_phone, st.date_of_birth,
+        'SELECT st.id, st.student_number, st.class_id, st.academic_semester, st.admission_year,
+                st.parent_phone, st.date_of_birth,
                 c.name AS class_name, s.name AS stage_name
          FROM students st
          LEFT JOIN classes c ON c.id = st.class_id
@@ -261,15 +299,17 @@ function get_user_account_details(int $userId): array
 
     if ($student) {
         if (empty($student['student_number'])) {
-            $defaultNumber = 'STD-' . str_pad((string) $student['id'], 5, '0', STR_PAD_LEFT);
-            try {
-                $updateNum = $pdo->prepare("UPDATE students SET student_number = :num WHERE id = :id AND (student_number IS NULL OR student_number = '')");
-                $updateNum->execute(['num' => $defaultNumber, 'id' => $student['id']]);
-                $student['student_number'] = $defaultNumber;
-            } catch (Throwable) {
-                $student['student_number'] = $defaultNumber;
-            }
+            $student['student_number'] = student_number_for_id((int) $student['id']);
+            $updateNum = $pdo->prepare("UPDATE students SET student_number = :num WHERE id = :id AND (student_number IS NULL OR student_number = '')");
+            $updateNum->execute(['num' => $student['student_number'], 'id' => $student['id']]);
+        } else {
+            $student['student_number'] = student_number_for_id((int) $student['id']);
         }
+        $student['semester_name'] = match ($student['academic_semester'] ?? null) {
+            'FIRST' => 'الأول',
+            'SECOND' => 'الثاني',
+            default => null,
+        };
     }
 
     $employeeStmt = $pdo->prepare('SELECT id, staff_number, job_title, profile_image_key, profile_image_mime FROM employees WHERE user_id = :id');

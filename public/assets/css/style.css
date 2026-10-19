@@ -786,8 +786,21 @@ summary:focus-visible {
   max-width: 480px;
 }
 
+.auth-brand-mark {
+  display: grid;
+  place-items: center;
+  margin-bottom: 16px;
+}
+
+.auth-brand-mark img {
+  display: block;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
 .login-card .auth-header {
-  text-align: right;
+  text-align: center;
   margin-bottom: 28px;
 }
 
@@ -1493,6 +1506,10 @@ select option {
   font-size: 0.98rem;
 }
 
+.account-table {
+  min-width: 980px;
+}
+
 .access-table th, .staff-table th, .account-table th {
   background: #f7f9fc;
   padding: 16px 14px;
@@ -1519,7 +1536,7 @@ select option {
   margin-bottom: 8px;
 }
 
-.account-field input {
+.account-field input, .account-table select {
   min-height: 40px;
   padding: 8px 12px;
   border: 1.5px solid var(--border-color);
@@ -1531,7 +1548,12 @@ select option {
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.account-field input:focus {
+.account-table select {
+  width: 100%;
+  max-width: 100%;
+}
+
+.account-field input:focus, .account-table select:focus {
   outline: none;
   border-color: var(--blue-accent);
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
@@ -4292,9 +4314,20 @@ select option {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding-bottom: 10px;
   border-bottom: 1px solid #f1f5f9;
   font-size: 0.94rem;
+}
+
+.academic-info-list .info-label {
+  flex: 0 1 48%;
+}
+
+.academic-info-list .info-value {
+  min-width: 0;
+  text-align: end;
+  overflow-wrap: anywhere;
 }
 
 .academic-info-list li:last-child {
@@ -4736,6 +4769,7 @@ select option {
   .auth-only-layout {
     display: grid;
     min-height: 100vh;
+    min-height: 100svh;
     place-items: center;
     padding: clamp(16px, 4vw, 48px);
     background:
@@ -4748,6 +4782,18 @@ select option {
     width: min(100%, 500px);
   }
 
+  .auth-only-content {
+    display: grid;
+    justify-items: center;
+  }
+
+  .auth-only-content > .messages,
+  .auth-only-main,
+  .auth-only-main .auth-wrap,
+  .auth-only-main .auth-card {
+    width: 100%;
+  }
+
   .auth-only-main .auth-wrap {
     width: 100%;
     min-height: 0;
@@ -4758,6 +4804,19 @@ select option {
     width: 100%;
     margin: 0;
     box-shadow: 0 18px 48px rgba(13, 39, 68, 0.1);
+  }
+
+  .login-forgot-link {
+    display: block;
+    width: fit-content;
+    min-height: var(--touch-target-min);
+    margin: -10px auto 16px;
+    padding: 10px 0;
+    color: var(--blue-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-align: center;
   }
 
   .discovery-header {
@@ -5572,6 +5631,49 @@ body.broadcast-room-open {
   font-family: 'Thmanyah Sans', 'Cairo', 'Tajawal', sans-serif;
 }
 
+.admin-dashboard {
+  width: 100%;
+  max-width: 1280px;
+  margin-inline: auto;
+}
+
+.admin-dashboard .admin-overview {
+  width: 100%;
+}
+
+.admin-dashboard .admin-quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: stretch;
+  gap: 16px;
+}
+
+.admin-dashboard .quick-action-card {
+  min-height: 100%;
+  padding: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-dashboard .action-info {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.admin-dashboard .action-info .button {
+  margin-top: auto;
+}
+
+@media (max-width: 1180px) {
+  .admin-dashboard .admin-quick-actions-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .broadcast-room-header {
   display: flex;
   align-items: center;
@@ -5839,5 +5941,239 @@ body.broadcast-room-open {
 
   .broadcast-room-control {
     flex: 1 1 calc(50% - 8px);
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-dashboard .admin-quick-actions-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.auth-only-layout {
+    display: grid;
+    min-height: 100vh;
+    min-height: 100svh;
+    place-items: center;
+    padding: clamp(16px, 4vw, 48px);
+    background:
+      radial-gradient(ellipse at 15% 10%, rgba(21, 101, 192, 0.08), transparent 38%),
+      var(--bg-page);
+  }
+
+  .auth-only-content,
+  .auth-only-main,
+  .auth-only-main .auth-wrap {
+    width: min(100%, 500px);
+  }
+
+  .auth-only-content {
+    display: grid;
+    justify-items: center;
+  }
+
+  .auth-only-content > .messages,
+  .auth-only-main,
+  .auth-only-main .auth-wrap,
+  .auth-only-main .auth-card {
+    width: 100%;
+  }
+
+  .auth-only-main .auth-wrap {
+    min-height: 0;
+    padding: 0;
+  }
+
+  .auth-only-main .auth-card {
+    width: 100%;
+    margin: 0;
+    box-shadow: 0 18px 48px rgba(13, 39, 68, 0.1);
+  }
+
+  .login-forgot-link {
+    display: block;
+    width: fit-content;
+    min-height: var(--touch-target-min);
+    margin: -10px auto 16px;
+    padding: 10px 0;
+    color: var(--blue-primary);
+    font-weight: 700;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-align: center;
+  }
+
+  .admission-filter-form,
+  .admission-review-form {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: end;
+    gap: 14px;
+  }
+
+  .admission-filter-form {
+    margin: 20px 0 28px;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .admission-filter-form .form-field,
+  .admission-review-form .form-field {
+    min-width: 0;
+    margin: 0;
+  }
+
+  .admission-filter-form input,
+  .admission-filter-form select,
+  .admission-review-form input,
+  .admission-review-form select,
+  .admission-review-form textarea {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+    color: var(--text-main);
+    font: inherit;
+  }
+
+  .admission-review-form textarea {
+    min-height: 72px;
+    resize: vertical;
+  }
+
+  .admission-list {
+    display: grid;
+    gap: 16px;
+  }
+
+  .admission-card {
+    min-width: 0;
+    padding: 20px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: var(--bg-card);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .admission-card-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .admission-card-heading h3,
+  .admission-card-heading p {
+    margin: 0 0 6px;
+  }
+
+  .admission-card-heading p,
+  .admission-meta {
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+  }
+
+  .admission-meta {
+    margin: 12px 0 18px;
+  }
+
+  .admission-review-form {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .admission-review-form .admission-reason-field {
+    grid-column: span 3;
+  }
+
+  .admission-history {
+    margin-top: 16px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+  }
+
+  .admission-history summary {
+    min-height: var(--touch-target-min);
+    cursor: pointer;
+    font-weight: 700;
+  }
+
+  .admission-history-content {
+    overflow-wrap: anywhere;
+  }
+
+  .admission-history-content li {
+    margin-block: 8px;
+  }
+
+  .correction-queue {
+    margin-top: 36px;
+  }
+
+  .correction-queue > h2,
+  .admission-results-heading h2 {
+    margin-bottom: 12px;
+  }
+
+  .correction-review-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  }
+
+  .admission-results-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+  }
+
+  @media (max-width: 920px) {
+    .admission-filter-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admission-review-form {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .admission-review-form .admission-reason-field {
+      grid-column: 1 / -1;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .auth-only-layout {
+      padding: 16px;
+    }
+
+    .admission-filter-form,
+    .admission-review-form,
+    .correction-review-form {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .admission-review-form .admission-reason-field {
+      grid-column: auto;
+    }
+
+    .admission-card {
+      padding: 16px;
+    }
+
+    .admission-card-heading,
+    .admission-results-heading {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+@media (max-width: 700px) {
+  .academic-info-list li {
+    align-items: flex-start;
   }
 }
