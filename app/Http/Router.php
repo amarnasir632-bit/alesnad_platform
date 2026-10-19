@@ -84,6 +84,9 @@ function dispatch_request(): void
         if ($route === 'POST /api/v1/auth/login') api_login($body);
         if ($route === 'POST /api/v1/auth/register') api_register_student($body);
         if ($route === 'POST /api/v1/auth/logout') api_logout();
+        if (preg_match('#^GET /api/v1/teachers/([1-9][0-9]*)/photo$#', $route, $match)) api_teacher_profile_photo((int) $match[1]);
+        if (preg_match('#^GET /api/v1/content/resources/([1-9][0-9]*)/playback$#', $route, $match)) api_play_learning_media((int) $match[1]);
+        if (preg_match('#^POST /api/v1/content/resources/([1-9][0-9]*)/views$#', $route, $match)) api_record_learning_media_view((int) $match[1]);
         if ($route === 'GET /api/v1/admin/users') api_list_accounts();
         if ($route === 'GET /api/v1/admin/roles') api_list_roles();
         if ($route === 'GET /api/v1/admin/academics/class-subjects') api_admin_class_subjects();

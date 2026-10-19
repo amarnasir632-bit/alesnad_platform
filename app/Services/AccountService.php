@@ -272,7 +272,7 @@ function get_user_account_details(int $userId): array
         }
     }
 
-    $employeeStmt = $pdo->prepare('SELECT id, staff_number, job_title FROM employees WHERE user_id = :id');
+    $employeeStmt = $pdo->prepare('SELECT id, staff_number, job_title, profile_image_key, profile_image_mime FROM employees WHERE user_id = :id');
     $employeeStmt->execute(['id' => $userId]);
     $employee = $employeeStmt->fetch();
 
@@ -309,6 +309,43 @@ function update_user_self_profile(int $userId, array $data): void
     $nameLength = preg_match_all('/./us', $name);
     if ($nameLength === false || $nameLength < 2 || $nameLength > 150) {
         throw new InvalidArgumentException('الاسم الكامل يجب أن يكون بين محرفين و 150 محرفًا.');
+    }
+
+    function update_teacher_profile_image(int $userId, array $file): void
+    {
+        if (!user_has_role('teacher')) {
+            throw new ApiException(403, 'teacher_profile_required', 'تحديث صورة الملف متاح لحساب الأستاذ فقط.');
+        }
+        $pdo = database_connection();
+        $lookup = $pdo->prepare('SELECT id, profile_image_key FROM employees WHERE user_id = :user_id AND is_active');
+        $lookup->execute(['user_id' => $userId]);
+        $employee = $lookup->fetch();
+        if (!$employee) throw new ApiException(403, 'employee_profile_required', 'يلزم ملف أستاذ نشط لتحديث الصورة.');
+
+        $stored = store_uploaded_file($file, 'IMAGE');
+        try {
+            $pdo->beginTransaction();
+            $update = $pdo->prepare(
+                'UPDATE employees SET profile_image_key = :image_key, profile_image_mime = :mime
+                 WHERE id = :employee_id AND is_active'
+            );
+            $update->execute([
+                'image_key' => $stored['storage_key'],
+                'mime' => $stored['mime_type'],
+                'employee_id' => (int) $employee['id'],
+            ]);
+            if ($update->rowCount() !== 1) throw new ApiException(409, 'employee_profile_changed', 'تعذر تحديث ملف الأستاذ.');
+            audit_log('teacher.profile_image.updated', 'employee', (int) $employee['id'], [], $userId);
+            $pdo->commit();
+        } catch (Throwable $error) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            discard_private_file($stored['storage_key']);
+            throw $error;
+        }
+
+        if (is_string($employee['profile_image_key']) && $employee['profile_image_key'] !== '') {
+            discard_private_file($employee['profile_image_key']);
+        }
     }
 
     $phone = trim((string) ($data['phone'] ?? ''));
@@ -384,4 +421,3 @@ function change_user_password(int $userId, string $currentPassword, string $newP
 
     audit_log('password.changed', 'user', $userId, [], $userId);
 }
-

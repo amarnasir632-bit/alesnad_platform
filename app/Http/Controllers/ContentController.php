@@ -121,6 +121,9 @@ function api_download_content(string $kind, int $id, ?int $variantId = null): ne
         && !has_manual_content_access((int) $actor['id'])) {
         throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     }
+    if (!catalog_actor_can_access_class_subject((int) $record['class_subject_id'], $actor)) {
+        throw new ApiException(404, 'not_found', 'المحتوى غير متاح للتنزيل.');
+    }
     if (content_has_video_asset($record)) {
         content_audit_download($actor, $kind, $id, $variantId, false);
         header('Cache-Control: no-store');
@@ -141,6 +144,52 @@ function api_download_content(string $kind, int $id, ?int $variantId = null): ne
     }
     content_audit_download($actor, $kind, $id, $variantId, $range !== null);
     stream_private_file((string) $record['storage_key'], (string) $record['mime_type'], (string) $record['original_filename']);
+}
+
+function api_play_learning_media(int $resourceId): never
+{
+    $actor = require_permission('content.read');
+    if (in_array('student', $actor['roles'] ?? [], true)
+        && !has_manual_content_access((int) $actor['id'])) {
+        throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    }
+    $resource = catalog_visible_media_for_actor($resourceId, $actor);
+    if ($resource === null) throw new ApiException(404, 'not_found', 'المحتوى غير متاح.');
+
+    if ($resource['resource_type'] === 'VIDEO') {
+        $playbackUrl = content_video_playback_url($resource);
+        header('Cache-Control: no-store');
+        header('Referrer-Policy: no-referrer');
+        header('Location: ' . $playbackUrl, true, 302);
+        exit;
+    }
+    if (!is_string($resource['storage_key'] ?? null) || $resource['storage_key'] === ''
+        || !is_string($resource['mime_type'] ?? null) || !str_starts_with($resource['mime_type'], 'audio/')) {
+        throw new ApiException(404, 'media_not_found', 'الملف الصوتي غير متاح.');
+    }
+    stream_private_file((string) $resource['storage_key'], (string) $resource['mime_type'], (string) $resource['original_filename'], true);
+}
+
+function api_record_learning_media_view(int $resourceId): never
+{
+    $actor = require_permission('content.read');
+    if (in_array('student', $actor['roles'] ?? [], true)
+        && !has_manual_content_access((int) $actor['id'])) {
+        throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
+    }
+    if (!isset($_SESSION['learning_media_views']) || !is_array($_SESSION['learning_media_views'])) {
+        $_SESSION['learning_media_views'] = [];
+    }
+    $views = &$_SESSION['learning_media_views'];
+    if (isset($views[$resourceId])) {
+        json_response(200, ['data' => ['counted' => false]]);
+    }
+    if (!catalog_record_media_view($resourceId, $actor)) {
+        throw new ApiException(404, 'not_found', 'المحتوى غير متاح.');
+    }
+    if (count($views) >= 256) array_shift($views);
+    $views[$resourceId] = true;
+    json_response(200, ['data' => ['counted' => true]]);
 }
 
 function api_search_past_exams(array $filters): array

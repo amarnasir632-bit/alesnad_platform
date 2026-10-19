@@ -84,6 +84,252 @@
     target.append(p);
   }
 
+  function createBroadcastRoom({ title, subject, teacherMode, playbackUrl = '', whipUrl = '', sessionId }) {
+    const room = document.createElement('section');
+    room.className = 'broadcast-room';
+    room.setAttribute('role', 'dialog');
+    room.setAttribute('aria-modal', 'true');
+    room.setAttribute('aria-labelledby', 'broadcast-room-title');
+
+    const header = document.createElement('header');
+    header.className = 'broadcast-room-header';
+    const headingWrap = document.createElement('div');
+    headingWrap.className = 'broadcast-room-heading';
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'broadcast-room-eyebrow';
+    eyebrow.textContent = teacherMode ? 'استوديو البث المباشر' : 'الحصة المباشرة';
+    const heading = document.createElement('h1');
+    heading.id = 'broadcast-room-title';
+    heading.textContent = title;
+    const subjectLabel = document.createElement('span');
+    subjectLabel.className = 'broadcast-room-subject';
+    subjectLabel.textContent = subject;
+    headingWrap.append(eyebrow, heading, subjectLabel);
+
+    const closeButton = document.createElement('button');
+    closeButton.className = 'broadcast-room-close';
+    closeButton.type = 'button';
+    closeButton.setAttribute('aria-label', teacherMode ? 'إيقاف البث والخروج من الغرفة' : 'الخروج من الحصة');
+    closeButton.textContent = '×';
+    header.append(headingWrap, closeButton);
+
+    const content = document.createElement('div');
+    content.className = 'broadcast-room-content';
+    const sidebar = document.createElement('aside');
+    sidebar.className = 'broadcast-room-sidebar';
+    sidebar.setAttribute('aria-label', 'معلومات المشاركين');
+    const sidebarTitle = document.createElement('h2');
+    sidebarTitle.textContent = 'المشاركون';
+    const attendanceNote = document.createElement('p');
+    attendanceNote.className = 'broadcast-room-note';
+    attendanceNote.textContent = 'قائمة الحضور المباشر غير متاحة حاليًا. ستظل صلاحيات مشاهدة الحصة مفروضة من الخادم.';
+    sidebar.append(sidebarTitle, attendanceNote);
+
+    const stageColumn = document.createElement('main');
+    stageColumn.className = 'broadcast-room-main';
+    const stage = document.createElement('div');
+    stage.className = 'broadcast-room-stage';
+    const video = document.createElement('video');
+    video.className = 'broadcast-room-video';
+    video.autoplay = true;
+    video.muted = true;
+    video.playsInline = true;
+    video.hidden = true;
+    const player = document.createElement('iframe');
+    player.className = 'broadcast-room-player';
+    player.title = 'بث الحصة';
+    player.allow = 'autoplay; fullscreen; picture-in-picture';
+    player.referrerPolicy = 'no-referrer';
+    if (!teacherMode) player.src = playbackUrl;
+
+    const stagePlaceholder = document.createElement('div');
+    stagePlaceholder.className = 'broadcast-room-placeholder';
+    const stageIcon = document.createElement('span');
+    stageIcon.className = 'broadcast-room-placeholder-icon';
+    stageIcon.setAttribute('aria-hidden', 'true');
+    stageIcon.textContent = teacherMode ? '▣' : '◉';
+    const stageMessage = document.createElement('p');
+    stageMessage.textContent = teacherMode
+      ? 'شارك الشاشة لعرض السبورة أو المادة التعليمية للطلاب.'
+      : 'سيظهر بث المعلم هنا عند بدء الإرسال.';
+    stagePlaceholder.append(stageIcon, stageMessage);
+    stage.append(stagePlaceholder);
+    if (teacherMode) stage.append(video);
+    else stage.append(player);
+
+    const status = document.createElement('p');
+    status.className = 'broadcast-room-status';
+    status.setAttribute('role', 'status');
+    status.setAttribute('aria-live', 'polite');
+    status.textContent = teacherMode
+      ? 'تحقق من الكاميرا والميكروفون، ثم ابدأ البث عند الاستعداد.'
+      : 'أنت في وضع المشاهدة. الميكروفون مغلق افتراضيًا.';
+
+    const toolbar = document.createElement('div');
+    toolbar.className = 'broadcast-room-toolbar';
+    const actionButton = (label, className, disabled = false) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `broadcast-room-control ${className}`;
+      button.textContent = label;
+      button.disabled = disabled;
+      return button;
+    };
+
+    let startButton = null;
+    let stopButton = null;
+    let micButton = null;
+    let cameraButton = null;
+    let screenButton = null;
+    let voicePoll = null;
+
+    if (teacherMode) {
+      startButton = actionButton('بدء البث', 'is-primary');
+      stopButton = actionButton('إنهاء البث', 'is-danger', true);
+      micButton = actionButton('كتم الميكروفون', 'is-muted', true);
+      cameraButton = actionButton('إيقاف الكاميرا', 'is-muted', true);
+      screenButton = actionButton('مشاركة الشاشة / السبورة', 'is-screen-share', true);
+      toolbar.append(startButton, stopButton, micButton, cameraButton, screenButton);
+
+      startButton.addEventListener('click', async () => {
+        startButton.disabled = true;
+        closeButton.disabled = true;
+        status.textContent = 'جارٍ تهيئة الكاميرا والميكروفون؛ أكمل طلب الإذن في المتصفح.';
+        await startWhipBroadcast(whipUrl, video, status, stopButton, startButton);
+        closeButton.disabled = false;
+        if (!activeMediaStream) return;
+        micButton.disabled = false;
+        cameraButton.disabled = false;
+        screenButton.disabled = false;
+      });
+      stopButton.addEventListener('click', async () => {
+        await stopWhipBroadcast(video, status, stopButton, startButton);
+        micButton.disabled = true;
+        cameraButton.disabled = true;
+        screenButton.disabled = true;
+        micButton.textContent = 'كتم الميكروفون';
+        cameraButton.textContent = 'إيقاف الكاميرا';
+        screenButton.textContent = 'مشاركة الشاشة / السبورة';
+      });
+      micButton.addEventListener('click', () => {
+        const audioTracks = activeMediaStream?.getAudioTracks() ?? [];
+        if (!audioTracks.length) {
+          status.textContent = 'لم يتم العثور على مسار صوتي نشط.';
+          return;
+        }
+        audioTracks.forEach((track) => { track.enabled = !track.enabled; });
+        const isMuted = !audioTracks[0].enabled;
+        micButton.textContent = isMuted ? 'تشغيل الميكروفون' : 'كتم الميكروفون';
+        micButton.setAttribute('aria-pressed', String(isMuted));
+      });
+      cameraButton.addEventListener('click', () => {
+        const videoTracks = activeMediaStream?.getVideoTracks() ?? [];
+        if (!videoTracks.length) {
+          status.textContent = 'لم يتم العثور على مسار كاميرا نشط.';
+          return;
+        }
+        videoTracks.forEach((track) => { track.enabled = !track.enabled; });
+        const isDisabled = !videoTracks[0].enabled;
+        cameraButton.textContent = isDisabled ? 'تشغيل الكاميرا' : 'إيقاف الكاميرا';
+        cameraButton.setAttribute('aria-pressed', String(isDisabled));
+      });
+      screenButton.addEventListener('click', async () => {
+        let requestedScreen = null;
+        try {
+          if (activeScreenStream) {
+            await restoreCameraTrack(video);
+            screenButton.textContent = 'مشاركة الشاشة / السبورة';
+            return;
+          }
+          if (!navigator.mediaDevices?.getDisplayMedia || !activeVideoSender) {
+            throw new Error('مشاركة الشاشة غير مدعومة في هذا المتصفح.');
+          }
+          requestedScreen = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+          if (!room.isConnected) {
+            requestedScreen.getTracks().forEach((track) => track.stop());
+            return;
+          }
+          activeScreenStream = requestedScreen;
+          const screenTrack = activeScreenStream.getVideoTracks()[0];
+          if (!screenTrack) throw new Error('لم يتم اختيار مصدر شاشة للمشاركة.');
+          await activeVideoSender.replaceTrack(screenTrack);
+          video.srcObject = activeScreenStream;
+          screenTrack.addEventListener('ended', async () => {
+            await restoreCameraTrack(video);
+            screenButton.textContent = 'مشاركة الشاشة / السبورة';
+          }, { once: true });
+          screenButton.textContent = 'إيقاف مشاركة الشاشة';
+          status.textContent = 'مشاركة الشاشة نشطة؛ اختر نافذة السبورة أو المادة التعليمية.';
+        } catch (error) {
+          requestedScreen?.getTracks().forEach((track) => track.stop());
+          activeScreenStream = null;
+          video.srcObject = activeMediaStream;
+          status.textContent = error.message || 'تعذر بدء مشاركة الشاشة.';
+          status.classList.add('is-error');
+        }
+      });
+    } else {
+      const voiceButton = actionButton('رفع اليد لطلب المداخلة', 'is-secondary');
+      const voiceStatus = document.createElement('span');
+      voiceStatus.className = 'broadcast-room-voice-status';
+      voiceButton.addEventListener('click', async () => {
+        voiceButton.disabled = true;
+        try {
+          await api(`/api/v1/sessions/${sessionId}/voice-requests`, 'POST', {});
+          voiceStatus.textContent = 'تم إرسال الطلب؛ بانتظار موافقة الأستاذ.';
+          voicePoll = window.setInterval(async () => {
+            try {
+              const { voice_status: voiceRequest } = await api(`/api/v1/sessions/${sessionId}/voice-requests/me`);
+              if (!voiceRequest) return;
+              if (voiceRequest.status === 'APPROVED') {
+                voiceStatus.textContent = 'وافق الأستاذ على طلبك؛ لكن البث الحالي لا يتيح إرسال صوت الطلاب.';
+                window.clearInterval(voicePoll);
+              } else if (['REVOKED', 'REJECTED'].includes(voiceRequest.status)) {
+                voiceStatus.textContent = 'لم يعد طلب المشاركة الصوتية نشطًا.';
+                voiceButton.disabled = false;
+                window.clearInterval(voicePoll);
+              }
+            } catch (error) {
+              window.clearInterval(voicePoll);
+              voiceStatus.textContent = error.message || 'تعذر التحقق من حالة الطلب.';
+              voiceButton.disabled = false;
+            }
+          }, 5000);
+        } catch (error) {
+          voiceStatus.textContent = error.message || 'تعذر إرسال طلب المشاركة.';
+          voiceButton.disabled = false;
+        }
+      });
+      toolbar.append(voiceButton, voiceStatus);
+    }
+
+    stageColumn.append(stage, status, toolbar);
+    content.append(sidebar, stageColumn);
+    room.append(header, content);
+    document.body.append(room);
+    document.body.classList.add('broadcast-room-open');
+
+    const closeRoom = async () => {
+      if (voicePoll !== null) window.clearInterval(voicePoll);
+      if (teacherMode && (activeMediaStream || activePeerConnection)) {
+        const stopped = await stopWhipBroadcast(video, status, stopButton, startButton);
+        if (!stopped) {
+          closeButton.setAttribute('aria-label', 'الخروج رغم تعذر تأكيد إيقاف البث');
+          return;
+        }
+      }
+      room.remove();
+      document.body.classList.remove('broadcast-room-open');
+      document.removeEventListener('keydown', onEscape);
+    };
+    const onEscape = (event) => {
+      if (event.key === 'Escape') void closeRoom();
+    };
+    closeButton.addEventListener('click', () => { void closeRoom(); });
+    document.addEventListener('keydown', onEscape);
+    closeButton.focus();
+  }
+
   form?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const targetFeedback = formFeedback || feedback;
@@ -130,7 +376,25 @@
 
   let activePeerConnection = null;
   let activeMediaStream = null;
+  let activeScreenStream = null;
+  let activeVideoSender = null;
   let activeWhipResourceUrl = null;
+
+  async function restoreCameraTrack(videoPreviewEl) {
+    const cameraTrack = activeMediaStream?.getVideoTracks()[0];
+    if (!cameraTrack || !activeVideoSender) {
+      throw new Error('تعذر استعادة بث الكاميرا.');
+    }
+    await activeVideoSender.replaceTrack(cameraTrack);
+    if (activeScreenStream) {
+      activeScreenStream.getTracks().forEach((track) => {
+        track.onended = null;
+        track.stop();
+      });
+      activeScreenStream = null;
+    }
+    videoPreviewEl.srcObject = activeMediaStream;
+  }
 
   async function startWhipBroadcast(whipUrl, videoPreviewEl, statusEl, stopBtn, startBtn) {
     try {
@@ -148,7 +412,8 @@
       });
 
       activeMediaStream.getTracks().forEach((track) => {
-        activePeerConnection.addTrack(track, activeMediaStream);
+        const sender = activePeerConnection.addTrack(track, activeMediaStream);
+        if (track.kind === 'video') activeVideoSender = sender;
       });
 
       const offer = await activePeerConnection.createOffer();
@@ -171,14 +436,14 @@
       });
 
       activeWhipResourceUrl = whipResponse.headers.get('Location');
-      statusEl.className = 'message success';
+      statusEl.classList.remove('is-error');
       statusEl.textContent = '🔴 البث المباشر نشط الآن من المتصفح عبر Cloudflare Stream!';
       startBtn.disabled = true;
       stopBtn.disabled = false;
     } catch (err) {
-      statusEl.className = 'message error';
+      await stopWhipBroadcast(videoPreviewEl, statusEl, stopBtn, startBtn);
+      statusEl.classList.add('is-error');
       statusEl.textContent = 'فشل بدء بث المتصفح: ' + (err.message || 'تحقق من أذونات الكاميرا.');
-      stopWhipBroadcast(videoPreviewEl, statusEl, stopBtn, startBtn);
     }
   }
 
@@ -191,21 +456,38 @@
       activeMediaStream.getTracks().forEach((track) => track.stop());
       activeMediaStream = null;
     }
+    if (activeScreenStream) {
+      activeScreenStream.getTracks().forEach((track) => {
+        track.onended = null;
+        track.stop();
+      });
+      activeScreenStream = null;
+    }
+    activeVideoSender = null;
     if (videoPreviewEl) {
       videoPreviewEl.srcObject = null;
       videoPreviewEl.hidden = true;
     }
+    let remoteStopError = '';
     if (activeWhipResourceUrl) {
-      try { await fetch(activeWhipResourceUrl, { method: 'DELETE' }); }
-      catch (_) {}
+      try {
+        const response = await fetch(activeWhipResourceUrl, { method: 'DELETE' });
+        if (!response.ok) remoteStopError = `تعذر تأكيد إنهاء البث من المزود (HTTP ${response.status}).`;
+      } catch (error) {
+        remoteStopError = error.message || 'تعذر الاتصال بمزود البث لإنهائه.';
+      }
       activeWhipResourceUrl = null;
     }
     if (statusEl) {
-      statusEl.className = 'message';
-      statusEl.textContent = 'تم إيقاف بث المتصفح.';
+      statusEl.classList.remove('is-error');
+      statusEl.textContent = remoteStopError
+        ? `تم إيقاف الكاميرا والميكروفون محليًا، لكن ${remoteStopError}`
+        : 'تم إيقاف بث المتصفح.';
+      if (remoteStopError) statusEl.classList.add('is-error');
     }
     if (startBtn) startBtn.disabled = false;
     if (stopBtn) stopBtn.disabled = true;
+    return remoteStopError === '';
   }
 
   document.querySelector('#session-list')?.addEventListener('click', async (event) => {
@@ -215,6 +497,10 @@
     const id = card.dataset.sessionId;
     const output = card.querySelector('.session-output');
     const action = button.dataset.action;
+    if (document.querySelector('.broadcast-room')) {
+      showMessage(output, 'أغلق غرفة الحصة الحالية قبل فتح غرفة أخرى.');
+      return;
+    }
     button.disabled = true;
     try {
       if (action === 'provision') {
@@ -223,60 +509,21 @@
         box.className = 'stream-credentials';
 
         if (stream.whip_url) {
-          const browserBroadcastWrap = document.createElement('div');
-          browserBroadcastWrap.className = 'browser-broadcast-panel';
-          browserBroadcastWrap.style.marginBottom = '14px';
-          browserBroadcastWrap.style.padding = '12px';
-          browserBroadcastWrap.style.background = 'var(--surface-variant, #f8fafc)';
-          browserBroadcastWrap.style.borderRadius = '8px';
-
-          const title = document.createElement('h4');
-          title.style.margin = '0 0 8px 0';
-          title.textContent = '🎥 البث المباشر من المتصفح (كاميرا ومايكروفون)';
-
-          const preview = document.createElement('video');
-          preview.autoplay = true;
-          preview.muted = true;
-          preview.playsInline = true;
-          preview.hidden = true;
-          preview.style.width = '100%';
-          preview.style.maxHeight = '280px';
-          preview.style.borderRadius = '8px';
-          preview.style.background = '#000';
-          preview.style.marginBottom = '8px';
-
-          const bStatus = document.createElement('p');
-          bStatus.className = 'message';
-          bStatus.textContent = 'يمكنك بدء البث فوراً بالكاميرا والمايك من داخل المتصفح بدون أي برنامج خارجي.';
-
-          const bActions = document.createElement('div');
-          bActions.style.display = 'flex';
-          bActions.style.gap = '8px';
-          bActions.style.marginTop = '8px';
-
-          const startBBtn = document.createElement('button');
-          startBBtn.className = 'button button-primary button-small';
-          startBBtn.type = 'button';
-          startBBtn.textContent = '🔴 بدء بث الكاميرا الآن';
-
-          const stopBBtn = document.createElement('button');
-          stopBBtn.className = 'button button-danger button-small';
-          stopBBtn.type = 'button';
-          stopBBtn.disabled = true;
-          stopBBtn.textContent = '⏹ إنهاء بث الكاميرا';
-
-          startBBtn.addEventListener('click', () => startWhipBroadcast(stream.whip_url, preview, bStatus, stopBBtn, startBBtn));
-          stopBBtn.addEventListener('click', () => stopWhipBroadcast(preview, bStatus, stopBBtn, startBBtn));
-
-          bActions.append(startBBtn, stopBBtn);
-          browserBroadcastWrap.append(title, preview, bStatus, bActions);
-          box.append(browserBroadcastWrap);
+          createBroadcastRoom({
+            title: card.querySelector('.session-card-title')?.textContent.trim() || 'حصة مباشرة',
+            subject: card.querySelector('.session-subject-eyebrow')?.textContent.trim() || 'مادة دراسية',
+            teacherMode: true,
+            whipUrl: stream.whip_url,
+            sessionId: id,
+          });
+        } else {
+          showMessage(output, 'لا يتوفر بث مباشر من المتصفح لهذه الحصة. يمكنك استخدام بيانات البث الخارجي عند توفرها.', true);
         }
 
         const voiceBtn = document.createElement('button');
         voiceBtn.className = 'button button-secondary button-small';
         voiceBtn.style.margin = '8px 0';
-        voiceBtn.textContent = '🎙️ إدارة طلبات التحدث للطلاب';
+        voiceBtn.textContent = '📢 مراجعة طلبات المداخلات';
         const voiceListContainer = document.createElement('div');
         voiceListContainer.className = 'voice-requests-list';
         voiceBtn.addEventListener('click', async () => {
@@ -315,7 +562,7 @@
                 if (req.status === 'PENDING') {
                   const approveBtn = document.createElement('button');
                   approveBtn.className = 'button button-small button-primary';
-                  approveBtn.textContent = '✓ سماح بالتحدث';
+                  approveBtn.textContent = '✓ قبول الطلب';
                   approveBtn.addEventListener('click', async () => {
                     await api(`/api/v1/teacher/sessions/${id}/voice-requests/${req.id}`, 'PATCH', { status: 'APPROVED' });
                     voiceBtn.click();
@@ -325,7 +572,7 @@
                 if (req.status === 'APPROVED') {
                   const revokeBtn = document.createElement('button');
                   revokeBtn.className = 'button button-small button-danger';
-                  revokeBtn.textContent = '🔇 كتم / إنهاء';
+                  revokeBtn.textContent = 'إلغاء القبول';
                   revokeBtn.addEventListener('click', async () => {
                     await api(`/api/v1/teacher/sessions/${id}/voice-requests/${req.id}`, 'PATCH', { status: 'REVOKED' });
                     voiceBtn.click();
@@ -378,63 +625,13 @@
         output.replaceChildren(list);
       } else if (action === 'join') {
         const { join } = await api(`/api/v1/sessions/${id}/join`, 'POST', {});
-        const wrap = document.createElement('div');
-        const frame = document.createElement('iframe');
-        frame.src = join.meeting_url; frame.title = 'بث الحصة'; frame.allow = 'autoplay; fullscreen; picture-in-picture'; frame.allowFullscreen = true;
-        frame.style.width = '100%';
-        frame.style.height = '420px';
-        frame.style.border = 'none';
-        frame.style.borderRadius = '8px';
-
-        const voiceBar = document.createElement('div');
-        voiceBar.className = 'student-voice-bar';
-        voiceBar.style.marginTop = '10px';
-        voiceBar.style.padding = '10px 14px';
-        voiceBar.style.background = 'var(--surface-variant, #f1f5f9)';
-        voiceBar.style.borderRadius = '8px';
-        voiceBar.style.display = 'flex';
-        voiceBar.style.alignItems = 'center';
-        voiceBar.style.justifyContent = 'space-between';
-        voiceBar.style.flexWrap = 'wrap';
-        voiceBar.style.gap = '8px';
-
-        const voiceInfo = document.createElement('span');
-        voiceInfo.textContent = '🔇 المايك مغلق افتراضياً (مشاركة صوتية فقط عند إذن الأستاذ)';
-
-        const reqVoiceBtn = document.createElement('button');
-        reqVoiceBtn.className = 'button button-small button-secondary';
-        reqVoiceBtn.type = 'button';
-        reqVoiceBtn.textContent = '🎙️ طلب المشاركة الصوتية';
-
-        reqVoiceBtn.addEventListener('click', async () => {
-          reqVoiceBtn.disabled = true;
-          try {
-            await api(`/api/v1/sessions/${id}/voice-requests`, 'POST', {});
-            voiceInfo.textContent = '⏳ تم إرسال طلب التحدث؛ بانتظار موافقة الأستاذ…';
-            const pollInterval = setInterval(async () => {
-              try {
-                const { voice_status } = await api(`/api/v1/sessions/${id}/voice-requests/me`);
-                if (voice_status && voice_status.status === 'APPROVED') {
-                  voiceInfo.textContent = '🟢 وافق الأستاذ على مشاركتك الصوتية!';
-                  voiceInfo.style.color = '#15803d';
-                  clearInterval(pollInterval);
-                } else if (voice_status && (voice_status.status === 'REVOKED' || voice_status.status === 'REJECTED')) {
-                  voiceInfo.textContent = '🔇 تم كتم/إنهاء المشاركة الصوتية من قِبل الأستاذ.';
-                  voiceInfo.style.color = '';
-                  reqVoiceBtn.disabled = false;
-                  clearInterval(pollInterval);
-                }
-              } catch (_) { clearInterval(pollInterval); }
-            }, 5000);
-          } catch (err) {
-            showMessage(voiceBar, err.message, true);
-            reqVoiceBtn.disabled = false;
-          }
+        createBroadcastRoom({
+          title: card.querySelector('.session-card-title')?.textContent.trim() || 'حصة مباشرة',
+          subject: card.querySelector('.session-subject-eyebrow')?.textContent.trim() || 'مادة دراسية',
+          teacherMode: false,
+          playbackUrl: join.meeting_url,
+          sessionId: id,
         });
-
-        voiceBar.append(voiceInfo, reqVoiceBtn);
-        wrap.append(frame, voiceBar);
-        output.replaceChildren(wrap);
       }
     } catch (error) {
       if (error.message && (error.message.includes('Cloudflare Stream') || error.message.includes('مزود البث'))) {
@@ -457,4 +654,3 @@
     finally { button.disabled = false; }
   });
 })();
-

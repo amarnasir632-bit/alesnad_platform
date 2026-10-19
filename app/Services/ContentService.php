@@ -660,13 +660,13 @@ function content_download_record(string $kind, int $id, ?int $variantId = null):
 {
     if ($kind === 'resource') {
         if ($variantId === null) {
-            $sql = "SELECT lr.id, lr.storage_key, lr.cloudflare_video_uid, lr.video_provider, lr.video_asset_id, lr.video_playback_id,
+            $sql = "SELECT lr.id, lr.class_subject_id, lr.storage_key, lr.cloudflare_video_uid, lr.video_provider, lr.video_asset_id, lr.video_playback_id,
                            lr.video_duration_seconds, lr.original_filename, lr.mime_type, lr.file_size_bytes, lr.requires_subscription
                     FROM learning_resources lr WHERE lr.id = :id AND lr.status = 'APPROVED' AND lr.published_at IS NOT NULL
                     AND EXISTS (SELECT 1 FROM content_reviews cr WHERE cr.resource_id = lr.id AND cr.status = 'APPROVED')";
             $params = ['id' => $id];
         } else {
-            $sql = "SELECT lr.id, rv.storage_key, rv.label AS original_filename, rv.mime_type, rv.file_size_bytes, lr.requires_subscription
+            $sql = "SELECT lr.id, lr.class_subject_id, rv.storage_key, rv.label AS original_filename, rv.mime_type, rv.file_size_bytes, lr.requires_subscription
                     FROM learning_resources lr JOIN resource_variants rv ON rv.resource_id = lr.id
                     WHERE lr.id = :id AND rv.id = :variant_id AND rv.is_downloadable = TRUE
                     AND lr.status = 'APPROVED' AND lr.published_at IS NOT NULL
@@ -674,7 +674,7 @@ function content_download_record(string $kind, int $id, ?int $variantId = null):
             $params = ['id' => $id, 'variant_id' => $variantId];
         }
     } elseif ($kind === 'past_exam' && $variantId === null) {
-        $sql = "SELECT pe.id, pe.storage_key, pe.original_filename, pe.mime_type, pe.file_size_bytes, pe.requires_subscription
+        $sql = "SELECT pe.id, pe.class_subject_id, pe.storage_key, pe.original_filename, pe.mime_type, pe.file_size_bytes, pe.requires_subscription
                 FROM past_exams pe WHERE pe.id = :id AND pe.status = 'APPROVED' AND pe.published_at IS NOT NULL
                 AND EXISTS (SELECT 1 FROM content_reviews cr WHERE cr.past_exam_id = pe.id AND cr.status = 'APPROVED')";
         $params = ['id' => $id];

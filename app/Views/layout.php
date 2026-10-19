@@ -7,6 +7,7 @@ $hasStudentContentAccess = !$user || !user_has_role('student')
         ? (bool) $data['student_has_content_access']
         : student_has_manual_content_access((int) $user['id']));
 $isTeacherOnly = $user && user_has_role('teacher') && !user_has_role('admin') && !user_has_role('content_reviewer');
+$isAuthOnlyShell = !$user && in_array($currentPage, ['login', 'register'], true);
 $homeLabel = !$user ? 'الصفحة الرئيسية'
     : (user_has_role('admin') ? 'لوحة الإدارة'
         : (user_has_role('content_reviewer') ? 'لوحة المراجعة'
@@ -39,8 +40,28 @@ if ($user) {
   <title><?= e($title) ?> | الإسناد الأكاديمي</title>
   <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="<?= ($page ?? '') === 'home' ? 'submitted-home' : '' ?>">
+<body class="<?= (($page ?? '') === 'home' ? 'submitted-home ' : '') . ($isAuthOnlyShell ? 'auth-only-page' : '') ?>">
 
+  <?php if ($isAuthOnlyShell): ?>
+    <a href="#main-content" class="skip-link">انتقل إلى المحتوى الرئيسي</a>
+    <div class="auth-only-layout">
+      <div class="auth-only-content">
+        <?php if (!empty($flashes)): ?>
+          <div class="messages" aria-live="polite">
+            <?php foreach ($flashes as $item): ?>
+              <div class="message <?= e($item['type']) ?>"><span><?= e($item['message']) ?></span></div>
+            <?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+        <?php if (!empty($errors)): ?>
+          <div class="messages" role="alert">
+            <?php foreach ($errors as $error): ?><div class="message error"><span><?= e($error) ?></span></div><?php endforeach; ?>
+          </div>
+        <?php endif; ?>
+        <main id="main-content" class="auth-only-main"><?php require $contentView; ?></main>
+      </div>
+    </div>
+  <?php else: ?>
   <!-- رابط الانتقال السريع للمحتوى لمستخدمي قارئات الشاشة ولوحة المفاتيح -->
   <a href="#main-content" class="skip-link">انتقل إلى المحتوى الرئيسي</a>
 
@@ -108,6 +129,14 @@ if ($user) {
                 <span class="nav-label">المواد الدراسية</span>
               </a>
             </li>
+            <?php if ($user): ?>
+              <li>
+                <a class="nav-item-link <?= in_array($currentPage, ['search', 'teacher', 'lesson'], true) ? 'active' : '' ?>" href="<?= e(url('search')) ?>">
+                  <span class="nav-icon"><?= ui_icon('search') ?></span>
+                  <span class="nav-label">البحث عن أستاذ أو درس</span>
+                </a>
+              </li>
+            <?php endif; ?>
             <?php if ($user && $hasStudentContentAccess && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?>
               <li>
                 <a class="nav-item-link <?= $currentPage === 'library' ? 'active' : '' ?>" href="<?= e(url('library')) ?>">
@@ -356,6 +385,7 @@ if ($user) {
       </footer>
     </div>
   </div>
+  <?php endif; ?>
 
   <!-- السكربتات التفاعلية العامة -->
   <script src="/assets/js/main.js" defer></script>
@@ -367,5 +397,6 @@ if ($user) {
   <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'school_schedule' && !empty($data['canManageSchedule'])): ?><script src="/assets/js/school-schedule.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'lesson'): ?><script src="/assets/js/lesson.js" defer></script><?php endif; ?>
 </body>
 </html>

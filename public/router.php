@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-$path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+$path = rawurldecode(parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
 $candidate = realpath(__DIR__ . $path);
 $publicRoot = realpath(__DIR__);
 if ($path !== '/' && $candidate !== false && $publicRoot !== false

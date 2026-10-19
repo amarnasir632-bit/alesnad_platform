@@ -137,6 +137,72 @@ foreach ($data['sessions'] ?? [] as $session) {
       </div>
     </div>
 
+    <?php if ($isAdmin && !empty($data['adminOverview'])): ?>
+      <?php $overview = $data['adminOverview']; ?>
+      <section class="admin-overview" aria-labelledby="admin-overview-title">
+        <div class="admin-overview-heading">
+          <div>
+            <span class="eyebrow">ملخص المنصة</span>
+            <h2 id="admin-overview-title">نظرة اليوم</h2>
+          </div>
+          <time datetime="<?= e(date('Y-m-d')) ?>"><?= e(date('Y-m-d')) ?></time>
+        </div>
+        <div class="admin-metrics-grid">
+          <article class="admin-metric-card"><span>الطلاب النشطون</span><strong><?= (int) $overview['active_students'] ?></strong></article>
+          <article class="admin-metric-card"><span>المعلمون النشطون</span><strong><?= (int) $overview['active_teachers'] ?></strong></article>
+          <article class="admin-metric-card"><span>الدروس المنشورة</span><strong><?= (int) $overview['published_lessons'] ?></strong></article>
+          <article class="admin-metric-card"><span>الفيديوهات والتسجيلات الصوتية</span><strong><?= (int) $overview['published_media'] ?></strong></article>
+        </div>
+        <div class="admin-overview-panels">
+          <section class="detail-card admin-health-card" aria-labelledby="admin-health-title">
+            <h3 id="admin-health-title">صحة النظام</h3>
+            <p class="admin-health-status <?= $overview['database_available'] ? 'is-healthy' : 'is-unhealthy' ?>">
+              <span aria-hidden="true"></span>
+              <?= $overview['database_available'] ? 'قاعدة البيانات متصلة' : 'تعذر الاتصال بقاعدة البيانات' ?>
+            </p>
+            <p class="muted">فحص الاتصال لحظي عند تحميل هذه الصفحة. تفاصيل الأعطال التقنية تُراجع من سجلات الاستضافة.</p>
+            <div class="admin-security-notice">
+              <strong><?= (int) $overview['blocked_logins_24h'] ?></strong>
+              <span>محاولة دخول مرفوضة خلال آخر 24 ساعة</span>
+            </div>
+          </section>
+          <section class="detail-card admin-activity-card" aria-labelledby="admin-activity-title">
+            <h3 id="admin-activity-title">آخر نشاط مسجل</h3>
+            <?php if (!empty($overview['activity'])): ?>
+              <ol class="admin-activity-list">
+                <?php foreach ($overview['activity'] as $event): ?>
+                  <?php
+                    $activityLabel = match ($event['action_code']) {
+                      'account.created' => 'إنشاء حساب',
+                      'account.updated' => 'تحديث حساب',
+                      'account.roles_changed' => 'تغيير صلاحيات حساب',
+                      'profile.updated' => 'تحديث الملف الشخصي',
+                      'teacher.profile_image.updated' => 'تحديث صورة أستاذ',
+                      'content.uploaded' => 'رفع محتوى للمراجعة',
+                      'content.published' => 'نشر محتوى',
+                      'lesson.youtube_recommendation.created' => 'إضافة توصية لدرس',
+                      'academic.teacher.assigned' => 'إسناد أستاذ لمادة',
+                      'academic.teacher.unassigned' => 'إلغاء إسناد أستاذ',
+                      'session.created' => 'إنشاء حصة',
+                      'session.updated' => 'تحديث حصة',
+                      'auth.login.blocked' => 'محاولة دخول مرفوضة',
+                      default => 'نشاط إداري',
+                    };
+                  ?>
+                  <li>
+                    <div><strong><?= e($activityLabel) ?></strong><span><?= e($event['actor_name'] ?: 'حساب غير متاح') ?></span></div>
+                    <time datetime="<?= e(date(DATE_ATOM, strtotime($event['occurred_at']))) ?>"><?= e(date('Y-m-d H:i', strtotime($event['occurred_at']))) ?></time>
+                  </li>
+                <?php endforeach; ?>
+              </ol>
+            <?php else: ?>
+              <p class="muted">لا يوجد نشاط مسجل بعد.</p>
+            <?php endif; ?>
+          </section>
+        </div>
+      </section>
+    <?php endif; ?>
+
     <?php if ($adminActions): ?>
       <div class="admin-quick-actions-grid">
         <?php foreach ($adminActions as $action): ?>
@@ -174,6 +240,7 @@ foreach ($data['sessions'] ?? [] as $session) {
         <?php if (user_has_permission('sessions.manage')): ?>
           <a class="button button-secondary" href="<?= e(url('sessions')) ?>">جدول الحصص</a>
         <?php endif; ?>
+        <a class="button button-secondary" href="<?= e(url('search')) ?>">البحث عن أستاذ أو درس</a>
       </div>
     </div>
 
@@ -252,6 +319,7 @@ foreach ($data['sessions'] ?? [] as $session) {
       <div class="student-quick-start">
         <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">موادي الدراسية</a>
         <a class="button button-secondary" href="<?= e(url('school_schedule')) ?>">جدولي الدراسي</a>
+        <a class="button button-secondary" href="<?= e(url('search')) ?>">ابحث عن أستاذ أو درس</a>
         <?php if (user_has_permission('sessions.join')): ?>
           <a class="button button-secondary" href="<?= e(url('sessions')) ?>">جدول الحصص</a>
         <?php endif; ?>

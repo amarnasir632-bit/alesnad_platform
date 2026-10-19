@@ -21,8 +21,11 @@ if (user_has_role('admin')) {
   <!-- رأس الصفحة والبطاقة العلوية -->
   <div class="account-hero-card">
     <div class="account-hero-content">
-      <div class="account-avatar-large" aria-hidden="true">
+      <div class="account-avatar-large<?= !empty($employee['profile_image_key']) ? ' has-profile-image' : '' ?>" aria-hidden="true">
         <?= mb_substr($user['full_name'] ?? 'ع', 0, 1) ?>
+        <?php if (!empty($employee['profile_image_key'])): ?>
+          <img src="/api/v1/teachers/<?= (int) $employee['id'] ?>/photo" alt="" loading="lazy">
+        <?php endif; ?>
       </div>
       <div class="account-hero-meta">
         <span class="account-role-tag"><?= e($roleTitle) ?></span>
@@ -201,6 +204,22 @@ if (user_has_role('admin')) {
           </div>
         </form>
       </div>
+
+      <?php if ($employee && user_has_role('teacher')): ?>
+        <div class="detail-card teacher-photo-card">
+          <h3>صورة الملف المهني</h3>
+          <p class="card-subtext">تظهر الصورة داخل المنصة للمستخدمين المسجلين، ويمكن استبدالها لاحقًا.</p>
+          <form method="post" action="<?= e(url('account')) ?>" enctype="multipart/form-data" class="account-form">
+            <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+            <input type="hidden" name="action" value="update_teacher_profile_image">
+            <div class="form-field">
+              <label for="teacher_profile_image">اختر صورة JPEG أو PNG أو WebP (حتى 5 ميغابايت)</label>
+              <input id="teacher_profile_image" name="profile_image" type="file" accept="image/jpeg,image/png,image/webp" required>
+            </div>
+            <button class="button button-secondary" type="submit">حفظ الصورة</button>
+          </form>
+        </div>
+      <?php endif; ?>
 
       <!-- نموذج تغيير كلمة المرور -->
       <div class="detail-card" style="margin-top: 24px;">

@@ -36,6 +36,15 @@
             </div>
           </div>
 
+          <div class="form-field" id="library-resource-type-wrap">
+            <label for="library_resource_type">نوع المورد</label>
+            <select name="resource_type" id="library_resource_type">
+              <option value="PDF">كتاب أو مذكرة PDF</option>
+              <option value="VIDEO">درس فيديو</option>
+              <option value="AUDIO">درس صوتي</option>
+            </select>
+          </div>
+
           <div class="form-field">
             <label for="library_title">عنوان المورد أو الامتحان</label>
             <input id="library_title" name="title" maxlength="200" placeholder="مثال: كتاب الفيزياء للصف الثالث الثانوي - الباب الأول" required>
@@ -46,9 +55,17 @@
             <textarea id="library_description" name="description" rows="3" maxlength="5000" placeholder="ملاحظات توضيحية للطلاب حول موضوعات هذا المورد..."></textarea>
           </div>
 
-          <div class="form-field">
-            <label for="library_lesson_id">معرف الدرس المرتبط (اختياري)</label>
-            <input type="number" id="library_lesson_id" name="lesson_id" min="1" placeholder="مثال: 12 (اتركه فارغاً إن كان المورد عاماً لكامل المادة)">
+          <div class="form-field" id="library-lesson-wrap">
+            <label for="library_lesson_id">الدرس المرتبط</label>
+            <select id="library_lesson_id" name="lesson_id">
+              <option value="">مورد عام للمادة</option>
+              <?php foreach ($data['lessons'] ?? [] as $lesson): ?>
+                <option value="<?= (int) $lesson['id'] ?>" data-class-subject-id="<?= (int) $lesson['class_subject_id'] ?>">
+                  <?= e($lesson['class_name'] . ' · ' . $lesson['subject_name'] . ' · ' . $lesson['title']) ?>
+                </option>
+              <?php endforeach; ?>
+            </select>
+            <small class="field-hint">اربط الفيديو أو الصوت بالدرس ليظهر مشغله ومواده المساعدة في صفحة الدرس.</small>
           </div>
 
           <div class="step-actions"></div>
@@ -57,12 +74,12 @@
         <!-- الخطوة 2: ملف المحتوى أو الرابط الخارجي -->
         <fieldset class="form-step" data-step="2" data-step-title="الملف أو الرابط">
           <legend class="step-legend">الخطوة الثانية: رفع الملف أو إدراج الرابط</legend>
-          <p class="step-desc">اختر ملف PDF أو ملف فيديو أو ضع رابطاً لمورد خارجي موثوق.</p>
+          <p class="step-desc">ارفع كتابًا أو مذكرة أو درسًا صوتيًا أو فيديو، أو أدرج رابط مورد HTTPS.</p>
 
           <div class="form-field">
-            <label for="library_document">ملف المحتوى (PDF أو فيديو)</label>
-            <input type="file" name="document" accept="application/pdf,.pdf,video/mp4,video/quicktime,video/webm" id="library_document">
-            <small class="field-hint">الفيديو للمورد التعليمي يُرفع مباشرة إلى مزود البث، والامتحانات تتطلب صيغة PDF.</small>
+          <label for="library_document">ملف المحتوى</label>
+          <input type="file" name="document" accept="application/pdf,.pdf" id="library_document">
+          <small class="field-hint">يُرفع الفيديو مباشرة إلى مزود البث؛ أما ملفات الصوت والكتب فتحفظ في التخزين الخاص.</small>
           </div>
 
           <div class="form-field" id="library_link_wrap">

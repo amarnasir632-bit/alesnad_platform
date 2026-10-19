@@ -59,6 +59,7 @@ function content_mime_allowlist(string $category): array
         'DOCUMENT' => $documents,
         'VIDEO' => ['video/mp4', 'video/webm', 'video/ogg', 'video/quicktime', 'video/x-matroska'],
         'AUDIO' => ['audio/mpeg', 'audio/mp4', 'audio/aac', 'audio/ogg', 'audio/wav', 'audio/x-wav', 'audio/webm', 'audio/flac'],
+        'IMAGE' => ['image/jpeg', 'image/png', 'image/webp'],
         'EXAM' => $documents,
         default => [],
     };
@@ -75,11 +76,23 @@ function inspect_upload_file(array $file, string $category): array
     $size = filesize($tmp);
     if ($size === false || $size < 1) throw new ApiException(422, 'empty_file', 'لا يمكن رفع ملف فارغ.');
     if ($size > configured_upload_limit()) throw new ApiException(413, 'file_too_large', 'حجم الملف يتجاوز الحد المهيأ.');
+    if ($category === 'IMAGE' && $size > 5 * 1024 * 1024) {
+        throw new ApiException(413, 'file_too_large', 'يجب ألا يتجاوز حجم الصورة 5 ميغابايت.');
+    }
     if (!class_exists('finfo')) throw new ApiException(503, 'fileinfo_unavailable', 'فحص أنواع الملفات غير متاح على الخادم.');
     $finfo = new finfo(FILEINFO_MIME_TYPE);
     $mime = $finfo->file($tmp);
     if (!is_string($mime) || !in_array($mime, content_mime_allowlist($category), true)) {
         throw new ApiException(415, 'unsupported_file_type', 'نوع الملف غير مسموح لهذا المحتوى.');
+    }
+    if ($category === 'IMAGE') {
+        $dimensions = @getimagesize($tmp);
+        if (!is_array($dimensions) || ($dimensions['mime'] ?? null) !== $mime
+            || ($dimensions[0] ?? 0) < 1 || ($dimensions[1] ?? 0) < 1
+            || $dimensions[0] > 5000 || $dimensions[1] > 5000
+            || $dimensions[0] * $dimensions[1] > 20_000_000) {
+            throw new ApiException(415, 'invalid_image', 'الصورة غير صالحة أو أبعادها أكبر من المسموح.');
+        }
     }
     $original = $file['name'] ?? '';
     if (!is_string($original) || trim($original) === '') throw new ApiException(422, 'invalid_filename', 'اسم الملف غير صالح.');
@@ -144,7 +157,7 @@ function parse_byte_range(?string $header, int $size): ?array
     return [$start, $end];
 }
 
-function stream_private_file(string $key, string $mime, string $filename): never
+function stream_private_file(string $key, string $mime, string $filename, bool $inline = false): never
 {
     $path = resolve_private_file($key);
     if ($path === null) throw new ApiException(404, 'not_found', 'الملف غير متاح.');
@@ -173,7 +186,7 @@ function stream_private_file(string $key, string $mime, string $filename): never
     http_response_code($range === null ? 200 : 206);
     $safeMime = preg_match('#^[a-z0-9!$&^_.+-]+/[a-z0-9!$&^_.+-]+$#iD', $mime) === 1 ? $mime : 'application/octet-stream';
     header('Content-Type: ' . $safeMime);
-    header('Content-Disposition: attachment; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
+    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $asciiName . '"; filename*=UTF-8\'\'' . rawurlencode($safeName));
     header('Content-Length: ' . $length);
     header('Accept-Ranges: bytes');
     header('Cache-Control: private, no-store');

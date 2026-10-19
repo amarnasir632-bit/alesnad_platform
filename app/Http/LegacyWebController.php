@@ -12,6 +12,19 @@ $page = is_string($_GET['page'] ?? null) ? $_GET['page'] : 'home';
 $errors = [];
 $old = [];
 
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $actor = current_user();
+    if ($actor === null && !in_array($page, ['login', 'register', 'accept_invitation'], true)) {
+        if ($page === 'home') {
+            $page = 'login';
+        } else {
+            redirect(url('login'));
+        }
+    } elseif ($actor !== null && in_array($page, ['login', 'register'], true)) {
+        redirect(url('home'));
+    }
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     verify_csrf();
     $action = is_string($_POST['action'] ?? null) ? $_POST['action'] : '';
@@ -103,6 +116,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } catch (Throwable $error) {
             app_log_error('legacy_web_action_failed', $error);
             flash('error', 'تعذر حفظ البيانات الآن. حاول مرة أخرى لاحقًا.');
+        }
+        redirect(url('account'));
+    } elseif ($action === 'update_teacher_profile_image') {
+        $user = require_login();
+        try {
+            $file = $_FILES['profile_image'] ?? [];
+            if (!is_array($file)) throw new ApiException(422, 'invalid_upload', 'اختر صورة صالحة.');
+            update_teacher_profile_image((int) $user['id'], $file);
+            flash('success', 'تم تحديث صورة الملف الشخصي.');
+        } catch (ApiException|InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('teacher_profile_image_update_failed', $error);
+            flash('error', 'تعذر تحديث الصورة الآن. حاول مرة أخرى لاحقًا.');
         }
         redirect(url('account'));
     } elseif ($action === 'change_password') {
@@ -339,25 +366,71 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($classSubjectId === false || $classSubjectId < 1) {
                 throw new InvalidArgumentException('اختر المادة الدراسية.');
             }
-            create_library_item(
-                $classSubjectId,
-                post_string('kind'),
-                post_string('title'),
-                post_string('description'),
-                is_array($_FILES['document'] ?? null) ? $_FILES['document'] : [],
-                post_string('external_url'),
-                post_string('source_owner'),
-                post_string('copyright_license'),
-                (int) $user['id']
-            );
+            $kind = post_string('kind');
+            $externalUrl = post_string('external_url');
+            if ($kind === 'resource' && $externalUrl === '') {
+                $resourceType = strtoupper(post_string('resource_type'));
+                if (!in_array($resourceType, ['PDF', 'AUDIO'], true)) {
+                    throw new InvalidArgumentException('ارفع الفيديو باستخدام خيار الفيديو المباشر، أو اختر PDF أو صوتًا.');
+                }
+                $lessonId = post_string('lesson_id');
+                if ($resourceType === 'AUDIO' && $lessonId === '') {
+                    throw new InvalidArgumentException('اختر الدرس المرتبط بالملف الصوتي.');
+                }
+                $resource = content_create_resource($user, [
+                    'class_subject_id' => $classSubjectId,
+                    'lesson_id' => $lessonId,
+                    'title' => post_string('title'),
+                    'resource_type' => $resourceType,
+                    'description' => post_string('description'),
+                    'source_reference' => post_string('source_reference'),
+                    'source_owner' => post_string('source_owner'),
+                    'copyright_license' => post_string('copyright_license'),
+                ], is_array($_FILES['document'] ?? null) ? $_FILES['document'] : []);
+                content_submit_for_review($user, 'resource', (int) $resource['id']);
+            } else {
+                create_library_item(
+                    $classSubjectId,
+                    $kind,
+                    post_string('title'),
+                    post_string('description'),
+                    is_array($_FILES['document'] ?? null) ? $_FILES['document'] : [],
+                    $externalUrl,
+                    post_string('source_owner'),
+                    post_string('copyright_license'),
+                    (int) $user['id']
+                );
+            }
             flash('success', 'تم إرسال المحتوى للمراجعة، ولن يظهر للطلاب قبل اعتماده.');
         } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (ApiException $error) {
             flash('error', $error->getMessage());
         } catch (Throwable $error) {
             app_log_error('legacy_web_action_failed', $error);
             flash('error', 'تعذر رفع المحتوى الآن. تحقق من حجم الملف وإعداد التخزين.');
         }
         redirect(url('library'));
+    } elseif ($action === 'lesson_youtube_recommendation_create') {
+        $lessonId = filter_var($_POST['lesson_id'] ?? null, FILTER_VALIDATE_INT);
+        $returnLesson = $lessonId !== false && $lessonId > 0 ? (int) $lessonId : null;
+        try {
+            $user = require_permission('content.upload');
+            if ($returnLesson === null) throw new InvalidArgumentException('الدرس غير صالح.');
+            catalog_create_youtube_recommendation(
+                $user,
+                $returnLesson,
+                post_string('title'),
+                post_string('youtube_url')
+            );
+            flash('success', 'تمت إضافة توصية YouTube للدرس.');
+        } catch (ApiException|InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('lesson_youtube_recommendation_failed', $error);
+            flash('error', 'تعذر إضافة التوصية الآن.');
+        }
+        redirect($returnLesson === null ? url('search') : url('lesson', ['id' => $returnLesson]));
     } elseif ($action === 'library_review') {
         try {
             $user = require_permission('content.review');
@@ -895,6 +968,88 @@ try {
             http_response_code(403);
             exit('ليس لديك صلاحية لتنزيل هذا الملف.');
         }
+    } elseif ($page === 'search') {
+        $user = require_login();
+        $query = $_GET['q'] ?? '';
+        $queryLength = is_string($query) ? preg_match_all('/./us', $query) : false;
+        if (!is_string($query) || $queryLength === false || $queryLength > 120) {
+            throw new InvalidArgumentException('عبارة البحث يجب ألا تتجاوز 120 محرفًا.');
+        }
+        $query = trim($query);
+        $data['searchQuery'] = $query;
+        $data['teachers'] = catalog_search_teachers($query, $user);
+        $data['canSearchLessons'] = user_has_permission('content.read')
+            || user_has_permission('content.publish')
+            || user_has_permission('content.review');
+        if (in_array('student', $user['roles'] ?? [], true)
+            && !student_has_manual_content_access((int) $user['id'])) {
+            $data['canSearchLessons'] = false;
+        }
+        $data['lessons'] = $data['canSearchLessons'] ? catalog_search_lessons($query, $user) : [];
+        $data['popularMedia'] = $data['canSearchLessons'] ? catalog_popular_media($user) : [];
+        $data['latestMedia'] = $data['canSearchLessons'] ? catalog_latest_media($user) : [];
+        $title = 'البحث عن أستاذ أو درس';
+        $contentView = PROJECT_ROOT . '/app/Views/search.php';
+    } elseif ($page === 'lesson') {
+        $user = require_login();
+        $lessonId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+        $canRead = user_has_permission('content.read')
+            || user_has_permission('content.publish')
+            || user_has_permission('content.review');
+        if (in_array('student', $user['roles'] ?? [], true)
+            && !student_has_manual_content_access((int) $user['id'])) {
+            $canRead = false;
+        }
+        $data['lesson'] = $canRead && $lessonId !== false && $lessonId !== null && $lessonId > 0
+            ? catalog_find_lesson_for_actor((int) $lessonId, $user)
+            : null;
+        if ($data['lesson'] === null) {
+            http_response_code($canRead ? 404 : 403);
+            $title = $canRead ? 'الدرس غير موجود' : 'صلاحية المحتوى غير مفعلة';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } else {
+            $media = array_values(array_filter(
+                $data['lesson']['resources'],
+                static fn(array $resource): bool => in_array($resource['resource_type'], ['VIDEO', 'AUDIO'], true)
+            ));
+            $selectedId = filter_input(INPUT_GET, 'resource_id', FILTER_VALIDATE_INT);
+            $data['activeMedia'] = null;
+            foreach ($media as $resource) {
+                if ($selectedId !== false && $selectedId !== null && (int) $resource['id'] === $selectedId) {
+                    $data['activeMedia'] = $resource;
+                    break;
+                }
+            }
+            $data['activeMedia'] ??= $media[0] ?? null;
+            $data['canAddYoutubeRecommendations'] = user_has_permission('content.upload')
+                && (user_has_role('admin') || user_has_role('teacher'));
+            $title = $data['lesson']['title'];
+            $contentView = PROJECT_ROOT . '/app/Views/lesson.php';
+        }
+    } elseif ($page === 'teacher') {
+        $user = require_login();
+        $employeeId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
+        $data['teacher'] = $employeeId !== false && $employeeId !== null && $employeeId > 0
+            ? catalog_find_teacher_for_actor((int) $employeeId, $user)
+            : null;
+        if ($data['teacher'] === null) {
+            http_response_code(404);
+            $title = 'الأستاذ غير موجود';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } else {
+            $canReadLessons = user_has_permission('content.read')
+                || user_has_permission('content.publish')
+                || user_has_permission('content.review');
+            if (in_array('student', $user['roles'] ?? [], true)
+                && !student_has_manual_content_access((int) $user['id'])) {
+                $canReadLessons = false;
+            }
+            $data['teacherLessons'] = $canReadLessons
+                ? catalog_teacher_lessons((int) $data['teacher']['employee_id'], $user)
+                : [];
+            $title = $data['teacher']['full_name'];
+            $contentView = PROJECT_ROOT . '/app/Views/teacher.php';
+        }
     } elseif ($page === 'library') {
         $user = require_login();
         $data['can_review'] = user_has_permission('content.review');
@@ -908,6 +1063,7 @@ try {
             $pending = array_values(array_filter(list_library_items(true), static fn(array $item): bool => (int) $item['uploader_user_id'] === (int) $user['id']));
             $data['items'] = array_merge($pending, $approved);
             $data['subjects'] = $subjects;
+            $data['lessons'] = catalog_list_upload_lessons((int) $user['id']);
         } elseif (user_has_permission('content.read')) {
             $data['items'] = list_student_library_items((int) $user['id']);
         } else {
@@ -1146,6 +1302,9 @@ try {
                 $data['student_has_content_access'] = student_has_manual_content_access((int) $user['id']);
                 $data['sessions'] = user_has_permission('sessions.join') ? sm_list_sessions($user) : [];
                 $data['published_announcements'] = list_published_announcements($studentClassId, 5);
+            }
+            if ($page === 'home' && $user && user_has_role('admin') && user_has_permission('roles.manage')) {
+                $data['adminOverview'] = admin_dashboard_summary();
             }
         } elseif ($page === 'home') {
             $data['school_holidays'] = school_schedule_list_holidays(null, 5);
