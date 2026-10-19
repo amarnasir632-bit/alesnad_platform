@@ -1056,16 +1056,31 @@ try {
             $contentView = PROJECT_ROOT . '/app/Views/sessions.php';
         }
     } elseif ($page === 'subjects' || $page === 'home') {
-        $data['subjects'] = list_class_subjects($page === 'home' ? 3 : 50);
-        if ($page === 'home') {
-            $studentClassId = null;
-            if (!empty($_SESSION['user']['id']) && in_array('student', $_SESSION['user']['roles'] ?? [], true)) {
-                $stmt = database_connection()->prepare("SELECT class_id FROM students WHERE user_id = :uid");
-                $stmt->execute(['uid' => $_SESSION['user']['id']]);
-                $cVal = $stmt->fetchColumn();
-                $studentClassId = $cVal ? (int) $cVal : null;
+        $user = current_user();
+        if ($page === 'home' && $user) {
+            if (user_has_role('admin') || user_has_role('content_reviewer')) {
+                $data['published_announcements'] = list_published_announcements(null, 5);
+            } elseif (user_has_role('teacher')) {
+                $data['teacher_assignments'] = academic_teacher_assignments((int) $user['id']);
+                $data['sessions'] = user_has_permission('sessions.manage') ? sm_list_sessions($user) : [];
+                $data['published_announcements'] = list_published_announcements(null, 5);
+            } elseif (user_has_role('student')) {
+                $studentClassId = student_class_id((int) $user['id']);
+                $data['subjects'] = $studentClassId === null ? [] : list_class_subjects(3, $studentClassId);
+                $data['has_student_class'] = $studentClassId !== null;
+                $data['student_has_content_access'] = student_has_manual_content_access((int) $user['id']);
+                $data['sessions'] = user_has_permission('sessions.join') ? sm_list_sessions($user) : [];
+                $data['published_announcements'] = list_published_announcements($studentClassId, 5);
             }
-            $data['published_announcements'] = list_published_announcements($studentClassId, 5);
+        } elseif ($page === 'home') {
+            $data['subjects'] = list_class_subjects(3);
+            $data['published_announcements'] = list_published_announcements(null, 5);
+        } elseif ($user && user_has_role('teacher')) {
+            $data['subjects'] = list_teacher_class_subjects((int) $user['id']);
+        } elseif ($user && user_has_role('student')) {
+            $data['subjects'] = list_student_class_subjects((int) $user['id']);
+        } else {
+            $data['subjects'] = list_class_subjects(50);
         }
         if ($page === 'subjects') {
             $title = 'المواد الدراسية';
@@ -1080,13 +1095,35 @@ try {
             $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
         } else {
             $user = current_user();
-            $data['can_view_content'] = $user !== null
-                && (user_has_permission('content.publish') || student_has_manual_content_access((int) $user['id']));
-            $data['lessons'] = $data['can_view_content']
-                ? list_published_lessons((int) $data['subject']['class_subject_id'])
-                : [];
-            $title = $data['subject']['subject_name'] . ' | المواد الدراسية';
-            $contentView = PROJECT_ROOT . '/app/Views/subject.php';
+            $classSubjectId = (int) $data['subject']['class_subject_id'];
+            $studentClassId = $user && user_has_role('student') ? student_class_id((int) $user['id']) : null;
+            $studentInClass = $user
+                && user_has_role('student')
+                && $studentClassId === (int) $data['subject']['class_id'];
+            $teacherAssigned = $user
+                && user_has_role('teacher')
+                && teacher_has_class_subject((int) $user['id'], $classSubjectId);
+            $studentCanRead = $studentInClass
+                && student_has_manual_content_access((int) $user['id']);
+            $teacherCanRead = $teacherAssigned && user_has_permission('content.read');
+            $canViewContent = $user !== null
+                && (user_has_permission('content.publish') || $studentCanRead || $teacherCanRead);
+            $outsideAssignedScope = $user
+                && (user_has_role('student') || user_has_role('teacher'))
+                && !(user_has_permission('content.publish') || $studentInClass || $teacherAssigned);
+            if ($outsideAssignedScope) {
+                http_response_code(404);
+                $data['subject'] = null;
+                $title = 'الصفحة غير موجودة';
+                $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+            } else {
+                $data['can_view_content'] = $canViewContent;
+                $data['lessons'] = $data['can_view_content']
+                    ? list_published_lessons($classSubjectId)
+                    : [];
+                $title = $data['subject']['subject_name'] . ' | المواد الدراسية';
+                $contentView = PROJECT_ROOT . '/app/Views/subject.php';
+            }
         }
     } elseif ($page === 'account' || $page === 'profile') {
         $user = require_login();

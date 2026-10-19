@@ -11,6 +11,7 @@
 
   document.addEventListener('DOMContentLoaded', function () {
     initSidebar();
+    initLoginForm();
     initMultiStepForms();
     initTouchEnhancements();
     initTabs();
@@ -28,25 +29,62 @@
 
     if (!sidebar) return;
 
-    function openSidebar() {
-      sidebar.classList.add('is-open');
-      if (backdrop) backdrop.classList.add('is-active');
-      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'true');
-      document.body.classList.add('sidebar-locked');
+    const isDrawer = function () {
+      return window.matchMedia('(max-width: 992px)').matches;
+    };
+
+    function syncSidebarAvailability() {
+      if (!isDrawer() && sidebar.classList.contains('is-open')) {
+        sidebar.classList.remove('is-open');
+        if (backdrop) backdrop.classList.remove('is-active');
+        if (toggleBtn) {
+          toggleBtn.setAttribute('aria-expanded', 'false');
+          toggleBtn.setAttribute('aria-label', 'فتح القائمة الرئيسية');
+        }
+        document.body.classList.remove('sidebar-locked');
+      }
+      if (isDrawer() && !sidebar.classList.contains('is-open')) {
+        sidebar.setAttribute('inert', '');
+        sidebar.setAttribute('aria-hidden', 'true');
+      } else {
+        sidebar.removeAttribute('inert');
+        sidebar.removeAttribute('aria-hidden');
+      }
     }
 
-    function closeSidebar() {
+    function openSidebar() {
+      sidebar.removeAttribute('inert');
+      sidebar.removeAttribute('aria-hidden');
+      sidebar.classList.add('is-open');
+      if (backdrop) backdrop.classList.add('is-active');
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-expanded', 'true');
+        toggleBtn.setAttribute('aria-label', 'إغلاق القائمة الرئيسية');
+      }
+      document.body.classList.add('sidebar-locked');
+      if (closeBtn) closeBtn.focus();
+    }
+
+    function closeSidebar(restoreFocus) {
       sidebar.classList.remove('is-open');
       if (backdrop) backdrop.classList.remove('is-active');
-      if (toggleBtn) toggleBtn.setAttribute('aria-expanded', 'false');
+      if (toggleBtn) {
+        toggleBtn.setAttribute('aria-expanded', 'false');
+        toggleBtn.setAttribute('aria-label', 'فتح القائمة الرئيسية');
+      }
       document.body.classList.remove('sidebar-locked');
+      syncSidebarAvailability();
+      if (restoreFocus && toggleBtn) toggleBtn.focus();
     }
+
+    syncSidebarAvailability();
+    window.addEventListener('resize', syncSidebarAvailability);
 
     if (toggleBtn) {
       toggleBtn.addEventListener('click', function (e) {
         e.stopPropagation();
         if (sidebar.classList.contains('is-open')) {
-          closeSidebar();
+          closeSidebar(true);
         } else {
           openSidebar();
         }
@@ -56,18 +94,35 @@
     if (closeBtn) {
       closeBtn.addEventListener('click', function (e) {
         e.stopPropagation();
-        closeSidebar();
+        closeSidebar(true);
       });
     }
 
     if (backdrop) {
-      backdrop.addEventListener('click', closeSidebar);
+      backdrop.addEventListener('click', function () {
+        closeSidebar(true);
+      });
     }
 
-    // إغلاق القائمة عند الضغط على مفتاح Escape
+    // Keep keyboard focus inside the mobile drawer while it is open.
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && sidebar.classList.contains('is-open')) {
-        closeSidebar();
+      if (!sidebar.classList.contains('is-open') || !isDrawer()) return;
+      if (e.key === 'Escape') {
+        closeSidebar(true);
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const focusable = Array.from(sidebar.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled])'))
+        .filter(function (element) { return !element.hasAttribute('inert') && element.getAttribute('aria-hidden') !== 'true'; });
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
       }
     });
 
@@ -76,7 +131,7 @@
     navLinks.forEach(function (link) {
       link.addEventListener('click', function () {
         if (window.innerWidth <= 992) {
-          closeSidebar();
+          closeSidebar(false);
         }
       });
     });
@@ -91,9 +146,40 @@
       const touchEndX = e.changedTouches[0].clientX;
       // في اللغة العربية (RTL)، السحب إلى اليمين (touchEndX > touchStartX) يعني إرجاع القائمة لليمين لإغلاقها
       if (touchEndX - touchStartX > 60) {
-        closeSidebar();
+        closeSidebar(true);
       }
     }, { passive: true });
+  }
+
+  function initLoginForm() {
+    const form = document.getElementById('login-form');
+    if (!form) return;
+
+    const password = form.querySelector('#password');
+    const toggle = form.querySelector('.password-toggle');
+    const submit = form.querySelector('button[type="submit"]');
+    const submitLabel = form.querySelector('[data-submit-label]');
+    const loadingStatus = form.querySelector('[data-login-loading]');
+
+    if (password && toggle) {
+      toggle.addEventListener('click', function () {
+        const showPassword = password.type === 'password';
+        password.type = showPassword ? 'text' : 'password';
+        toggle.textContent = showPassword ? 'إخفاء' : 'إظهار';
+        toggle.setAttribute('aria-label', showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور');
+        toggle.setAttribute('aria-pressed', showPassword ? 'true' : 'false');
+        password.focus();
+      });
+    }
+
+    form.addEventListener('submit', function () {
+      if (submit) {
+        submit.disabled = true;
+        submit.setAttribute('aria-busy', 'true');
+      }
+      if (submitLabel) submitLabel.textContent = 'جارٍ تسجيل الدخول…';
+      if (loadingStatus) loadingStatus.textContent = 'جارٍ تسجيل الدخول، يرجى الانتظار.';
+    });
   }
 
   /* -------------------------------------------------------------

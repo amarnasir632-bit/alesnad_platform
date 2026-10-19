@@ -108,27 +108,41 @@
       </div>
     <?php else: ?>
       <?php foreach ($data['sessions'] as $session): ?>
-        <?php 
+        <?php
           $status = $session['status'];
-          $isLive = in_array($status, ['LIVE', 'IN_PROGRESS'], true);
-          $isCompleted = in_array($status, ['COMPLETED'], true);
+          $availability = sm_session_availability($session);
+          $statusLabels = [
+              'cancelled' => 'حصة ملغاة',
+              'completed' => 'حصة مكتملة',
+              'upcoming' => 'حصة قادمة',
+              'live' => 'بث مباشر الآن',
+              'joinable' => 'وقت الانضمام متاح',
+              'ended' => 'انتهى وقت الحصة',
+              'unavailable' => 'الحصة غير متاحة',
+          ];
+          $statusLabel = $statusLabels[$availability['state']];
+          $showRecordings = $data['sessionCanManage'] || sm_session_recordings_available($session);
+          $canProvision = $data['sessionCanManage']
+              && !in_array($status, ['COMPLETED', 'CANCELLED'], true);
           $subName = $session['subject_name'] ?? 'مادة دراسية';
           $coverData = get_subject_cover_data($subName);
         ?>
-        <article class="detail-card session-modern-card <?= $isLive ? 'is-live-card' : '' ?>" data-session-id="<?= (int) $session['id'] ?>">
-          <div class="session-card-banner" style="background: <?= e($coverData['gradient']) ?>;">
+        <article class="detail-card session-modern-card <?= $availability['state'] === 'live' ? 'is-live-card' : '' ?>" data-session-id="<?= (int) $session['id'] ?>">
+          <div class="session-card-banner cover-theme-<?= e($coverData['theme']) ?>">
             <div class="banner-top-tags">
-              <?php if ($isLive): ?>
-                <span class="status-chip chip-live">
+              <?php if ($availability['state'] === 'live'): ?>
+                <span class="status-chip chip-live" role="status">
                   <span class="pulse-dot" aria-hidden="true"></span>
-                  🔴 بث حي مباشر الآن
+                  <?= e($statusLabel) ?>
                 </span>
-              <?php elseif ($isCompleted): ?>
-                <span class="status-chip chip-completed">✓ حصة مكتملة ومسجلة</span>
               <?php else: ?>
-                <span class="status-chip chip-scheduled">⏰ موعد مجدول</span>
+                <span class="status-chip <?= $availability['state'] === 'cancelled' ? 'chip-cancelled' : ($availability['state'] === 'completed' || $availability['state'] === 'ended' ? 'chip-completed' : 'chip-scheduled') ?>" role="status">
+                  <?= e($statusLabel) ?>
+                </span>
               <?php endif; ?>
-              <span class="session-duration-tag">⏱️ <?= (int) ($session['duration_minutes'] ?? 0) ?> دقيقة</span>
+              <?php if (!empty($session['duration_minutes'])): ?>
+                <span class="session-duration-tag"><?= (int) $session['duration_minutes'] ?> دقيقة</span>
+              <?php endif; ?>
             </div>
             <span class="session-cover-icon" aria-hidden="true"><?= e($coverData['icon']) ?></span>
           </div>
@@ -150,21 +164,27 @@
 
             <div class="session-actions-toolbar">
               <?php if ($data['sessionCanManage']): ?>
-                <button class="button button-primary button-small" type="button" data-action="provision">
-                  <span>🎥 استوديو وبدء البث المباشر</span>
-                </button>
-                <button class="button button-outline button-small" type="button" data-action="join">
-                  <span>👁️ معاينة المشاهدة (كطالب)</span>
-                </button>
-              <?php else: ?>
+                <?php if ($canProvision): ?>
+                  <button class="button button-primary button-small" type="button" data-action="provision">
+                    <span>استوديو وبدء البث المباشر</span>
+                  </button>
+                <?php endif; ?>
+                <?php if (!in_array($status, ['COMPLETED', 'CANCELLED'], true)): ?>
+                  <button class="button button-outline button-small" type="button" data-action="join">
+                    <span>معاينة المشاهدة (كطالب)</span>
+                  </button>
+                <?php endif; ?>
+              <?php elseif ($availability['can_join']): ?>
                 <button class="button button-primary button-small" type="button" data-action="join">
-                  <span>▶ انضمام / مشاهدة البث</span>
+                  <span>انضم إلى الحصة الآن</span>
                 </button>
               <?php endif; ?>
 
-              <button class="button button-secondary button-small" type="button" data-action="recordings">
-                <span>📼 عرض التسجيلات</span>
-              </button>
+              <?php if ($showRecordings): ?>
+                <button class="button button-secondary button-small" type="button" data-action="recordings">
+                  <span>عرض التسجيلات</span>
+                </button>
+              <?php endif; ?>
 
               <?php if ($data['sessionCanManage']): ?>
                 <div class="manager-session-actions">

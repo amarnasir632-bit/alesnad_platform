@@ -171,7 +171,7 @@ php -S 127.0.0.1:8000 -t public public/router.php
 
 ## الاختبارات والتحقق
 
-- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/database_url_unit.php`, و`php tests/quiz_policy_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
+- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/database_url_unit.php`, و`php tests/quiz_policy_unit.php`, و`php tests/session_availability_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
 - اختبارات PostgreSQL التكاملية ترفض العمل ما لم يبدأ اسم `DB_DATABASE` بـ`alesnad_test_`. شغّل `php database/migrate.php` قبل `tests/phase1_integration.php` و`tests/phase2_academic_integration.php`.
 - GitHub Actions في `.github/workflows/backend-ci.yml` يوفر PostgreSQL 16 وPHP 8.4، ويشغّل الترحيلات واختبارات DB وHTTP وصلاحيات endpoints والوصول المباشر للملفات وتجربة النسخ والاستعادة.
 - `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. عند كتابة هذا التغيير لم يعمل workflow بعد؛ لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.

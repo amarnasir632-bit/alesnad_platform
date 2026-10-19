@@ -1,249 +1,306 @@
 <?php
 $user = current_user();
 $isAdmin = $user && user_has_role('admin');
-$isReviewer = $user && user_has_role('content_reviewer');
-$isTeacher = $user && user_has_role('teacher');
-$isStudent = $user && user_has_role('student');
+$isReviewer = $user && user_has_role('content_reviewer') && !$isAdmin;
+$isTeacher = $user && user_has_role('teacher') && !$isAdmin && !$isReviewer;
+$isStudent = $user && user_has_role('student') && !$isAdmin && !$isReviewer && !$isTeacher;
+$announcements = $data['published_announcements'] ?? [];
+$topAnnouncement = $announcements[0] ?? null;
+
+$adminActions = [];
+if ($isAdmin && user_has_permission('academics.manage')) {
+    $adminActions[] = ['icon' => 'book', 'title' => 'المنهج والمواد', 'description' => 'إدارة المراحل والصفوف والمواد الدراسية.', 'label' => 'إدارة المنهج', 'page' => 'academics'];
+}
+if (user_has_permission('content_access.manage')) {
+    $adminActions[] = ['icon' => 'shield', 'title' => 'صلاحيات وصول الطلاب', 'description' => 'منح أهلية المحتوى أو سحبها ومتابعة حالتها.', 'label' => 'إدارة الصلاحيات', 'page' => 'content_access'];
+}
+if ($isAdmin && user_has_permission('users.manage')) {
+    $adminActions[] = ['icon' => 'users', 'title' => 'فريق العمل', 'description' => 'إدارة دعوات أعضاء الفريق وإسناد المواد.', 'label' => 'إدارة الفريق', 'page' => 'staff'];
+}
+if ($isAdmin && user_has_permission('roles.manage')) {
+    $adminActions[] = ['icon' => 'shield', 'title' => 'الحسابات والأدوار', 'description' => 'إدارة الحسابات وصلاحيات الأدوار.', 'label' => 'إدارة الحسابات', 'page' => 'accounts'];
+}
+if (($isAdmin || $isReviewer) && user_has_permission('content.review')) {
+    $adminActions[] = ['icon' => 'library', 'title' => 'مراجعة المكتبة', 'description' => 'مراجعة موارد المكتبة واعتماد المحتوى.', 'label' => 'فتح المكتبة', 'page' => 'library'];
+}
+if (($isAdmin || $isReviewer) && user_has_permission('questions.manage')) {
+    $adminActions[] = ['icon' => 'question', 'title' => 'بنك الأسئلة', 'description' => 'مراجعة الأسئلة وإدارة ما تسمح به صلاحياتك.', 'label' => 'فتح بنك الأسئلة', 'page' => 'questions'];
+}
+if ($isAdmin && user_has_permission('quizzes.manage')) {
+    $adminActions[] = ['icon' => 'clipboard', 'title' => 'الاختبارات', 'description' => 'متابعة الاختبارات وإدارتها.', 'label' => 'إدارة الاختبارات', 'page' => 'quizzes'];
+}
+if ($isAdmin && user_has_permission('sessions.manage')) {
+    $adminActions[] = ['icon' => 'video', 'title' => 'الحصص', 'description' => 'متابعة الحصص والتسجيلات.', 'label' => 'إدارة الحصص', 'page' => 'sessions'];
+}
+if ($isAdmin) {
+    $adminActions[] = ['icon' => 'message', 'title' => 'الرسائل الأكاديمية', 'description' => 'الوصول إلى أدوات متابعة الرسائل المتاحة للمدير.', 'label' => 'متابعة الرسائل', 'page' => 'messages'];
+}
+if ($isAdmin && user_has_permission('users.manage')) {
+    $adminActions[] = ['icon' => 'message', 'title' => 'الإعلانات', 'description' => 'إدارة الإعلانات المنشورة للطلاب.', 'label' => 'إدارة الإعلانات', 'page' => 'announcements'];
+}
+
+$studentUpcomingSessions = [];
+foreach ($data['sessions'] ?? [] as $session) {
+    $availability = sm_session_availability($session);
+    if (in_array($availability['state'], ['upcoming', 'live', 'joinable'], true)) {
+        $session['availability'] = $availability;
+        $studentUpcomingSessions[] = $session;
+        if (count($studentUpcomingSessions) === 3) break;
+    }
+}
 ?>
 
-<!-- =========================================================================
-     لوحة الإعلانات والتنبيهات المدرسية الأكاديمية (School Announcements & Noticeboard)
-     ========================================================================= -->
-<?php 
-$announcementsList = $data['published_announcements'] ?? [];
-$topAnnouncement = !empty($announcementsList) ? $announcementsList[0] : null;
-$announcementCover = $topAnnouncement ? get_announcement_cover_data($topAnnouncement['cover_style'] ?? 'gradient_blue', $topAnnouncement['priority'] ?? 'NORMAL') : null;
-?>
-
-<!-- =========================================================================
-     لوحة الإعلانات والتنبيهات المدرسية الأكاديمية (School Announcements & Noticeboard)
-     ========================================================================= -->
-<section class="announcements-banner" aria-label="لوحة الإعلانات والتنبيهات" style="<?= $announcementCover ? 'border-right: 6px solid ' . e($announcementCover['accent']) . ';' : '' ?>">
-  <div class="announcement-content">
-    <div class="announcement-badge-wrap">
-      <span class="announcement-pulse-dot" aria-hidden="true"></span>
-      <span class="announcement-tag"><?= e($topAnnouncement['badge_label'] ?? '📢 لوحة الإعلانات والتنبيهات المدرسية') ?></span>
-      <span class="announcement-date">
-        <?= $topAnnouncement ? e(date('Y-m-d', strtotime($topAnnouncement['created_at']))) : 'العام الدراسي 2026 / 2027' ?>
-      </span>
-      <?php if ($topAnnouncement && $topAnnouncement['priority'] === 'URGENT'): ?>
-        <span class="status-pill status-pill-danger">🚨 تنبيه عاجل</span>
+<?php if ($topAnnouncement): ?>
+  <section class="announcements-banner" aria-label="إعلان منشور">
+    <div class="announcement-content">
+      <div class="announcement-badge-wrap">
+        <span class="announcement-pulse-dot" aria-hidden="true"></span>
+        <span class="announcement-tag"><?= e($topAnnouncement['badge_label'] ?: 'إعلان المنصة') ?></span>
+        <span class="announcement-date"><?= e(date('Y-m-d', strtotime($topAnnouncement['created_at']))) ?></span>
+        <?php if ($topAnnouncement['priority'] === 'URGENT'): ?>
+          <span class="status-pill status-pill-danger">تنبيه عاجل</span>
+        <?php endif; ?>
+      </div>
+      <div class="announcement-body">
+        <h2 class="announcement-title"><?= e($topAnnouncement['title']) ?></h2>
+        <p class="announcement-desc"><?= nl2br(e($topAnnouncement['content'])) ?></p>
+      </div>
+    </div>
+    <div class="announcement-actions">
+      <?php if ($isAdmin || $isTeacher): ?>
+        <a href="<?= e(url('announcements')) ?>" class="button button-small button-outline">إدارة الإعلانات</a>
       <?php endif; ?>
+      <?php if (user_has_permission('sessions.manage') || user_has_permission('sessions.join')): ?>
+        <a href="<?= e(url('sessions')) ?>" class="button button-small button-primary">جدول الحصص</a>
+      <?php endif; ?>
+      <a href="<?= e(url('subjects')) ?>" class="button button-small button-secondary">المواد الدراسية</a>
     </div>
-    <div class="announcement-body">
-      <h2 class="announcement-title">
-        <?= e($topAnnouncement['title'] ?? 'انطلاق جدول الحصص المباشرة والاختبارات التجريبية للمنهج السوداني') ?>
-      </h2>
-      <p class="announcement-desc">
-        <?= nl2br(e($topAnnouncement['content'] ?? 'نحيطكم علمًا بأن مواعيد الحصص التفاعلية وبنك الأسئلة المعتمد متاحة الآن لكافة الطلاب والأساتذة. يمكنكم متابعة التحديثات وجدول البث الأسبوعي.')) ?>
-      </p>
-    </div>
-  </div>
-  <div class="announcement-actions">
-    <?php if ($isAdmin || $isTeacher): ?>
-      <a href="<?= e(url('announcements')) ?>" class="button button-small button-outline">📢 إدارة الإعلانات</a>
-    <?php endif; ?>
-    <a href="<?= e(url('sessions')) ?>" class="button button-small button-primary">📅 جدول الحصص المباشرة</a>
-    <a href="<?= e(url('subjects')) ?>" class="button button-small button-secondary">📚 المقررات الدراسية</a>
-  </div>
-</section>
+  </section>
+<?php endif; ?>
 
 <?php if ($isAdmin || $isReviewer): ?>
-  <!-- =========================================================================
-       لوحة تحكم مدير النظام ومراجع المحتوى (Admin / Reviewer Dashboard)
-       ========================================================================= -->
   <section class="dashboard-panel admin-dashboard">
     <div class="dashboard-welcome">
       <div class="welcome-text">
-        <span class="eyebrow"><?= $isAdmin ? 'لوحة القيادة الإدارية' : 'لوحة مراجعة المحتوى والوصول' ?></span>
-        <h1>مرحبًا بك، <?= e($user['full_name']) ?></h1>
-        <p class="dashboard-intro">مركز الإدارة السريع للمنهج، وصول الطلاب، المحتوى، وحسابات فريق العمل في منصة الإسناد الأكاديمي.</p>
-      </div>
-      <div class="welcome-actions">
-        <?php if ($isAdmin): ?>
-          <a class="button button-primary" href="<?= e(url('academics')) ?>">⚙️ إدارة المنهج والمواد</a>
-          <a class="button button-secondary" href="<?= e(url('content_access')) ?>">🔐 صلاحيات الطلاب</a>
-        <?php else: ?>
-          <a class="button button-primary" href="<?= e(url('content_access')) ?>">🔐 إدارة صلاحيات الطلاب</a>
-        <?php endif; ?>
+        <span class="eyebrow"><?= $isAdmin ? 'مساحة إدارة المنصة' : 'مساحة مراجعة المحتوى' ?></span>
+        <h1>مرحبًا، <?= e($user['full_name']) ?></h1>
+        <p class="dashboard-intro"><?= $isAdmin ? 'اختر المهمة الإدارية التي تريد إنجازها.' : 'تابع مراجعة المحتوى وإدارة الأذونات الممنوحة لدورك.' ?></p>
       </div>
     </div>
 
-    <!-- شبكة الإجراءات الإدارية المباشرة (Direct Admin Actions) -->
-    <div class="admin-quick-actions-grid">
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">⚙️</div>
-        <div class="action-info">
-          <h3>إدارة المنهج والصفوف</h3>
-          <p>إضافة المراحل التعليمية، الصفوف، وتخصيص المواد الدراسية لكل صف وفق المنهج السوداني.</p>
-          <a class="button button-small button-secondary" href="<?= e(url('academics')) ?>">فتح الهيكل الدراسي ←</a>
-        </div>
+    <?php if ($adminActions): ?>
+      <div class="admin-quick-actions-grid">
+        <?php foreach ($adminActions as $action): ?>
+          <article class="quick-action-card">
+            <div class="action-icon" aria-hidden="true"><?= ui_icon($action['icon']) ?></div>
+            <div class="action-info">
+              <h2><?= e($action['title']) ?></h2>
+              <p><?= e($action['description']) ?></p>
+              <a class="button button-small button-secondary" href="<?= e(url($action['page'])) ?>"><?= e($action['label']) ?></a>
+            </div>
+          </article>
+        <?php endforeach; ?>
       </div>
-
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">🔐</div>
-        <div class="action-info">
-          <h3>صلاحيات وصول الطلاب</h3>
-          <p>مراجعة قائمة الطلاب، ومنح أو سحب أهلية الوصول للمحتوى والدروس والامتحانات يدويًا.</p>
-          <a class="button button-small button-primary" href="<?= e(url('content_access')) ?>">إدارة صلاحيات الوصول ←</a>
-        </div>
+    <?php else: ?>
+      <div class="empty-state">
+        <h2>لا توجد مهام متاحة لهذا الدور</h2>
+        <p>لا تعرض هذه الصفحة أدوات لا يملك حسابك صلاحية استخدامها.</p>
       </div>
-
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">👥</div>
-        <div class="action-info">
-          <h3>حسابات الفريق والدعوات</h3>
-          <p>إرسال روابط دعوات تفعيل حسابات الأساتذة والمراجعين والمدراء وإسناد المواد للأساتذة.</p>
-          <a class="button button-small button-secondary" href="<?= e(url('staff')) ?>">إدارة فريق العمل ←</a>
-        </div>
-      </div>
-
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">📖</div>
-        <div class="action-info">
-          <h3>اعتماد المكتبة والامتحانات</h3>
-          <p>مراجعة الكتب المرفوعة، ملفات PDF، تسجيلات الفيديوهات واعتماد نشرها للطلاب.</p>
-          <a class="button button-small button-secondary" href="<?= e(url('library')) ?>">مراجعة المحتوى ←</a>
-        </div>
-      </div>
-
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">❓</div>
-        <div class="action-info">
-          <h3>مراجعة بنك الأسئلة</h3>
-          <p>فحص الأسئلة المضافة من الأساتذة واعتمادها لتكون جاهزة للاختبارات الإلكترونية.</p>
-          <a class="button button-small button-secondary" href="<?= e(url('questions')) ?>">فحص بنك الأسئلة ←</a>
-        </div>
-      </div>
-
-      <div class="quick-action-card">
-        <div class="action-icon" aria-hidden="true">📝</div>
-        <div class="action-info">
-          <h3>اعتماد نتائج الاختبارات</h3>
-          <p>متابعة تقييمات الطلاب، واعتماد الدرجات النهائية، والبت في محاولات الإعادة.</p>
-          <a class="button button-small button-secondary" href="<?= e(url('quizzes')) ?>">مراجعة الاختبارات ←</a>
-        </div>
-      </div>
-    </div>
+    <?php endif; ?>
   </section>
 
 <?php elseif ($isTeacher): ?>
-  <!-- =========================================================================
-       لوحة تحكم الأستاذ والمدرس (Teacher Dashboard)
-       ========================================================================= -->
   <section class="dashboard-panel teacher-dashboard">
     <div class="dashboard-welcome">
       <div class="welcome-text">
         <span class="eyebrow">مساحة عمل الأستاذ</span>
-        <h1>مرحبًا بك أستاذ <?= e($user['full_name']) ?></h1>
-        <p class="dashboard-intro">منصتك اليومية لإدارة المواد المسندة، إضافة الأسئلة، إعداد الاختبارات وتصحيحها، وبث الحصص المباشرة.</p>
+        <h1>مرحبًا، <?= e($user['full_name']) ?></h1>
+        <p class="dashboard-intro">موادك المسندة والحصص والمهام التعليمية المتاحة لحسابك.</p>
       </div>
       <div class="welcome-actions">
-        <a class="button button-primary" href="<?= e(url('questions')) ?>">➕ إضافة سؤال جديد</a>
-        <a class="button button-secondary" href="<?= e(url('quizzes')) ?>">📝 إنشاء / تصحيح اختبار</a>
+        <?php if (user_has_permission('questions.manage')): ?>
+          <a class="button button-primary" href="<?= e(url('questions')) ?>">إدارة بنك الأسئلة</a>
+        <?php endif; ?>
+        <?php if (user_has_permission('sessions.manage')): ?>
+          <a class="button button-secondary" href="<?= e(url('sessions')) ?>">جدول الحصص</a>
+        <?php endif; ?>
       </div>
     </div>
 
-    <!-- شبكة مهام الأستاذ اليومية -->
     <div class="teacher-tasks-grid">
-      <div class="task-card">
-        <div class="task-icon" aria-hidden="true">❓</div>
-        <h3>بنك الأسئلة المدرسية</h3>
-        <p>أنشئ أسئلة موضوعية ومقالية لموادك المسندة وقدّمها للمراجعة والاعتماد.</p>
-        <a class="button button-small button-primary" href="<?= e(url('questions')) ?>">فتح بنك الأسئلة ←</a>
-      </div>
+      <?php if (user_has_permission('content.read')): ?>
+        <article class="task-card">
+          <div class="task-icon" aria-hidden="true"><?= ui_icon('book') ?></div>
+          <h2>موادي المسندة</h2>
+          <?php if (!empty($data['teacher_assignments'])): ?>
+            <ul class="dashboard-link-list">
+              <?php foreach (array_slice($data['teacher_assignments'], 0, 5) as $assignment): ?>
+                <li>
+                  <a href="<?= e(url('subject', ['id' => $assignment['class_subject_id']])) ?>">
+                    <?= e($assignment['class_name'] . ' · ' . $assignment['subject_name']) ?>
+                  </a>
+                </li>
+              <?php endforeach; ?>
+            </ul>
+          <?php else: ?>
+            <p>لا توجد مواد مسندة نشطة حاليًا.</p>
+          <?php endif; ?>
+          <a class="button button-small button-secondary" href="<?= e(url('subjects')) ?>">عرض المواد</a>
+        </article>
+      <?php endif; ?>
 
-      <div class="task-card">
-        <div class="task-icon" aria-hidden="true">📝</div>
-        <h3>الاختبارات وتصحيح المقالي</h3>
-        <p>تجهيز اختبارات إلكترونية من الأسئلة المعتمدة، وتصحيح إجابات الطلاب المقالية.</p>
-        <a class="button button-small button-secondary" href="<?= e(url('quizzes')) ?>">متابعة الاختبارات ←</a>
-      </div>
+      <?php if (user_has_permission('quizzes.manage')): ?>
+        <article class="task-card">
+          <div class="task-icon" aria-hidden="true"><?= ui_icon('clipboard') ?></div>
+          <h2>الاختبارات</h2>
+          <p>إنشاء الاختبارات المسندة إليك ومتابعة التصحيح.</p>
+          <a class="button button-small button-secondary" href="<?= e(url('quizzes')) ?>">متابعة الاختبارات</a>
+        </article>
+      <?php endif; ?>
 
-      <div class="task-card">
-        <div class="task-icon" aria-hidden="true">📚</div>
-        <h3>رفع الموارد والامتحانات</h3>
-        <p>رفع الكتب بصيغة PDF ومقاطع الفيديو التعليمية لموادك لتدخل مسار المراجعة.</p>
-        <a class="button button-small button-secondary" href="<?= e(url('library')) ?>">إدارة المكتبة ←</a>
-      </div>
+      <?php if (user_has_permission('content.upload')): ?>
+        <article class="task-card">
+          <div class="task-icon" aria-hidden="true"><?= ui_icon('library') ?></div>
+          <h2>المكتبة والموارد</h2>
+          <p>إدارة الموارد التعليمية ضمن مسار المراجعة المعتمد.</p>
+          <a class="button button-small button-secondary" href="<?= e(url('library')) ?>">إدارة المكتبة</a>
+        </article>
+      <?php endif; ?>
 
-      <div class="task-card">
-        <div class="task-icon" aria-hidden="true">🎥</div>
-        <h3>الحصص المباشرة والمسجلة</h3>
-        <p>جدولة الحصص المباشرة وإعداد مفاتيح البث المباشر ومزامنة التسجيلات للطلاب.</p>
-        <a class="button button-small button-secondary" href="<?= e(url('sessions')) ?>">جدولة الحصص ←</a>
-      </div>
+      <?php if (user_has_permission('sessions.manage')): ?>
+        <article class="task-card">
+          <div class="task-icon" aria-hidden="true"><?= ui_icon('video') ?></div>
+          <h2>الحصص المباشرة</h2>
+          <?php if (!empty($data['sessions'])): ?>
+            <p>جدول الحصص المرتبطة بموادك المسندة متاح للمراجعة.</p>
+          <?php else: ?>
+            <p>لا توجد حصص ضمن موادك حاليًا.</p>
+          <?php endif; ?>
+          <a class="button button-small button-secondary" href="<?= e(url('sessions')) ?>">عرض الحصص</a>
+        </article>
+      <?php endif; ?>
 
-      <div class="task-card">
-        <div class="task-icon" aria-hidden="true">💬</div>
-        <h3>الرسائل مع الطلاب</h3>
-        <p>تواصل فردي وتوجيه تعليمي مباشر مع طلاب صفك الدراسي للإجابة عن استفساراتهم.</p>
-        <a class="button button-small button-secondary" href="<?= e(url('messages')) ?>">صندوق الرسائل ←</a>
-      </div>
+      <?php if (user_has_permission('messages.use')): ?>
+        <article class="task-card">
+          <div class="task-icon" aria-hidden="true"><?= ui_icon('message') ?></div>
+          <h2>الرسائل</h2>
+          <p>الوصول إلى الرسائل الفردية المتاحة لحسابك.</p>
+          <a class="button button-small button-secondary" href="<?= e(url('messages')) ?>">فتح الرسائل</a>
+        </article>
+      <?php endif; ?>
     </div>
   </section>
 
 <?php elseif ($isStudent): ?>
-  <!-- =========================================================================
-       لوحة تعلم الطالب (Student Learning Hub)
-       تجيب فوراً عن: ماذا أدرس الآن؟ ما الخطوة التالية؟ كيف أصل لمادتي بأقل مجهود؟
-       ========================================================================= -->
   <section class="dashboard-panel student-dashboard">
     <div class="student-welcome-banner">
       <div class="student-welcome-text">
-        <span class="eyebrow">مرحباً بك في صفك الدراسي</span>
-        <h1>واصل رحلتك التعليمية، يا <?= e($user['full_name']) ?></h1>
-        <p class="student-prompt">
-          اختر مادتك المقررة وابدأ بمشاهدة الدروس، حل أسئلة بنك التمارين، والاستعداد للامتحانات.
-        </p>
+        <span class="eyebrow">مساحتك التعليمية</span>
+        <h1>مرحبًا، <?= e($user['full_name']) ?></h1>
+        <p class="student-prompt">تابع حصصك القادمة وافتح المواد المقررة لصفك.</p>
       </div>
       <div class="student-quick-start">
-        <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">📚 تصفح موادي الدراسية</a>
-        <a class="button button-secondary" href="<?= e(url('quizzes')) ?>">📝 الاختبارات الإلكترونية</a>
+        <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">موادي الدراسية</a>
+        <?php if (user_has_permission('sessions.join')): ?>
+          <a class="button button-secondary" href="<?= e(url('sessions')) ?>">جدول الحصص</a>
+        <?php endif; ?>
       </div>
     </div>
 
-    <!-- خطوتك التالية: الوصول المباشر لأهم 3 محاور للطالب -->
-    <div class="student-triad-grid">
-      <div class="triad-card highlight-step">
-        <div class="step-num-badge">1</div>
-        <div class="triad-icon" aria-hidden="true">📚</div>
-        <h3>ماذا أدرس الآن؟</h3>
-        <p>تصفح قائمة المواد المقررة لصفك، وافتح الدروس المنشورة بالترتيب لمتابعة الشرح والملفات.</p>
-        <a class="card-action-btn" href="<?= e(url('subjects')) ?>">دخول المواد المقررة ←</a>
-      </div>
+    <?php if (user_has_permission('sessions.join')): ?>
+      <section class="student-dashboard-section" aria-labelledby="student-upcoming-title">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">الجدول الدراسي</span>
+            <h2 id="student-upcoming-title">حصصك القادمة</h2>
+          </div>
+          <a class="link-more" href="<?= e(url('sessions')) ?>">عرض كل الحصص</a>
+        </div>
+        <?php if ($studentUpcomingSessions): ?>
+          <div id="session-list" class="student-upcoming-list">
+            <?php foreach ($studentUpcomingSessions as $session): ?>
+              <?php $canJoin = $session['availability']['can_join']; ?>
+              <article class="student-upcoming-card" data-session-id="<?= (int) $session['id'] ?>">
+                <div>
+                  <span class="course-tag"><?= e($session['subject_name'] ?? 'مادة دراسية') ?></span>
+                  <h3><?= e($session['title']) ?></h3>
+                  <p><?= e(date('Y-m-d · H:i', strtotime($session['scheduled_at']))) ?><?php if (!empty($session['duration_minutes'])): ?> · <?= (int) $session['duration_minutes'] ?> دقيقة<?php endif; ?></p>
+                </div>
+                <?php if ($canJoin): ?>
+                  <button class="button button-primary button-small" type="button" data-action="join">انضم الآن</button>
+                <?php else: ?>
+                  <span class="status-chip chip-scheduled">قادمة</span>
+                <?php endif; ?>
+                <div class="session-output" aria-live="polite"></div>
+              </article>
+            <?php endforeach; ?>
+          </div>
+        <?php else: ?>
+          <div class="empty-state">
+            <h3>لا توجد حصص قادمة</h3>
+            <p>ستظهر الحصص المرتبطة بصفك هنا عند جدولتها، إذا كانت صلاحية المحتوى متاحة لحسابك.</p>
+          </div>
+        <?php endif; ?>
+      </section>
+    <?php endif; ?>
 
-      <div class="triad-card">
-        <div class="step-num-badge">2</div>
-        <div class="triad-icon" aria-hidden="true">📝</div>
-        <h3>ما خطوتي التالية؟</h3>
-        <p>اختبر فهمك عبر خوض الاختبارات الإلكترونية المصححة آليًا والتدرّب على أسئلة بنك التمارين.</p>
-        <a class="card-action-btn" href="<?= e(url('quizzes')) ?>">بدء التدريب والاختبارات ←</a>
+    <section id="student-subjects" class="student-dashboard-section" aria-labelledby="student-subjects-title">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">المقررات الدراسية</span>
+          <h2 id="student-subjects-title">موادي الدراسية</h2>
+        </div>
+        <a class="link-more" href="<?= e(url('subjects')) ?>">عرض كل المواد</a>
       </div>
+      <?php if (!empty($data['subjects'])): ?>
+        <div class="course-grid">
+          <?php foreach ($data['subjects'] as $subject): ?>
+            <?php $cover = get_subject_cover_data($subject['subject_name']); ?>
+            <article class="course-card">
+              <div class="subject-card-cover cover-theme-<?= e($cover['theme']) ?>">
+                <span class="cover-symbol-watermark" aria-hidden="true"><?= e($cover['symbol']) ?></span>
+                <span class="cover-icon-badge" aria-hidden="true"><?= e($cover['icon']) ?></span>
+              </div>
+              <div class="course-body">
+                <span class="course-tag"><?= e($subject['stage_name'] . ' · ' . $subject['class_name']) ?></span>
+                <h3><?= e($subject['subject_name']) ?></h3>
+                <p class="course-lesson-count"><?= (int) $subject['lesson_count'] ?> درس منشور</p>
+                <a class="button button-primary button-full" href="<?= e(url('subject', ['id' => $subject['class_subject_id']])) ?>">فتح المادة</a>
+              </div>
+            </article>
+          <?php endforeach; ?>
+        </div>
+      <?php else: ?>
+        <div class="empty-state">
+          <h3><?= empty($data['has_student_class']) ? 'لم يُسند صف دراسي إلى حسابك' : 'لا توجد مواد نشطة لصفك حاليًا' ?></h3>
+          <p><?= empty($data['has_student_class']) ? 'تواصل مع إدارة المنصة لتحديث بيانات صفك.' : 'ستظهر المواد المرتبطة بصفك هنا عند تفعيلها.' ?></p>
+        </div>
+      <?php endif; ?>
+    </section>
 
-      <div class="triad-card">
-        <div class="step-num-badge">3</div>
-        <div class="triad-icon" aria-hidden="true">📖</div>
-        <h3>المكتبة والامتحانات</h3>
-        <p>تحميل الكتب الدراسية والامتحانات السابقة للشهادة السودانية ومتابعة الحصص المسجلة.</p>
-        <a class="card-action-btn" href="<?= e(url('library')) ?>">فتح المكتبة والامتحانات ←</a>
-      </div>
+    <div class="student-quick-links" aria-label="روابط التعلم السريع">
+      <?php if (user_has_permission('quizzes.attempt') && !empty($data['student_has_content_access'])): ?>
+        <a class="quick-link-card" href="<?= e(url('quizzes')) ?>"><span class="action-icon" aria-hidden="true"><?= ui_icon('clipboard') ?></span><span>الاختبارات الإلكترونية</span></a>
+      <?php endif; ?>
+      <?php if (user_has_permission('content.read') && !empty($data['student_has_content_access'])): ?>
+        <a class="quick-link-card" href="<?= e(url('library')) ?>"><span class="action-icon" aria-hidden="true"><?= ui_icon('library') ?></span><span>المكتبة والامتحانات</span></a>
+      <?php endif; ?>
+      <?php if (user_has_permission('messages.use')): ?>
+        <a class="quick-link-card" href="<?= e(url('messages')) ?>"><span class="action-icon" aria-hidden="true"><?= ui_icon('message') ?></span><span>الرسائل</span></a>
+      <?php endif; ?>
     </div>
   </section>
 
-<?php else: ?>
-  <!-- =========================================================================
-       الواجهة الترحيبية للزوار والضيوف (Public Guest Hero)
-       ========================================================================= -->
+<?php elseif (!$user): ?>
   <section id="hero" class="hero container">
     <div class="hero-grid">
       <div class="hero-content">
         <span class="eyebrow">منصة الإسناد الأكاديمي · المنهج السوداني</span>
         <h1>تعلّم بسهولة،<br>وتقدّم بثقة وإتقان.</h1>
-        <p class="hero-lead">بيئة تعليمية عربية حديثة تجمع المواد والدروس، بنك الأسئلة، الامتحانات السابقة، والحصص التفاعلية لمساعدتك في تحقيق أعلى النتائج.</p>
+        <p class="hero-lead">بيئة تعليمية عربية تجمع المواد والدروس وبنك الأسئلة والحصص التفاعلية.</p>
         <div class="hero-actions">
-          <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">تصفح المواد الدراسية ←</a>
-          <a class="button button-secondary button-large" href="<?= e(url('register')) ?>">إنشاء حساب طالب جديد</a>
+          <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">تصفح المواد الدراسية</a>
+          <a class="button button-secondary button-large" href="<?= e(url('register')) ?>">إنشاء حساب طالب</a>
         </div>
       </div>
       <div class="visual-box" aria-label="شعار منصة الإسناد الأكاديمي">
@@ -253,76 +310,65 @@ $announcementCover = $topAnnouncement ? get_announcement_cover_data($topAnnounce
       </div>
     </div>
   </section>
+
+  <section id="library" class="section container">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">المنهج الدراسي</span>
+        <h2>المواد الدراسية المقررة</h2>
+      </div>
+      <a href="<?= e(url('subjects')) ?>" class="link-more">عرض المواد</a>
+    </div>
+    <?php if (!empty($data['subjects'])): ?>
+      <div class="course-grid">
+        <?php foreach ($data['subjects'] as $subject): ?>
+          <?php $cover = get_subject_cover_data($subject['subject_name']); ?>
+          <article class="course-card">
+            <div class="subject-card-cover cover-theme-<?= e($cover['theme']) ?>">
+              <span class="cover-symbol-watermark" aria-hidden="true"><?= e($cover['symbol']) ?></span>
+              <span class="cover-icon-badge" aria-hidden="true"><?= e($cover['icon']) ?></span>
+            </div>
+            <div class="course-body">
+              <span class="course-tag"><?= e($subject['stage_name'] . ' · ' . $subject['class_name']) ?></span>
+              <h3><?= e($subject['subject_name']) ?></h3>
+              <p class="course-lesson-count"><?= (int) $subject['lesson_count'] ?> درس منشور</p>
+              <a class="button button-primary button-full" href="<?= e(url('subject', ['id' => $subject['class_subject_id']])) ?>">عرض المادة</a>
+            </div>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    <?php else: ?>
+      <div class="empty-state">
+        <h3>لا توجد مواد منشورة حاليًا</h3>
+        <p>ستظهر المواد المعتمدة هنا عند نشرها.</p>
+      </div>
+    <?php endif; ?>
+  </section>
+
+  <section class="section container sections-overview-grid" aria-label="مزايا المنصة">
+    <article class="overview-box">
+      <div class="overview-icon" aria-hidden="true"><?= ui_icon('question') ?></div>
+      <h2>بنك الأسئلة</h2>
+      <p>تدرب على الأسئلة المصنفة بحسب المادة والدرس.</p>
+      <a class="button button-secondary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول</a>
+    </article>
+    <article class="overview-box">
+      <div class="overview-icon" aria-hidden="true"><?= ui_icon('library') ?></div>
+      <h2>المكتبة والامتحانات</h2>
+      <p>موارد تعليمية وامتحانات سابقة وفق صلاحيات الحساب.</p>
+      <a class="button button-secondary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول</a>
+    </article>
+    <article class="overview-box">
+      <div class="overview-icon" aria-hidden="true"><?= ui_icon('video') ?></div>
+      <h2>الحصص</h2>
+      <p>جدول الحصص والتسجيلات المرتبطة بالمواد والصلاحيات.</p>
+      <a class="button button-secondary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول</a>
+    </article>
+  </section>
+<?php else: ?>
+  <section class="dashboard-panel">
+    <h1>مرحبًا، <?= e($user['full_name']) ?></h1>
+    <p class="dashboard-intro">لا يوجد دور نشط مرتبط بحسابك حاليًا. تواصل مع إدارة المنصة لمراجعة صلاحيات الحساب.</p>
+    <a class="button button-secondary" href="<?= e(url('account')) ?>">عرض حسابي</a>
+  </section>
 <?php endif; ?>
-
-<!-- =========================================================================
-     عرض المواد الدراسية المقررة (الكتالوج المتاح)
-     ========================================================================= -->
-<section id="library" class="section container">
-  <div class="section-head">
-    <div>
-      <span class="eyebrow">المنهج الدراسي</span>
-      <h2>المواد الدراسية المقررة</h2>
-    </div>
-    <a href="<?= e(url('subjects')) ?>" class="link-more">عرض كل المواد المقررة ←</a>
-  </div>
-
-  <?php if (!empty($data['subjects'])): ?>
-    <div class="course-grid">
-      <?php foreach ($data['subjects'] as $subject): ?>
-        <?php $sc = get_subject_cover_data($subject['subject_name']); ?>
-        <article class="course-card">
-          <div class="subject-card-cover" style="background: <?= e($sc['gradient']) ?>;">
-            <span class="cover-symbol-watermark" aria-hidden="true"><?= e($sc['symbol']) ?></span>
-            <span class="cover-icon-badge" aria-hidden="true"><?= e($sc['icon']) ?></span>
-          </div>
-          <div class="course-body">
-            <span class="course-tag"><?= e($subject['stage_name'] . ' · ' . $subject['class_name']) ?></span>
-            <h3><?= e($subject['subject_name']) ?></h3>
-            <p class="course-lesson-count"><?= (int) $subject['lesson_count'] ?> درس منشور ومعتمد</p>
-            <a class="button button-primary button-full" href="<?= e(url('subject', ['id' => $subject['class_subject_id']])) ?>">عرض المادة والدروس</a>
-          </div>
-        </article>
-      <?php endforeach; ?>
-    </div>
-  <?php else: ?>
-    <div class="empty-state">
-      <h3>لا توجد مواد منشورة حاليًا</h3>
-      <p>ستظهر المواد المعتمدة لصفك الدراسي فور تسجيلها في المنصة.</p>
-    </div>
-  <?php endif; ?>
-</section>
-
-<!-- =========================================================================
-     أقسام التعلم السريع (بنك الأسئلة، الامتحانات، الحصص)
-     ========================================================================= -->
-<section class="section container sections-overview-grid">
-  <div class="overview-box">
-    <div class="overview-icon" aria-hidden="true">❓</div>
-    <h3>بنك الأسئلة الشامل</h3>
-    <p>تدرب على أسئلة موضوعية ومقالية مصنفة بحسب المادة والدرس ومستوى الصعوبة.</p>
-    <a class="button button-secondary button-full" href="<?= e(url('questions')) ?>">دخول بنك الأسئلة</a>
-  </div>
-
-  <div class="overview-box">
-    <div class="overview-icon" aria-hidden="true">📖</div>
-    <h3>المكتبة والامتحانات السابقة</h3>
-    <p>مراجع وكتب دراسية بصيغة PDF وأرشيف امتحانات الشهادة السودانية مع الإجابات النموذجية.</p>
-    <?php if ($user && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?>
-      <a class="button button-secondary button-full" href="<?= e(url('library')) ?>">فتح المكتبة</a>
-    <?php else: ?>
-      <a class="button button-secondary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول للمكتبة</a>
-    <?php endif; ?>
-  </div>
-
-  <div class="overview-box">
-    <div class="overview-icon" aria-hidden="true">🎥</div>
-    <h3>الحصص المباشرة والمسجلة</h3>
-    <p>حضور حصص الشرح التفاعلية مع الأساتذة ومراجعة التسجيلات بجودة عالية في أي وقت.</p>
-    <?php if ($user && (user_has_permission('sessions.manage') || user_has_permission('sessions.join'))): ?>
-      <a class="button button-secondary button-full" href="<?= e(url('sessions')) ?>">جدول الحصص والتسجيلات</a>
-    <?php else: ?>
-      <a class="button button-secondary button-full" href="<?= e(url('login')) ?>">تسجيل الدخول للحصص</a>
-    <?php endif; ?>
-  </div>
-</section>

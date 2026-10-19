@@ -151,29 +151,72 @@ function sm_update_session(array $actor, int $sessionId, array $input): array
 function sm_list_sessions(array $actor): array
 {
     $db = database_connection();
+    $order = "ORDER BY CASE
+                WHEN ls.status IN ('LIVE', 'SCHEDULED')
+                    AND ls.scheduled_at <= CURRENT_TIMESTAMP
+                    AND ls.duration_minutes IS NOT NULL
+                    AND ls.scheduled_at + (ls.duration_minutes * INTERVAL '1 minute') >= CURRENT_TIMESTAMP THEN 0
+                WHEN ls.status IN ('LIVE', 'SCHEDULED') AND ls.scheduled_at > CURRENT_TIMESTAMP THEN 1
+                ELSE 2
+              END,
+              CASE WHEN ls.status IN ('LIVE', 'SCHEDULED') AND ls.scheduled_at > CURRENT_TIMESTAMP THEN ls.scheduled_at END ASC,
+              ls.scheduled_at DESC LIMIT 200";
     if (in_array('admin', $actor['roles'] ?? [], true)) {
-        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id ORDER BY ls.scheduled_at DESC LIMIT 200');
+        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id ' . $order);
         $stmt->execute();
     } elseif (in_array('teacher', $actor['roles'] ?? [], true)) {
-        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id JOIN employees e ON e.id = ls.teacher_id JOIN teaching_assignments ta ON ta.employee_id = e.id AND ta.class_subject_id = cs.id WHERE e.user_id = :user_id ORDER BY ls.scheduled_at DESC LIMIT 200');
+        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id AND cs.is_active = TRUE JOIN subjects s ON s.id = cs.subject_id AND s.is_active = TRUE JOIN classes c ON c.id = cs.class_id AND c.is_active = TRUE JOIN stages st ON st.id = c.stage_id AND st.is_active = TRUE JOIN employees e ON e.id = ls.teacher_id AND e.is_active = TRUE JOIN teaching_assignments ta ON ta.employee_id = e.id AND ta.class_subject_id = cs.id WHERE e.user_id = :user_id ' . $order);
         $stmt->execute(['user_id' => $actor['id']]);
     } else {
         if (!has_manual_content_access((int) $actor['id'])) return [];
-        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id JOIN subjects s ON s.id = cs.subject_id JOIN students st ON st.class_id = cs.class_id JOIN classes c ON c.id = st.class_id AND c.is_active = TRUE JOIN teaching_assignments ta ON ta.employee_id = ls.teacher_id AND ta.class_subject_id = cs.id WHERE st.user_id = :user_id ORDER BY ls.scheduled_at DESC LIMIT 200');
+        $stmt = $db->prepare('SELECT ls.id, ls.class_subject_id, ls.teacher_id, ls.title, ls.description, ls.scheduled_at, ls.duration_minutes, ls.status, cs.class_id, s.name AS subject_name FROM live_sessions ls JOIN class_subjects cs ON cs.id = ls.class_subject_id AND cs.is_active = TRUE JOIN subjects s ON s.id = cs.subject_id AND s.is_active = TRUE JOIN students st ON st.class_id = cs.class_id JOIN classes c ON c.id = st.class_id AND c.is_active = TRUE JOIN stages stg ON stg.id = c.stage_id AND stg.is_active = TRUE JOIN teaching_assignments ta ON ta.employee_id = ls.teacher_id AND ta.class_subject_id = cs.id JOIN employees e ON e.id = ls.teacher_id AND e.is_active = TRUE WHERE st.user_id = :user_id ' . $order);
         $stmt->execute(['user_id' => $actor['id']]);
     }
     return $stmt->fetchAll();
+}
+
+function sm_session_availability(array $session, ?DateTimeImmutable $now = null): array
+{
+    $status = (string) ($session['status'] ?? '');
+    if ($status === 'CANCELLED') return ['state' => 'cancelled', 'can_join' => false];
+    if ($status === 'COMPLETED') return ['state' => 'completed', 'can_join' => false];
+    if (!in_array($status, ['SCHEDULED', 'LIVE'], true)) return ['state' => 'unavailable', 'can_join' => false];
+
+    $start = new DateTimeImmutable((string) $session['scheduled_at']);
+    $now ??= new DateTimeImmutable('now');
+    if ($now < $start) return ['state' => 'upcoming', 'can_join' => false];
+
+    $duration = filter_var($session['duration_minutes'] ?? null, FILTER_VALIDATE_INT);
+    if ($duration === false || $duration === null || $duration < 1) {
+        return ['state' => 'unavailable', 'can_join' => false];
+    }
+    if ($now > $start->modify('+' . $duration . ' minutes')) {
+        return ['state' => 'ended', 'can_join' => false];
+    }
+
+    return ['state' => $status === 'LIVE' ? 'live' : 'joinable', 'can_join' => true];
+}
+
+function sm_session_recordings_available(array $session, ?DateTimeImmutable $now = null): bool
+{
+    if (($session['status'] ?? null) === 'COMPLETED') return true;
+    $duration = filter_var($session['duration_minutes'] ?? null, FILTER_VALIDATE_INT);
+    if ($duration === false || $duration === null || $duration < 1) return false;
+
+    $start = new DateTimeImmutable((string) $session['scheduled_at']);
+    $now ??= new DateTimeImmutable('now');
+    return $now >= $start->modify('+' . $duration . ' minutes');
 }
 
 function sm_join_session(array $actor, int $sessionId): array
 {
     $session = sm_session($actor, $sessionId);
     if ($session['status'] === 'CANCELLED') throw new ApiException(409, 'session_cancelled', 'الحصة ملغاة.');
-    $now = new DateTimeImmutable('now');
-    $start = new DateTimeImmutable($session['scheduled_at']);
+    if ($session['status'] === 'COMPLETED') throw new ApiException(409, 'session_ended', 'انتهت الحصة.');
     if (in_array('student', $actor['roles'] ?? [], true)) {
-        if ($now < $start) throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
-        if ($session['duration_minutes'] === null || $now > $start->modify('+' . (int) $session['duration_minutes'] . ' minutes')) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
+        $availability = sm_session_availability($session);
+        if ($availability['state'] === 'upcoming') throw new ApiException(409, 'session_not_started', 'لم يحن موعد الحصة.');
+        if (!$availability['can_join']) throw new ApiException(409, 'session_ended', 'انتهى وقت الحصة.');
         if (!has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     }
     $joinUrl = is_string($session['meeting_url']) && trim($session['meeting_url']) !== ''
@@ -279,7 +322,7 @@ function sm_list_recordings(array $actor, int $sessionId): array
 {
     $session = sm_session($actor, $sessionId);
     if (in_array('student', $actor['roles'] ?? [], true)) {
-        if ($session['status'] !== 'COMPLETED' && new DateTimeImmutable($session['scheduled_at'] . ' +' . (int) ($session['duration_minutes'] ?? 0) . ' minutes') > new DateTimeImmutable('now')) return [];
+        if (!sm_session_recordings_available($session)) return [];
         if (!has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     }
     $stmt = database_connection()->prepare('SELECT id, session_id, title, duration_seconds, file_size_bytes, status, available_from, created_at FROM session_recordings WHERE session_id = :session_id AND status = \'READY\' AND (available_from IS NULL OR available_from <= CURRENT_TIMESTAMP) ORDER BY created_at');
@@ -294,8 +337,7 @@ function sm_recording_download(array $actor, int $recordingId): array
     $recording = $stmt->fetch();
     if (!$recording) throw new ApiException(404, 'not_found', 'التسجيل غير متاح.');
     $session = sm_session($actor, (int) $recording['session_id']);
-    $end = (new DateTimeImmutable($session['scheduled_at']))->modify('+' . (int) ($session['duration_minutes'] ?? 0) . ' minutes');
-    if ($session['status'] !== 'COMPLETED' && $end > new DateTimeImmutable('now')) throw new ApiException(403, 'recording_not_available', 'يتاح التسجيل بعد انتهاء الحصة.');
+    if (!sm_session_recordings_available($session)) throw new ApiException(403, 'recording_not_available', 'يتاح التسجيل بعد انتهاء الحصة.');
     if (in_array('student', $actor['roles'] ?? [], true) && !has_manual_content_access((int) $actor['id'])) throw new ApiException(403, 'content_access_required', 'يجب أن يمنحك المدير أو المراجع صلاحية المحتوى أولًا.');
     if ($recording['storage_key'] === null) {
         $provider = live_meeting_provider();
@@ -471,4 +513,3 @@ function sm_my_voice_status(array $actor, int $sessionId): array
     $row = $stmt->fetch();
     return $row ?: ['session_id' => $sessionId, 'status' => 'NONE'];
 }
-
