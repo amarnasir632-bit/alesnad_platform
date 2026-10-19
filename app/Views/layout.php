@@ -359,39 +359,26 @@ if ($user) {
       <!-- تذييل الصفحة المطور والمختصر (Modern Centered Minimal Footer) -->
       <footer class="site-footer" role="contentinfo">
         <div class="footer-centered-wrap">
-          <div class="footer-brand-centered">
-            <img src="/assets/brand/icon.png" alt="شعار منصة الإسناد الأكاديمي" class="footer-mini-logo">
-            <strong class="footer-brand-title">منصة الإسناد الأكاديمي</strong>
-            <span class="footer-dot-sep">·</span>
-            <span class="footer-brand-subtitle">المنهج السوداني المعتمد</span>
-          </div>
-
           <nav class="footer-quick-links" aria-label="روابط سريعة">
             <a href="<?= e(url('home')) ?>">الرئيسية</a>
-            <span class="sep" aria-hidden="true">•</span>
             <a href="<?= e(url('subjects')) ?>">المواد والدروس</a>
             <?php if ($user && (user_has_permission('questions.manage') || user_has_permission('content.review') || (user_has_role('student') && $hasStudentContentAccess))): ?>
-              <span class="sep" aria-hidden="true">•</span>
               <a href="<?= e(url('questions')) ?>">بنك الأسئلة</a>
             <?php endif; ?>
             <?php if ($user && $hasStudentContentAccess && (user_has_permission('content.read') || user_has_permission('content.upload') || user_has_permission('content.review'))): ?>
-              <span class="sep" aria-hidden="true">•</span>
               <a href="<?= e(url('library')) ?>">المكتبة الرقمية</a>
             <?php endif; ?>
             <?php if ($user && (user_has_permission('sessions.manage') || user_has_permission('sessions.join'))): ?>
-              <span class="sep" aria-hidden="true">•</span>
               <a href="<?= e(url('sessions')) ?>">الحصص المباشرة</a>
             <?php endif; ?>
-            <span class="sep" aria-hidden="true">•</span>
             <a href="<?= e(url('guide')) ?>">دليل المنصة والواجهات</a>
           </nav>
 
           <div class="footer-meta-centered">
-            <span class="footer-copyright">جميع الحقوق محفوظة © <?= date('Y') ?> منصة الإسناد الأكاديمي</span>
+            <span class="footer-copyright">جميع الحقوق محفوظة © <?= date('Y') ?></span>
             <span class="footer-dot-sep">·</span>
             <span class="footer-dev-credit">
               إشراف وتطوير <strong>شركة AL WARITH</strong>
-              <img src="/assets/brand/al-warith-logo.jpg" alt="شعار شركة الوارث" class="footer-dev-logo">
             </span>
           </div>
         </div>
