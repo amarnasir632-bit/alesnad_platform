@@ -25,7 +25,7 @@
     <?php foreach($data['quizzes'] as $quiz): ?>
       <?php $qc = get_quiz_cover_data($quiz['title']); ?>
       <article class="detail-card quiz-card">
-        <div class="card-smart-cover quiz-card-cover" style="background: <?= e($qc['gradient']) ?>;">
+        <div class="card-smart-cover quiz-card-cover cover-theme-<?= e($qc['theme']) ?>">
           <span class="cover-symbol-watermark" aria-hidden="true"><?= e($qc['symbol']) ?></span>
           <span class="cover-icon-badge" aria-hidden="true"><?= e($qc['icon']) ?></span>
         </div>

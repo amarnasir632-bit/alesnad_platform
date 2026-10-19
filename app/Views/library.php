@@ -113,7 +113,7 @@
       <?php foreach ($data['items'] as $item): ?>
         <?php $rc = get_resource_cover_data($item['title'], $item['resource_type'] ?? ''); ?>
         <article class="detail-card library-item">
-          <div class="card-smart-cover library-card-cover" style="background: <?= e($rc['gradient']) ?>;">
+          <div class="card-smart-cover library-card-cover cover-theme-<?= e($rc['theme']) ?>">
             <span class="cover-symbol-watermark" aria-hidden="true"><?= e($rc['symbol']) ?></span>
             <span class="cover-icon-badge" aria-hidden="true"><?= e($rc['icon']) ?></span>
           </div>

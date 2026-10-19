@@ -82,7 +82,7 @@
           </div>
         </div>
 
-        <div id="session-form-feedback" class="messages" aria-live="polite" style="margin-top: 14px;"></div>
+        <div id="session-form-feedback" class="messages session-form-feedback" aria-live="polite"></div>
 
         <div class="form-actions-bar">
           <button id="session-submit-btn" class="button button-primary button-large" type="submit">

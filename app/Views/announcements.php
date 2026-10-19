@@ -125,7 +125,7 @@
             $isPublished = (bool) $item['is_published'];
           ?>
           <article class="detail-card announcement-admin-card <?= !$isPublished ? 'is-disabled' : '' ?>">
-            <div class="announcement-card-banner" style="background: <?= e($cover['gradient']) ?>;">
+            <div class="announcement-card-banner cover-theme-<?= e($cover['theme']) ?>">
               <span class="announcement-badge-pill"><?= e($item['badge_label'] ?: $cover['badge']) ?></span>
               <span class="announcement-priority-pill priority-<?= strtolower(e($item['priority'])) ?>">
                 <?= $item['priority'] === 'URGENT' ? '🚨 عاجل' : ($item['priority'] === 'IMPORTANT' ? '⭐ هام' : 'عادي') ?>

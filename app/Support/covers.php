@@ -134,6 +134,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
 {
     if ($priority === 'URGENT') {
         return [
+            'theme' => 'announcement-urgent',
             'gradient' => 'linear-gradient(135deg, #991b1b 0%, #ef4444 100%)',
             'icon' => '🚨',
             'badge' => 'عاجل وهام',
@@ -142,6 +143,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
     }
     if ($priority === 'IMPORTANT') {
         return [
+            'theme' => 'announcement-important',
             'gradient' => 'linear-gradient(135deg, #92400e 0%, #f59e0b 100%)',
             'icon' => '⭐',
             'badge' => 'إعلان هام',
@@ -150,6 +152,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
     }
     if ($style === 'gradient_emerald') {
         return [
+            'theme' => 'announcement-emerald',
             'gradient' => 'linear-gradient(135deg, #065f46 0%, #10b981 100%)',
             'icon' => '🌿',
             'badge' => 'تنبيه أكاديمي',
@@ -158,6 +161,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
     }
     if ($style === 'gradient_purple') {
         return [
+            'theme' => 'announcement-purple',
             'gradient' => 'linear-gradient(135deg, #4c1d95 0%, #8b5cf6 100%)',
             'icon' => '💡',
             'badge' => 'إشعار المنصة',
@@ -166,6 +170,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
     }
     if ($style === 'gradient_rose') {
         return [
+            'theme' => 'announcement-rose',
             'gradient' => 'linear-gradient(135deg, #881337 0%, #f43f5e 100%)',
             'icon' => '🎉',
             'badge' => 'مناسبة مدرسية',
@@ -173,6 +178,7 @@ function get_announcement_cover_data(string $style, string $priority = 'NORMAL')
         ];
     }
     return [
+        'theme' => 'announcement-blue',
         'gradient' => 'linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%)',
         'icon' => '📢',
         'badge' => 'تنبيه أكاديمي',

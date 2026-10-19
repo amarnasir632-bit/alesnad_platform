@@ -8,7 +8,7 @@
       <?php foreach ($data['subjects'] as $subject): ?>
         <?php $sc = get_subject_cover_data($subject['subject_name']); ?>
         <article class="course-card">
-          <div class="subject-card-cover" style="background: <?= e($sc['gradient']) ?>;">
+          <div class="subject-card-cover cover-theme-<?= e($sc['theme']) ?>">
             <span class="cover-symbol-watermark" aria-hidden="true"><?= e($sc['symbol']) ?></span>
             <span class="cover-icon-badge" aria-hidden="true"><?= e($sc['icon']) ?></span>
           </div>
