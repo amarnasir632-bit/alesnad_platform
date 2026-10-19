@@ -139,10 +139,15 @@
         </thead>
         <tbody>
         <?php foreach ($data['staff'] as $member): ?>
-          <?php 
-            $roles = explode(',', $member['role_codes']); 
+          <?php
+            $roles = explode(',', $member['role_codes']);
             $isPrivileged = (bool) array_intersect($roles, ['admin', 'content_reviewer', 'registrar']);
-            $isSelf = (int) $member['id'] === (int) current_user()['id']; 
+            $isSelf = (int) $member['id'] === (int) current_user()['id'];
+            $isActive = (int) $member['account_active'] === 1;
+            $hasValidInvitation = !$isActive && $member['invitation_expires_at'] !== null
+                && (int) $member['invitation_valid'] === 1;
+            $canDelete = !$isSelf && !$isActive && !$hasValidInvitation
+                && !empty($data['can_manage_roles']);
           ?>
           <tr>
             <td data-label="الاسم"><strong><?= e($member['full_name']) ?></strong></td>
@@ -150,7 +155,7 @@
             <td data-label="الدور"><span class="status-pill status-pill-primary"><?= e($member['role_names']) ?></span></td>
             <td data-label="المسمى الوظيفي"><?= e($member['job_title']) ?></td>
             <td data-label="حالة الحساب">
-              <?php if ((int) $member['account_active'] === 1): ?>
+              <?php if ($isActive): ?>
                 <span class="status-pill status-pill-success">نشط</span>
               <?php elseif ($member['invitation_expires_at'] !== null): ?>
                 <span class="status-pill status-pill-warning">
@@ -163,22 +168,33 @@
             <td data-label="الإجراء">
               <?php if ($isSelf): ?>
                 <span class="muted self-badge">الحساب الحالي</span>
-              <?php elseif ((int) $member['account_active'] !== 1 && $member['invitation_expires_at'] !== null): ?>
-                <span class="muted">أعد الدعوة من النموذج أعلاه</span>
+              <?php elseif ($hasValidInvitation): ?>
+                <span class="muted">الدعوة صالحة؛ يمكنك إعادة إرسالها من النموذج أعلاه</span>
               <?php elseif ($data['can_manage_roles'] || !$isPrivileged): ?>
                 <form method="post" action="<?= e(url('staff')) ?>" class="inline-form">
                   <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
                   <input type="hidden" name="target_user_id" value="<?= (int) $member['id'] ?>">
-                  <?php if ((int) $member['account_active'] === 1): ?>
+                  <?php if ($isActive): ?>
                     <input type="hidden" name="action" value="staff_disable">
                     <button class="button button-small button-danger" type="submit">تعطيل</button>
-                  <?php else: ?>
+                  <?php elseif ($member['invitation_expires_at'] === null): ?>
                     <input type="hidden" name="action" value="staff_enable">
                     <button class="button button-small button-primary" type="submit">إعادة تفعيل</button>
                   <?php endif; ?>
                 </form>
               <?php else: ?>
                 <span class="muted">للمدير فقط</span>
+              <?php endif; ?>
+              <?php if ($canDelete): ?>
+                <button
+                  class="button button-small button-danger staff-delete-trigger"
+                  type="button"
+                  data-user-id="<?= (int) $member['id'] ?>"
+                  data-user-name="<?= e($member['full_name']) ?>"
+                >حذف الحساب</button>
+                <?php if ($member['invitation_expires_at'] !== null): ?>
+                  <span class="muted staff-delete-hint">يمكنك أيضًا إعادة الدعوة من النموذج أعلاه</span>
+                <?php endif; ?>
               <?php endif; ?>
             </td>
           </tr>
@@ -188,3 +204,23 @@
     </div>
   <?php endif; ?>
 </section>
+
+<?php if (!empty($data['can_manage_roles'])): ?>
+  <dialog class="staff-delete-dialog" id="staff-delete-dialog" aria-labelledby="staff-delete-title">
+    <form method="post" action="<?= e(url('staff')) ?>" id="staff-delete-form">
+      <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+      <input type="hidden" name="action" value="staff_delete">
+      <input type="hidden" name="target_user_id" id="staff-delete-user-id">
+      <h2 id="staff-delete-title">تأكيد حذف حساب الموظف</h2>
+      <p>سيُحذف الحساب غير النشط <strong id="staff-delete-user-name"></strong> نهائيًا إذا لم تكن هناك سجلات تعتمد عليه. أدخل كلمة مرورك للتأكيد.</p>
+      <div class="form-field">
+        <label for="staff-delete-password">كلمة مرور مدير النظام</label>
+        <input id="staff-delete-password" name="actor_password" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="staff-delete-dialog-actions">
+        <button class="button button-secondary" type="button" data-close-staff-delete>إلغاء</button>
+        <button class="button button-danger" type="submit">تأكيد الحذف النهائي</button>
+      </div>
+    </form>
+  </dialog>
+<?php endif; ?>

@@ -400,5 +400,6 @@ if ($user) {
   <?php if (($page ?? '') === 'admissions'): ?><script src="/assets/js/admissions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'admissions'): ?><script src="/assets/js/admissions.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'lesson'): ?><script src="/assets/js/lesson.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'staff' && !empty($data['can_manage_roles'])): ?><script src="/assets/js/staff.js" defer></script><?php endif; ?>
 </body>
 </html>

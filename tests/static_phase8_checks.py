@@ -29,6 +29,7 @@ schedule_view = (ROOT / "app/Views/school_schedule.php").read_text()
 schedule_service = (ROOT / "app/Database/school_schedule.php").read_text()
 staff_view = (ROOT / "app/Views/staff.php").read_text()
 staff_service = (ROOT / "app/Database/staff.php").read_text()
+staff_js = (ROOT / "public/assets/js/staff.js").read_text()
 
 with ZipFile(ROOT / "docs/SRS_Educational_Platform_Arabic.docx") as archive:
     document = ET.fromstring(archive.read("word/document.xml"))
@@ -67,6 +68,9 @@ check("content reviewers can open subjects while student and teacher scope check
 check("navigation drawer is hidden by default and can overlay desktop content", "transform: translateX(105%)" in styles and ".app-sidebar.is-open" in styles and ".app-mobile-topbar {\n  display: flex" in styles and "margin-right: var(--sidebar-width)" not in styles)
 check("navigation drawer closes on backdrop, Escape and destination selection at every viewport", "backdrop.addEventListener('click'" in main_js and "if (e.key === 'Escape')" in main_js and "navLinks.forEach" in main_js and "isDrawer" not in main_js)
 check("weekly schedule uses a familiar weekday-by-period table and keeps dated entries separate", "class=\"schedule-timetable\"" in schedule_view and "school_schedule_weekly_grid" in schedule_view and "$oneTimeEntries" in schedule_view and "حصص وفسح غير متكررة" in schedule_view and "'entries_by_day' => []" in schedule_service)
+check("staff deletion requires a privileged re-authenticated admin and rejects active accounts", "require_permission('roles.manage')" in web_controller and "password_verify($actorPassword" in staff_service and "database_boolean($target['is_active'])" in staff_service and "active staff account" in (ROOT / "tests/phase1_integration.php").read_text())
+check("staff deletion only exposes eligible inactive accounts and keeps FK-protected records", "$canDelete = !$isSelf && !$isActive && !$hasValidInvitation" in staff_view and "expires_at > CURRENT_TIMESTAMP" in staff_service and "وجود بيانات مرتبطة به" in staff_service)
+check("staff deletion dialog asks for password and loads its behavior without inline scripts", 'name="actor_password"' in staff_view and 'type="password"' in staff_view and "showModal()" in staff_js and "staff.js" in layout)
 
 baseline = "HEAD"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):

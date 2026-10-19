@@ -318,3 +318,84 @@ function set_staff_account_active(int $targetUserId, int $actorId, bool $active)
         throw $error;
     }
 }
+
+function delete_inactive_staff_account(int $targetUserId, int $actorId, string $actorPassword): void
+{
+    if ($targetUserId < 1 || $targetUserId === $actorId) {
+        throw new InvalidArgumentException('لا يمكن حذف حسابك أو اختيار حساب غير صالح.');
+    }
+    if (!user_has_permission('roles.manage')) {
+        throw new InvalidArgumentException('حذف حسابات الفريق متاح لمدير النظام فقط.');
+    }
+
+    $pdo = database_connection();
+    $pdo->beginTransaction();
+    try {
+        $actorQuery = $pdo->prepare('SELECT password_hash FROM users WHERE id = :id AND is_active FOR UPDATE');
+        $actorQuery->execute(['id' => $actorId]);
+        $actorHash = $actorQuery->fetchColumn();
+        if (!is_string($actorHash) || !password_verify($actorPassword, $actorHash)) {
+            throw new InvalidArgumentException('كلمة مرور مدير النظام غير صحيحة.');
+        }
+
+        $targetQuery = $pdo->prepare('SELECT is_active FROM users WHERE id = :id FOR UPDATE');
+        $targetQuery->execute(['id' => $targetUserId]);
+        $target = $targetQuery->fetch();
+        if (!$target) {
+            throw new InvalidArgumentException('الحساب غير موجود.');
+        }
+        if (database_boolean($target['is_active'])) {
+            throw new InvalidArgumentException('لا يمكن حذف حساب نشط. عطّل الحساب أولًا ثم أعد المحاولة.');
+        }
+
+        $rolesQuery = $pdo->prepare(
+            "SELECT r.code FROM user_roles ur JOIN roles r ON r.id = ur.role_id
+             WHERE ur.user_id = :user_id AND r.code IN ('teacher', 'content_reviewer', 'admin', 'registrar')"
+        );
+        $rolesQuery->execute(['user_id' => $targetUserId]);
+        $roles = $rolesQuery->fetchAll(PDO::FETCH_COLUMN);
+        if (!$roles) {
+            throw new InvalidArgumentException('يمكن لهذه الصفحة حذف حسابات فريق العمل فقط.');
+        }
+
+        $pendingInvitation = $pdo->prepare(
+            'SELECT 1 FROM staff_invitations
+             WHERE user_id = :user_id AND accepted_at IS NULL AND revoked_at IS NULL
+               AND expires_at > CURRENT_TIMESTAMP
+             LIMIT 1'
+        );
+        $pendingInvitation->execute(['user_id' => $targetUserId]);
+        if ($pendingInvitation->fetchColumn()) {
+            throw new InvalidArgumentException('لا يمكن حذف حساب لديه دعوة صالحة. أعد المحاولة بعد انتهاء الدعوة أو ألغها بتجديد الدعوة.');
+        }
+
+        $employeeQuery = $pdo->prepare('SELECT id FROM employees WHERE user_id = :user_id FOR UPDATE');
+        $employeeQuery->execute(['user_id' => $targetUserId]);
+        $employeeId = $employeeQuery->fetchColumn();
+        if ($employeeId === false) {
+            throw new InvalidArgumentException('ملف الموظف المرتبط بالحساب غير موجود.');
+        }
+
+        record_audit_event($pdo, $actorId, 'staff.account.deleted', 'user', $targetUserId, ['roles' => $roles]);
+        $pdo->prepare('DELETE FROM employees WHERE id = :id')->execute(['id' => $employeeId]);
+        $deleteUser = $pdo->prepare('DELETE FROM users WHERE id = :id AND is_active = FALSE');
+        $deleteUser->execute(['id' => $targetUserId]);
+        if ($deleteUser->rowCount() !== 1) {
+            throw new InvalidArgumentException('تعذر حذف الحساب؛ تحقق من حالته ثم أعد المحاولة.');
+        }
+        $pdo->commit();
+    } catch (PDOException $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        if ($error->getCode() === '23503') {
+            throw new InvalidArgumentException('لا يمكن حذف الحساب لوجود بيانات مرتبطة به. احتفظ بالحساب معطلًا حتى لا تُفقد سجلات المنصة.');
+        }
+        throw $error;
+    } catch (Throwable $error) {
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
+        }
+        throw $error;
+    }
+}

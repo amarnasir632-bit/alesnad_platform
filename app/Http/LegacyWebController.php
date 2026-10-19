@@ -859,6 +859,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', 'تعذر تحديث الحساب الآن. حاول مرة أخرى لاحقًا.');
         }
         redirect(url('staff'));
+    } elseif ($action === 'staff_delete') {
+        try {
+            $user = require_permission('roles.manage');
+            $targetUserId = filter_var($_POST['target_user_id'] ?? null, FILTER_VALIDATE_INT);
+            $actorPassword = is_string($_POST['actor_password'] ?? null) ? $_POST['actor_password'] : '';
+            if ($targetUserId === false || $targetUserId < 1 || $actorPassword === '') {
+                throw new InvalidArgumentException('اختر حسابًا صحيحًا وأدخل كلمة مرور مدير النظام.');
+            }
+            delete_inactive_staff_account($targetUserId, (int) $user['id'], $actorPassword);
+            flash('success', 'تم حذف حساب الموظف نهائيًا.');
+        } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('staff_account_deletion_failed', $error);
+            flash('error', 'تعذر حذف الحساب الآن. لم تُحذف أي بيانات؛ تحقق من سجلات الحساب أو حاول لاحقًا.');
+        }
+        redirect(url('staff'));
     } elseif ($action === 'accept_staff_invitation') {
         $password = is_string($_POST['password'] ?? null) ? $_POST['password'] : '';
         $confirmation = is_string($_POST['password_confirmation'] ?? null) ? $_POST['password_confirmation'] : '';

@@ -106,7 +106,7 @@ $registrarInvitationToken = create_staff_invitation(
     $adminId
 );
 $invitedRegistrar = $pdo->prepare(
-    "SELECT u.is_active, r.code
+    "SELECT u.id AS user_id, u.is_active, r.code
      FROM users u
      JOIN user_roles ur ON ur.user_id = u.id
      JOIN roles r ON r.id = ur.role_id
@@ -116,6 +116,13 @@ $invitedRegistrar->execute(['email' => $registrarInvitationEmail]);
 $invitedRegistrarRow = $invitedRegistrar->fetch();
 $assert($registrarInvitationToken !== '' && $invitedRegistrarRow['code'] === 'registrar', 'administrator can invite a registrar account');
 $assert(!database_boolean($invitedRegistrarRow['is_active']), 'invited registrar stays inactive until accepting the invitation');
+$validInvitationDeletionBlocked = false;
+try {
+    delete_inactive_staff_account((int) $invitedRegistrarRow['user_id'], $adminId, 'test-password-123');
+} catch (InvalidArgumentException) {
+    $validInvitationDeletionBlocked = true;
+}
+$assert($validInvitationDeletionBlocked, 'cannot delete an account with a still-valid staff invitation');
 $assert(
     count(array_filter(list_staff_accounts(), static fn(array $member): bool => $member['email'] === $registrarInvitationEmail)) === 1,
     'invited registrar appears in the staff account list'
@@ -208,6 +215,81 @@ if ((int) $activeAdminCount->fetchColumn() === 1) {
 } else {
     printf("SKIP last-admin guard needs a test DB with exactly one active administrator\n");
 }
+
+$_SESSION['user'] = ['id' => $adminId];
+refresh_authenticated_user();
+
+$deleteCandidate = create_managed_account([
+    'full_name' => 'Phase 1 Deletion Candidate',
+    'email' => 'phase1-delete-' . $suffix . '@example.invalid',
+    'phone' => '',
+    'password' => 'test-password-123',
+    'roles' => ['teacher'],
+], $adminId);
+$activeStaffDeletionBlocked = false;
+try {
+    delete_inactive_staff_account((int) $deleteCandidate['id'], $adminId, 'test-password-123');
+} catch (InvalidArgumentException) {
+    $activeStaffDeletionBlocked = true;
+}
+$assert($activeStaffDeletionBlocked, 'cannot delete an active staff account');
+
+$wrongAdminPasswordBlocked = false;
+try {
+    delete_inactive_staff_account((int) $deleteCandidate['id'], $adminId, 'wrong-password');
+} catch (InvalidArgumentException) {
+    $wrongAdminPasswordBlocked = true;
+}
+$assert($wrongAdminPasswordBlocked, 'staff deletion requires the current administrator password');
+
+set_staff_account_active((int) $deleteCandidate['id'], $adminId, false);
+$inactiveStaffWrongPasswordBlocked = false;
+try {
+    delete_inactive_staff_account((int) $deleteCandidate['id'], $adminId, 'wrong-password');
+} catch (InvalidArgumentException) {
+    $inactiveStaffWrongPasswordBlocked = true;
+}
+$assert($inactiveStaffWrongPasswordBlocked, 'wrong administrator password leaves a disabled staff account intact');
+
+delete_inactive_staff_account((int) $deleteCandidate['id'], $adminId, 'test-password-123');
+$deletedStaff = $pdo->prepare('SELECT COUNT(*) FROM users WHERE id = :id');
+$deletedStaff->execute(['id' => $deleteCandidate['id']]);
+$assert((int) $deletedStaff->fetchColumn() === 0, 'administrator can permanently delete an inactive staff account');
+$deletionAudit = $pdo->prepare("SELECT COUNT(*) FROM audit_events WHERE action_code = 'staff.account.deleted' AND target_id = :id");
+$deletionAudit->execute(['id' => $deleteCandidate['id']]);
+$assert((int) $deletionAudit->fetchColumn() === 1, 'staff account deletion is audited before removing the account');
+
+$pdo->prepare('UPDATE staff_invitations SET expires_at = CURRENT_TIMESTAMP - INTERVAL \'1 second\' WHERE user_id = :id AND accepted_at IS NULL AND revoked_at IS NULL')
+    ->execute(['id' => $invitedRegistrarRow['user_id']]);
+delete_inactive_staff_account((int) $invitedRegistrarRow['user_id'], $adminId, 'test-password-123');
+$expiredInvitationUser = $pdo->prepare('SELECT COUNT(*) FROM users WHERE id = :id');
+$expiredInvitationUser->execute(['id' => $invitedRegistrarRow['user_id']]);
+$assert((int) $expiredInvitationUser->fetchColumn() === 0, 'administrator can delete an inactive account whose invitation has expired');
+
+$referencedStaff = create_managed_account([
+    'full_name' => 'Phase 1 Referenced Staff',
+    'email' => 'phase1-referenced-' . $suffix . '@example.invalid',
+    'phone' => '',
+    'password' => 'test-password-123',
+    'roles' => ['teacher'],
+], $adminId);
+set_staff_account_active((int) $referencedStaff['id'], $adminId, false);
+$pdo->prepare('INSERT INTO messages (sender_id, receiver_id, message_body) VALUES (:sender, :receiver, :body)')
+    ->execute(['sender' => $referencedStaff['id'], 'receiver' => $adminId, 'body' => 'Retain this message during account deletion test']);
+$foreignKeyDeletionBlocked = false;
+try {
+    delete_inactive_staff_account((int) $referencedStaff['id'], $adminId, 'test-password-123');
+} catch (InvalidArgumentException $error) {
+    $foreignKeyDeletionBlocked = str_contains($error->getMessage(), 'وجود بيانات مرتبطة به');
+}
+$retainedStaff = $pdo->prepare('SELECT COUNT(*) FROM users u JOIN employees e ON e.user_id = u.id WHERE u.id = :id');
+$retainedStaff->execute(['id' => $referencedStaff['id']]);
+$retainedMessage = $pdo->prepare('SELECT COUNT(*) FROM messages WHERE sender_id = :id');
+$retainedMessage->execute(['id' => $referencedStaff['id']]);
+$assert($foreignKeyDeletionBlocked, 'foreign-key-protected staff account deletion reports linked data');
+$assert((int) $retainedStaff->fetchColumn() === 1 && (int) $retainedMessage->fetchColumn() === 1, 'blocked deletion preserves the staff account, employee profile and message');
+$pdo->prepare('DELETE FROM messages WHERE sender_id = :id')->execute(['id' => $referencedStaff['id']]);
+delete_inactive_staff_account((int) $referencedStaff['id'], $adminId, 'test-password-123');
 
 $audit = $pdo->prepare("SELECT COUNT(*) FROM audit_events WHERE target_type='user' AND target_id=:id");
 $audit->execute(['id' => $teacherId]);
