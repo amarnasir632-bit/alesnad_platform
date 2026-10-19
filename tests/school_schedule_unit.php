@@ -3,6 +3,31 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__) . '/app/Database/school_schedule.php';
 
+$grid = school_schedule_weekly_grid([
+    ['recurrence_type' => 'WEEKLY', 'day_of_week' => 0, 'starts_at' => '08:00:00', 'ends_at' => '08:45:00', 'entry_type' => 'LESSON'],
+    ['recurrence_type' => 'WEEKLY', 'day_of_week' => 4, 'starts_at' => '08:00:00', 'ends_at' => '08:45:00', 'entry_type' => 'LESSON'],
+    ['recurrence_type' => 'WEEKLY', 'day_of_week' => 2, 'starts_at' => '10:00:00', 'ends_at' => '10:20:00', 'entry_type' => 'BREAK'],
+    ['recurrence_type' => 'ONCE', 'day_of_week' => 1, 'starts_at' => '07:00:00', 'ends_at' => '07:30:00', 'entry_type' => 'LESSON'],
+    ['recurrence_type' => 'WEEKLY', 'day_of_week' => 8, 'starts_at' => '07:00:00', 'ends_at' => '07:30:00', 'entry_type' => 'LESSON'],
+]);
+$failedGrid = [];
+$gridCases = [
+    'weekly grid orders used weekdays right to left' => array_keys($grid['days']) === [4, 2, 0],
+    'weekly grid combines equal periods by weekday' => count($grid['slots']) === 2
+        && count($grid['slots'][0]['entries_by_day'][4]) === 1
+        && count($grid['slots'][0]['entries_by_day'][0]) === 1,
+    'weekly grid sorts periods by start time' => $grid['slots'][0]['starts_at'] === '08:00'
+        && $grid['slots'][1]['starts_at'] === '10:00',
+    'weekly grid excludes one-time and invalid-day entries' => !isset($grid['days'][1]) && count($grid['slots']) === 2,
+];
+foreach ($gridCases as $name => $passed) {
+    printf("%s %s\n", $passed ? 'PASS' : 'FAIL', $name);
+    if (!$passed) $failedGrid[] = $name;
+}
+if (!empty($failedGrid)) {
+    exit(1);
+}
+
 $cases = [
     [
         'name' => 'same class and weekly day overlap',

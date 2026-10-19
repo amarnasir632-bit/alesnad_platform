@@ -2,6 +2,16 @@
 $days = school_schedule_days();
 $assignments = $data['schedule_assignments'] ?? [];
 $seenClassSubjects = [];
+$weeklyEntries = array_values(array_filter(
+    $data['school_schedule_entries'] ?? [],
+    static fn(array $entry): bool => $entry['recurrence_type'] === 'WEEKLY'
+));
+$oneTimeEntries = array_values(array_filter(
+    $data['school_schedule_entries'] ?? [],
+    static fn(array $entry): bool => $entry['recurrence_type'] === 'ONCE'
+));
+$weeklyGrid = school_schedule_weekly_grid($weeklyEntries);
+$lessonPeriod = 0;
 ?>
 <section class="section page-section school-schedule-page">
   <div class="section-head">
@@ -132,31 +142,102 @@ $seenClassSubjects = [];
     </section>
   <?php endif; ?>
 
-  <section class="schedule-list-section">
+  <section class="schedule-list-section" aria-labelledby="weekly-schedule-title">
     <div class="section-head">
       <div>
-        <span class="eyebrow">حصص وفسح الصف</span>
-        <h2>مواعيد الجدول</h2>
+        <span class="eyebrow">الأسبوع الدراسي</span>
+        <h2 id="weekly-schedule-title">الجدول الأسبوعي</h2>
       </div>
     </div>
-    <?php if (empty($data['school_schedule_entries'])): ?>
-      <div class="empty-state"><h3>لا توجد مواعيد مضافة بعد</h3><p>ستظهر الحصص والفسح هنا عند إضافتها من إدارة التقويم.</p></div>
+    <?php if (empty($weeklyGrid['slots'])): ?>
+      <div class="empty-state"><h3>لا يوجد جدول أسبوعي بعد</h3><p>ستظهر أيام الدراسة والحصص هنا عند إضافتها من إدارة التقويم.</p></div>
     <?php else: ?>
+      <div class="schedule-timetable-scroll" role="region" aria-label="الجدول الأسبوعي؛ اسحب أفقيًا لرؤية بقية الأيام" tabindex="0">
+        <table class="schedule-timetable">
+          <caption class="visually-hidden">مواعيد الحصص والفسح موزعة حسب أيام الأسبوع</caption>
+          <thead>
+            <tr>
+              <th class="schedule-timetable-time-heading" scope="col">الحصة والوقت</th>
+              <?php foreach ($weeklyGrid['days'] as $dayName): ?>
+                <th scope="col"><?= e($dayName) ?></th>
+              <?php endforeach; ?>
+            </tr>
+          </thead>
+          <tbody>
+            <?php foreach ($weeklyGrid['slots'] as $slot): ?>
+              <?php
+                $slotHasLesson = false;
+                foreach ($slot['entries_by_day'] as $dayEntries) {
+                    foreach ($dayEntries as $entry) {
+                        if ($entry['entry_type'] === 'LESSON') {
+                            $slotHasLesson = true;
+                            break 2;
+                        }
+                    }
+                }
+                if ($slotHasLesson) $lessonPeriod++;
+              ?>
+              <tr>
+                <th class="schedule-timetable-time" scope="row">
+                  <span><?= $slotHasLesson ? 'الحصة ' . $lessonPeriod : 'استراحة' ?></span>
+                  <time dir="ltr"><?= e($slot['starts_at']) ?>–<?= e($slot['ends_at']) ?></time>
+                </th>
+                <?php foreach ($weeklyGrid['days'] as $day => $dayName): ?>
+                  <?php $cellEntries = $slot['entries_by_day'][$day] ?? []; ?>
+                  <td class="<?= $cellEntries && !$slotHasLesson ? 'is-break' : '' ?>">
+                    <?php if (!$cellEntries): ?>
+                      <span class="schedule-timetable-empty" aria-label="لا توجد حصة">—</span>
+                    <?php else: ?>
+                      <ul class="schedule-timetable-cell-list">
+                        <?php foreach ($cellEntries as $entry): ?>
+                          <?php $isLesson = $entry['entry_type'] === 'LESSON'; ?>
+                          <li class="<?= $isLesson ? 'is-lesson' : 'is-break' ?>">
+                            <strong><?= e($isLesson ? ($entry['subject_name'] ?? $entry['title']) : $entry['title']) ?></strong>
+                            <?php if ($isLesson && !empty($entry['teacher_name'])): ?>
+                              <span><?= e($entry['teacher_name']) ?></span>
+                            <?php endif; ?>
+                            <?php if (!empty($data['canManageSchedule']) && $entry['class_name'] !== null): ?>
+                              <small><?= e(($entry['stage_name'] ?? '') . ' · ' . $entry['class_name']) ?></small>
+                            <?php endif; ?>
+                            <?php if (!empty($data['canManageSchedule'])): ?>
+                              <form method="post" action="<?= e(url('school_schedule')) ?>" class="schedule-cell-delete-form" data-confirm="هل تريد حذف هذا الموعد من الجدول؟">
+                                <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">
+                                <input type="hidden" name="action" value="school_schedule_delete">
+                                <input type="hidden" name="entry_id" value="<?= (int) $entry['id'] ?>">
+                                <button class="button button-small button-danger" type="submit" aria-label="حذف <?= e($isLesson ? ($entry['subject_name'] ?? $entry['title']) : $entry['title']) ?>">حذف</button>
+                              </form>
+                            <?php endif; ?>
+                          </li>
+                        <?php endforeach; ?>
+                      </ul>
+                    <?php endif; ?>
+                  </td>
+                <?php endforeach; ?>
+              </tr>
+            <?php endforeach; ?>
+          </tbody>
+        </table>
+      </div>
+    <?php endif; ?>
+  </section>
+
+  <?php if ($oneTimeEntries): ?>
+    <section class="schedule-list-section" aria-labelledby="one-time-schedule-title">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">مواعيد بتاريخ محدد</span>
+          <h2 id="one-time-schedule-title">حصص وفسح غير متكررة</h2>
+        </div>
+      </div>
       <div class="schedule-entries-list">
-        <?php foreach ($data['school_schedule_entries'] as $entry): ?>
-          <?php
-            $isLesson = $entry['entry_type'] === 'LESSON';
-            $when = $entry['recurrence_type'] === 'WEEKLY'
-                ? ($days[(int) $entry['day_of_week']] ?? 'يوم غير محدد')
-                : date('Y-m-d', strtotime($entry['occurrence_date']));
-          ?>
+        <?php foreach ($oneTimeEntries as $entry): ?>
+          <?php $isLesson = $entry['entry_type'] === 'LESSON'; ?>
           <article class="schedule-entry-card <?= $isLesson ? 'is-lesson' : 'is-break' ?>">
             <div class="schedule-entry-time">
-              <strong><?= e(substr((string) $entry['starts_at'], 0, 5)) ?></strong>
-              <span><?= e(substr((string) $entry['ends_at'], 0, 5)) ?></span>
+              <strong><?= e(substr((string) $entry['starts_at'], 0, 5)) ?>–<?= e(substr((string) $entry['ends_at'], 0, 5)) ?></strong>
+              <span><?= e(date('Y-m-d', strtotime($entry['occurrence_date']))) ?></span>
             </div>
             <div class="schedule-entry-details">
-              <span class="course-tag"><?= e($when) ?> · <?= $entry['recurrence_type'] === 'WEEKLY' ? 'أسبوعي' : 'مرة واحدة' ?></span>
               <h3><?= e($isLesson ? ($entry['subject_name'] ?? $entry['title']) : $entry['title']) ?></h3>
               <p>
                 <?= e($entry['class_name'] === null ? 'كل الصفوف' : (($entry['stage_name'] ?? '') . ' · ' . $entry['class_name'])) ?>
@@ -174,8 +255,8 @@ $seenClassSubjects = [];
           </article>
         <?php endforeach; ?>
       </div>
-    <?php endif; ?>
-  </section>
+    </section>
+  <?php endif; ?>
 
   <section class="schedule-list-section" id="calendar-announcements">
     <div class="section-head">

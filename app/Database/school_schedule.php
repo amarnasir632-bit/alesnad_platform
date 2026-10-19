@@ -14,6 +14,39 @@ function school_schedule_days(): array
     ];
 }
 
+function school_schedule_weekly_grid(array $entries): array
+{
+    $dayNames = school_schedule_days();
+    $days = [];
+    $slots = [];
+
+    foreach ($entries as $entry) {
+        if (($entry['recurrence_type'] ?? null) !== 'WEEKLY') {
+            continue;
+        }
+        $day = filter_var($entry['day_of_week'] ?? null, FILTER_VALIDATE_INT);
+        if ($day === false || $day < 0 || $day > 6) {
+            continue;
+        }
+
+        $startsAt = substr((string) ($entry['starts_at'] ?? ''), 0, 5);
+        $endsAt = substr((string) ($entry['ends_at'] ?? ''), 0, 5);
+        $slotKey = $startsAt . '-' . $endsAt;
+        $days[$day] = $dayNames[$day];
+        $slots[$slotKey] ??= [
+            'starts_at' => $startsAt,
+            'ends_at' => $endsAt,
+            'entries_by_day' => [],
+        ];
+        $slots[$slotKey]['entries_by_day'][$day][] = $entry;
+    }
+
+    krsort($days, SORT_NUMERIC);
+    uasort($slots, static fn(array $left, array $right): int => [$left['starts_at'], $left['ends_at']] <=> [$right['starts_at'], $right['ends_at']]);
+
+    return ['days' => $days, 'slots' => array_values($slots)];
+}
+
 function school_schedule_validate_date(string $value, string $field): string
 {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) || str_starts_with($value, '0000-')) {

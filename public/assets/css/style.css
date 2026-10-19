@@ -4051,6 +4051,158 @@ select option {
   margin-top: 22px;
 }
 
+.schedule-timetable-scroll {
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.schedule-timetable {
+  width: 100%;
+  min-width: 720px;
+  table-layout: fixed;
+  border-collapse: separate;
+  border-spacing: 0;
+  text-align: center;
+}
+
+.schedule-timetable th,
+.schedule-timetable td {
+  padding: 12px 10px;
+  border-inline-start: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.schedule-timetable thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #f8fafc;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.schedule-timetable .schedule-timetable-time-heading,
+.schedule-timetable .schedule-timetable-time {
+  position: sticky;
+  right: 0;
+  z-index: 3;
+  width: 130px;
+  background: #f3f4f6;
+  box-shadow: -3px 0 6px rgba(15, 23, 42, 0.05);
+}
+
+.schedule-timetable thead .schedule-timetable-time-heading {
+  z-index: 4;
+}
+
+.schedule-timetable-time {
+  display: table-cell;
+  color: var(--navy);
+  font-weight: 700;
+}
+
+.schedule-timetable-time span,
+.schedule-timetable-time time {
+  display: block;
+}
+
+.schedule-timetable-time time {
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 0.86rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.schedule-timetable td {
+  min-width: 110px;
+  background: #ffffff;
+}
+
+.schedule-timetable tbody tr:nth-child(even) td {
+  background: #fbfdff;
+}
+
+.schedule-timetable tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.schedule-timetable th:last-child,
+.schedule-timetable td:last-child {
+  border-inline-start: 0;
+}
+
+.schedule-timetable-cell-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.schedule-timetable-cell-list li {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  min-height: 52px;
+  align-content: center;
+  padding: 8px 6px;
+  border-radius: var(--radius-sm);
+  background: #eaf2ff;
+  color: #183b68;
+}
+
+.schedule-timetable tbody td:nth-child(2) .schedule-timetable-cell-list li.is-lesson {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.schedule-timetable tbody td:nth-child(3) .schedule-timetable-cell-list li.is-lesson {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.schedule-timetable tbody td:nth-child(4) .schedule-timetable-cell-list li.is-lesson {
+  background: #fef3c7;
+  color: #854d0e;
+}
+
+.schedule-timetable tbody td:nth-child(5) .schedule-timetable-cell-list li.is-lesson {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.schedule-timetable tbody td:nth-child(6) .schedule-timetable-cell-list li.is-lesson {
+  background: #ffe4e6;
+  color: #9f1239;
+}
+
+.schedule-timetable-cell-list li.is-break,
+.schedule-timetable td.is-break {
+  background: #fff5d8;
+  color: #7c4a03;
+}
+
+.schedule-timetable-cell-list li span,
+.schedule-timetable-cell-list li small {
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.schedule-timetable-cell-list li .schedule-cell-delete-form {
+  margin-top: 4px;
+}
+
+.schedule-timetable-empty {
+  color: #94a3b8;
+}
+
 .schedule-entries-list,
 .holiday-announcements-list {
   display: grid;
@@ -4164,6 +4316,20 @@ select option {
 
   .schedule-entry-time {
     min-width: 58px;
+  }
+
+  .schedule-timetable {
+    min-width: 680px;
+  }
+
+  .schedule-timetable th,
+  .schedule-timetable td {
+    padding: 9px 7px;
+  }
+
+  .schedule-timetable .schedule-timetable-time-heading,
+  .schedule-timetable .schedule-timetable-time {
+    width: 110px;
   }
 }
 

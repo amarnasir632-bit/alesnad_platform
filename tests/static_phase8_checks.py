@@ -25,6 +25,8 @@ layout = (ROOT / "app/Views/layout.php").read_text()
 web_controller = (ROOT / "app/Http/LegacyWebController.php").read_text()
 main_js = (ROOT / "public/assets/js/main.js").read_text()
 styles = (ROOT / "public/assets/css/style.css").read_text()
+schedule_view = (ROOT / "app/Views/school_schedule.php").read_text()
+schedule_service = (ROOT / "app/Database/school_schedule.php").read_text()
 staff_view = (ROOT / "app/Views/staff.php").read_text()
 staff_service = (ROOT / "app/Database/staff.php").read_text()
 
@@ -64,6 +66,7 @@ check("teacher subject list is restricted to assigned subjects", "list_teacher_c
 check("content reviewers can open subjects while student and teacher scope checks remain", "|| user_has_permission('content.review')" in web_controller and "$studentInClass" in web_controller and "$teacherAssigned" in web_controller)
 check("navigation drawer is hidden by default and can overlay desktop content", "transform: translateX(105%)" in styles and ".app-sidebar.is-open" in styles and ".app-mobile-topbar {\n  display: flex" in styles and "margin-right: var(--sidebar-width)" not in styles)
 check("navigation drawer closes on backdrop, Escape and destination selection at every viewport", "backdrop.addEventListener('click'" in main_js and "if (e.key === 'Escape')" in main_js and "navLinks.forEach" in main_js and "isDrawer" not in main_js)
+check("weekly schedule uses a familiar weekday-by-period table and keeps dated entries separate", "class=\"schedule-timetable\"" in schedule_view and "school_schedule_weekly_grid" in schedule_view and "$oneTimeEntries" in schedule_view and "حصص وفسح غير متكررة" in schedule_view and "'entries_by_day' => []" in schedule_service)
 
 baseline = "HEAD"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):
