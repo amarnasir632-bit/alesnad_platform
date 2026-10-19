@@ -13,7 +13,7 @@ function list_staff_accounts(): array
          FROM users u
          JOIN employees e ON e.user_id = u.id
          JOIN user_roles ur ON ur.user_id = u.id
-         JOIN roles r ON r.id = ur.role_id AND r.code IN ('teacher', 'content_reviewer', 'admin')
+         JOIN roles r ON r.id = ur.role_id AND r.code IN ('teacher', 'content_reviewer', 'admin', 'registrar')
          LEFT JOIN LATERAL (
              SELECT expires_at FROM staff_invitations
              WHERE user_id = u.id AND accepted_at IS NULL AND revoked_at IS NULL
@@ -107,11 +107,14 @@ function create_staff_invitation(string $fullName, string $email, string $roleCo
     if ($jobTitleLength === false || $jobTitleLength < 2 || $jobTitleLength > 100) {
         throw new InvalidArgumentException('أدخل المسمى الوظيفي (من حرفين إلى 100 حرف).');
     }
-    if (!in_array($roleCode, ['teacher', 'content_reviewer', 'admin'], true)) {
+    if (!in_array($roleCode, ['teacher', 'content_reviewer', 'admin', 'registrar'], true)) {
         throw new InvalidArgumentException('الدور المطلوب غير مسموح.');
     }
     if (!user_has_permission('users.manage')) {
         throw new InvalidArgumentException('ليس لديك صلاحية دعوة أعضاء الفريق.');
+    }
+    if ($roleCode === 'registrar' && !user_has_permission('roles.manage')) {
+        throw new InvalidArgumentException('دعوة مسؤول التسجيل والقبول متاحة لمدير النظام فقط.');
     }
 
     $pdo = database_connection();
@@ -122,7 +125,7 @@ function create_staff_invitation(string $fullName, string $email, string $roleCo
              FROM users u
              JOIN employees e ON e.user_id = u.id
              JOIN user_roles ur ON ur.user_id = u.id
-             JOIN roles r ON r.id = ur.role_id AND r.code IN (\'teacher\', \'content_reviewer\', \'admin\')
+             JOIN roles r ON r.id = ur.role_id AND r.code IN (\'teacher\', \'content_reviewer\', \'admin\', \'registrar\')
              LEFT JOIN staff_invitations invitation ON invitation.user_id = u.id AND invitation.accepted_at IS NULL AND invitation.revoked_at IS NULL
              WHERE lower(u.email) = :email
              ORDER BY invitation.created_at DESC NULLS LAST
@@ -266,7 +269,7 @@ function set_staff_account_active(int $targetUserId, int $actorId, bool $active)
         }
         $rolesQuery = $pdo->prepare(
             "SELECT r.code FROM user_roles ur JOIN roles r ON r.id = ur.role_id
-             WHERE ur.user_id = :user_id AND r.code IN ('teacher', 'content_reviewer', 'admin')"
+             WHERE ur.user_id = :user_id AND r.code IN ('teacher', 'content_reviewer', 'admin', 'registrar')"
         );
         $rolesQuery->execute(['user_id' => $targetUserId]);
         $roles = $rolesQuery->fetchAll(PDO::FETCH_COLUMN);

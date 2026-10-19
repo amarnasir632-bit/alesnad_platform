@@ -41,6 +41,9 @@
         <select id="staff_role" name="role_code" required>
           <option value="teacher">أستاذ (تدريس وإعداد محتوى واختبارات)</option>
           <option value="content_reviewer">مراجع محتوى (فحص واعتماد المواد)</option>
+          <?php if ($data['can_manage_roles']): ?>
+            <option value="registrar">مسؤول التسجيل والقبول (مراجعة طلبات الطلاب)</option>
+          <?php endif; ?>
           <option value="admin">مدير نظام (تحكم كامل)</option>
         </select>
       </div>
@@ -137,7 +140,7 @@
         <?php foreach ($data['staff'] as $member): ?>
           <?php 
             $roles = explode(',', $member['role_codes']); 
-            $isPrivileged = (bool) array_intersect($roles, ['admin', 'content_reviewer']); 
+            $isPrivileged = (bool) array_intersect($roles, ['admin', 'content_reviewer', 'registrar']);
             $isSelf = (int) $member['id'] === (int) current_user()['id']; 
           ?>
           <tr>

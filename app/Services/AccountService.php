@@ -243,7 +243,7 @@ function ensure_account_profiles(PDO $pdo, int $id, array $roles): void
                 ]);
         }
     }
-    $employeeRoles = ['teacher' => 'أستاذ', 'content_reviewer' => 'مراجع محتوى', 'admin' => 'مدير النظام'];
+    $employeeRoles = ['teacher' => 'أستاذ', 'content_reviewer' => 'مراجع محتوى', 'admin' => 'مدير النظام', 'registrar' => 'مسؤول التسجيل والقبول'];
     foreach ($employeeRoles as $role => $title) {
         if (in_array($role, $roles, true)) $pdo->prepare('INSERT INTO employees(user_id,job_title) VALUES(:id,:title) ON CONFLICT(user_id) DO UPDATE SET job_title=EXCLUDED.job_title')->execute(['id' => $id, 'title' => $title]);
     }

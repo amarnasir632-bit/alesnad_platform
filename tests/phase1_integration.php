@@ -97,6 +97,53 @@ $assert(has_permission('admissions.manage'), 'registrar role grants admission ma
 $assert(!has_permission('roles.manage') && !has_permission('academics.manage'), 'registrar role does not grant role or curriculum administration');
 $_SESSION['user'] = ['id' => $adminId];
 $admin = refresh_authenticated_user();
+$registrarInvitationEmail = 'phase1-registrar-invitation-' . $suffix . '@example.invalid';
+$registrarInvitationToken = create_staff_invitation(
+    'Phase 1 Invited Registrar',
+    $registrarInvitationEmail,
+    'registrar',
+    'مسؤول التسجيل والقبول',
+    $adminId
+);
+$invitedRegistrar = $pdo->prepare(
+    "SELECT u.is_active, r.code
+     FROM users u
+     JOIN user_roles ur ON ur.user_id = u.id
+     JOIN roles r ON r.id = ur.role_id
+     WHERE u.email = :email"
+);
+$invitedRegistrar->execute(['email' => $registrarInvitationEmail]);
+$invitedRegistrarRow = $invitedRegistrar->fetch();
+$assert($registrarInvitationToken !== '' && $invitedRegistrarRow['code'] === 'registrar', 'administrator can invite a registrar account');
+$assert(!database_boolean($invitedRegistrarRow['is_active']), 'invited registrar stays inactive until accepting the invitation');
+$assert(
+    count(array_filter(list_staff_accounts(), static fn(array $member): bool => $member['email'] === $registrarInvitationEmail)) === 1,
+    'invited registrar appears in the staff account list'
+);
+$reviewer = create_managed_account([
+    'full_name' => 'Phase 1 Test Reviewer',
+    'email' => 'phase1-reviewer-' . $suffix . '@example.invalid',
+    'phone' => '',
+    'password' => 'test-password-123',
+    'roles' => ['content_reviewer'],
+], $adminId);
+$_SESSION['user'] = ['id' => $reviewer['id']];
+$assert(has_permission('users.manage') && !has_permission('roles.manage'), 'content reviewer can manage staff invitations without role management');
+$reviewerCannotInviteRegistrar = false;
+try {
+    create_staff_invitation(
+        'Unauthorized Registrar',
+        'phase1-unauthorized-registrar-' . $suffix . '@example.invalid',
+        'registrar',
+        'مسؤول التسجيل والقبول',
+        (int) $reviewer['id']
+    );
+} catch (InvalidArgumentException) {
+    $reviewerCannotInviteRegistrar = true;
+}
+$assert($reviewerCannotInviteRegistrar, 'content reviewer cannot invite a registrar without role-management permission');
+$_SESSION['user'] = ['id' => $adminId];
+$admin = refresh_authenticated_user();
 $approvedAdmission = review_student_admission((int) $registeredStudentRow['id'], $adminId, [
     'status' => 'APPROVED',
     'reason' => '',

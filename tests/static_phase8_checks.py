@@ -22,6 +22,8 @@ backup_test = (ROOT / "tests/backup_restore_integration.php").read_text()
 readme = (ROOT / "README.md").read_text()
 context = (ROOT / "docs/PROJECT_CONTEXT.md").read_text()
 layout = (ROOT / "app/Views/layout.php").read_text()
+staff_view = (ROOT / "app/Views/staff.php").read_text()
+staff_service = (ROOT / "app/Database/staff.php").read_text()
 
 with ZipFile(ROOT / "docs/SRS_Educational_Platform_Arabic.docx") as archive:
     document = ET.fromstring(archive.read("word/document.xml"))
@@ -53,6 +55,7 @@ check("Arabic RTL layout declaration is covered", 'lang="ar" dir="rtl"' in layou
 check("session management UI is connected to protected APIs", (ROOT / "app/Views/sessions.php").exists() and (ROOT / "public/assets/js/sessions.js").exists() and "api_provision_session_stream" in (ROOT / "app/Http/Controllers/SessionMessagingController.php").read_text())
 check("stale claims that backups and restore are not implemented were removed", all(stale not in context for stale in ("لا يوجد بعد رفع ملفات أو تدفق نسخ احتياطي", "النسخ الاحتياطي والاستعادة ما زال بحاجة إلى اعتماد وتنفيذ", "الاستعادة لم تنفذ")))
 check("README documents the test command and CI limitations", "GitHub Actions" in readme and "TRACEABILITY.md" in readme and "لا يشمل اختبارًا فعليًا" in readme)
+check("registrar can be invited by a role manager and is listed as a staff account", "value=\"registrar\"" in staff_view and "$data['can_manage_roles']" in staff_view and "'admin', 'registrar'" in staff_service)
 
 baseline = "HEAD"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):
