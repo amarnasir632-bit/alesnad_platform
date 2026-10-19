@@ -22,6 +22,9 @@ backup_test = (ROOT / "tests/backup_restore_integration.php").read_text()
 readme = (ROOT / "README.md").read_text()
 context = (ROOT / "docs/PROJECT_CONTEXT.md").read_text()
 layout = (ROOT / "app/Views/layout.php").read_text()
+web_controller = (ROOT / "app/Http/LegacyWebController.php").read_text()
+main_js = (ROOT / "public/assets/js/main.js").read_text()
+styles = (ROOT / "public/assets/css/style.css").read_text()
 staff_view = (ROOT / "app/Views/staff.php").read_text()
 staff_service = (ROOT / "app/Database/staff.php").read_text()
 
@@ -56,6 +59,11 @@ check("session management UI is connected to protected APIs", (ROOT / "app/Views
 check("stale claims that backups and restore are not implemented were removed", all(stale not in context for stale in ("لا يوجد بعد رفع ملفات أو تدفق نسخ احتياطي", "النسخ الاحتياطي والاستعادة ما زال بحاجة إلى اعتماد وتنفيذ", "الاستعادة لم تنفذ")))
 check("README documents the test command and CI limitations", "GitHub Actions" in readme and "TRACEABILITY.md" in readme and "لا يشمل اختبارًا فعليًا" in readme)
 check("registrar can be invited by a role manager and is listed as a staff account", "value=\"registrar\"" in staff_view and "$data['can_manage_roles']" in staff_view and "'admin', 'registrar'" in staff_service)
+check("catalog search is role-gated in navigation and server routing", "user_has_role('content_reviewer') && !user_has_role('student')" in web_controller and "user_has_role('admin') || user_has_role('content_reviewer') || user_has_role('student')" in layout)
+check("teacher subject list is restricted to assigned subjects", "list_teacher_class_subjects((int) $user['id'])" in web_controller and "$data['teacher_subjects_only']" in web_controller)
+check("content reviewers can open subjects while student and teacher scope checks remain", "|| user_has_permission('content.review')" in web_controller and "$studentInClass" in web_controller and "$teacherAssigned" in web_controller)
+check("navigation drawer is hidden by default and can overlay desktop content", "transform: translateX(105%)" in styles and ".app-sidebar.is-open" in styles and ".app-mobile-topbar {\n  display: flex" in styles and "margin-right: var(--sidebar-width)" not in styles)
+check("navigation drawer closes on backdrop, Escape and destination selection at every viewport", "backdrop.addEventListener('click'" in main_js and "if (e.key === 'Escape')" in main_js and "navLinks.forEach" in main_js and "isDrawer" not in main_js)
 
 baseline = "HEAD"
 for migration in sorted((ROOT / "database/migrations").glob("*.sql")):

@@ -1,7 +1,7 @@
 /**
  * منصة الإسناد الأكاديمي - السكربت العام للواجهة والتفاعل
  * يدعم:
- * 1. القائمة الجانبية (Sidebar) وشاشات الهاتف (Drawer) مع إمكانية اللمس والسحب
+ * 1. القائمة الجانبية المنبثقة (Drawer) مع إمكانية اللمس والسحب
  * 2. النماذج متعددة الخطوات (Multi-step Wizard) مع شريط تقدم وتحقق فوري
  * 3. تحسينات إمكانية الوصول ولمس كبار السن
  */
@@ -12,6 +12,7 @@
   document.addEventListener('DOMContentLoaded', function () {
     initSidebar();
     initLoginForm();
+    initInvitationLinkCopy();
     initMultiStepForms();
     initTouchEnhancements();
     initTabs();
@@ -19,7 +20,7 @@
   });
 
   /* -------------------------------------------------------------
-   * 1. القائمة الجانبية وشاشات الهاتف (Sidebar & Mobile Drawer)
+   * 1. القائمة الجانبية المنبثقة (Navigation Drawer)
    * ------------------------------------------------------------- */
   function initSidebar() {
     const sidebar = document.getElementById('app-sidebar');
@@ -29,21 +30,8 @@
 
     if (!sidebar) return;
 
-    const isDrawer = function () {
-      return window.matchMedia('(max-width: 992px)').matches;
-    };
-
     function syncSidebarAvailability() {
-      if (!isDrawer() && sidebar.classList.contains('is-open')) {
-        sidebar.classList.remove('is-open');
-        if (backdrop) backdrop.classList.remove('is-active');
-        if (toggleBtn) {
-          toggleBtn.setAttribute('aria-expanded', 'false');
-          toggleBtn.setAttribute('aria-label', 'فتح القائمة الرئيسية');
-        }
-        document.body.classList.remove('sidebar-locked');
-      }
-      if (isDrawer() && !sidebar.classList.contains('is-open')) {
+      if (!sidebar.classList.contains('is-open')) {
         sidebar.setAttribute('inert', '');
         sidebar.setAttribute('aria-hidden', 'true');
       } else {
@@ -104,9 +92,9 @@
       });
     }
 
-    // Keep keyboard focus inside the mobile drawer while it is open.
+    // Keep keyboard focus inside the drawer while it is open.
     document.addEventListener('keydown', function (e) {
-      if (!sidebar.classList.contains('is-open') || !isDrawer()) return;
+      if (!sidebar.classList.contains('is-open')) return;
       if (e.key === 'Escape') {
         closeSidebar(true);
         return;
@@ -126,13 +114,11 @@
       }
     });
 
-    // إغلاق القائمة الجانبية في الهاتف عند النقر على رابط التنقل
+    // Close the drawer after selecting a destination.
     const navLinks = sidebar.querySelectorAll('.nav-item-link');
     navLinks.forEach(function (link) {
       link.addEventListener('click', function () {
-        if (window.innerWidth <= 992) {
-          closeSidebar(false);
-        }
+        closeSidebar(false);
       });
     });
 
@@ -179,6 +165,43 @@
       }
       if (submitLabel) submitLabel.textContent = 'جارٍ تسجيل الدخول…';
       if (loadingStatus) loadingStatus.textContent = 'جارٍ تسجيل الدخول، يرجى الانتظار.';
+    });
+  }
+
+  function initInvitationLinkCopy() {
+    const input = document.getElementById('invitation-link-input');
+    const button = document.querySelector('[data-copy-invitation-link]');
+    const status = document.querySelector('[data-invitation-copy-status]');
+    if (!input || !button || !status) return;
+
+    button.addEventListener('click', async function () {
+      button.disabled = true;
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          try {
+            await navigator.clipboard.writeText(input.value);
+          } catch {
+            input.focus();
+            input.select();
+            input.setSelectionRange(0, input.value.length);
+            if (!document.execCommand('copy')) throw new Error('Clipboard copy was rejected.');
+          }
+        } else {
+          input.focus();
+          input.select();
+          input.setSelectionRange(0, input.value.length);
+          if (!document.execCommand('copy')) throw new Error('Clipboard copy is unavailable.');
+        }
+        button.textContent = '✓ تم النسخ!';
+        status.textContent = 'تم نسخ رابط الدعوة. أرسله للموظف عبر قناة آمنة.';
+      } catch {
+        input.focus();
+        input.select();
+        input.setSelectionRange(0, input.value.length);
+        status.textContent = 'تعذر النسخ التلقائي. تم تحديد الرابط؛ انسخه باستخدام Ctrl+C أو ⌘+C.';
+      } finally {
+        button.disabled = false;
+      }
     });
   }
 

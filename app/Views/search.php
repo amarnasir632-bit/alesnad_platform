@@ -1,12 +1,12 @@
 <section class="section page-section discovery-page" aria-labelledby="discovery-title">
   <header class="discovery-header">
     <span class="eyebrow">اكتشف المحتوى التعليمي</span>
-    <h1 id="discovery-title">ابحث عن أستاذ أو درس</h1>
+    <h1 id="discovery-title">ابحث عن مادة أو أستاذ</h1>
     <p class="page-intro">تظهر النتائج المنشورة والمتاحة لدورك وصفك الدراسي فقط.</p>
     <form class="discovery-search-form" method="get" action="/">
       <input type="hidden" name="page" value="search">
-      <label class="visually-hidden" for="discovery-query">اسم الأستاذ أو عنوان الدرس</label>
-      <input id="discovery-query" name="q" type="search" maxlength="120" value="<?= e($data['searchQuery']) ?>" placeholder="اكتب اسم أستاذ أو درس..." autocomplete="off">
+      <label class="visually-hidden" for="discovery-query">اسم المادة أو الأستاذ</label>
+      <input id="discovery-query" name="q" type="search" maxlength="120" value="<?= e($data['searchQuery']) ?>" placeholder="اكتب اسم مادة أو أستاذ..." autocomplete="off">
       <button class="button button-primary" type="submit">بحث</button>
     </form>
   </header>

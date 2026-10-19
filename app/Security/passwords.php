@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 function password_validation_error(string $password): ?string
 {
-    if (strlen($password) > 72) return 'كلمة المرور تتجاوز الحد الأعلى المسموح وهو 72 بايت.';
-    $length = preg_match_all('/./us', $password);
-    if ($length === false || $length < 12) return 'يجب ألا تقل كلمة المرور عن 12 محرفًا.';
+    if (!preg_match('/\A[\x21-\x7E]{8,12}\z/', $password)) {
+        return 'يجب أن تتكون كلمة المرور من 8 إلى 12 محرفًا باستخدام أحرف إنجليزية أو أرقام أو رموز فقط.';
+    }
     return null;
 }
 

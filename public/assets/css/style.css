@@ -155,7 +155,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* عند فتح القائمة بالهاتف: منع التمرير في الخلفية */
+/* عند فتح القائمة المنبثقة: منع التمرير في الخلفية */
 body.sidebar-locked {
   overflow: hidden;
 }
@@ -210,12 +210,11 @@ a:hover {
    الهيكل العام للموقع (Layout Wrapper & Sidebar)
    ========================================================================== */
 .app-layout-wrapper {
-  display: flex;
   min-height: 100vh;
   position: relative;
 }
 
-/* القائمة الجانبية الثابتة في الكمبيوتر (RTL Right Sidebar) */
+/* القائمة الجانبية مخفية افتراضيًا على كل الشاشات */
 .app-sidebar {
   position: fixed;
   top: 0;
@@ -231,7 +230,12 @@ a:hover {
   border-left: 1px solid rgba(255, 255, 255, 0.08);
   overflow-y: auto;
   overflow-x: hidden;
+  transform: translateX(105%);
   transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.app-sidebar.is-open {
+  transform: translateX(0);
 }
 
 /* ترويسة القائمة الجانبية والشعار */
@@ -283,9 +287,9 @@ a:hover {
   margin-top: 3px;
 }
 
-/* زر إغلاق القائمة في الهاتف */
+/* زر إغلاق القائمة */
 .sidebar-close-btn {
-  display: none;
+  display: flex;
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;
   border: 0;
@@ -496,7 +500,7 @@ a:hover {
    المحتوى الرئيسي للموقع (Main Content Layout)
    ========================================================================== */
 .app-main-layout {
-  margin-right: var(--sidebar-width);
+  margin-right: 0;
   flex: 1;
   min-width: 0;
   display: flex;
@@ -505,9 +509,9 @@ a:hover {
   background-color: var(--bg-page);
 }
 
-/* شريط الهاتف والتابلت السريع (Top Header on Mobile) */
+/* الشريط العلوي مع زر فتح القائمة */
 .app-mobile-topbar {
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 10px 18px;
@@ -642,7 +646,7 @@ a:hover {
   border-color: #f87171;
 }
 
-/* خلفية التعتيم عند فتح القائمة بالهاتف */
+/* خلفية التعتيم عند فتح القائمة */
 .sidebar-backdrop {
   position: fixed;
   inset: 0;
@@ -818,7 +822,7 @@ summary:focus-visible {
 }
 
 .login-card input[type="email"],
-.password-control input {
+.login-card .password-control input {
   min-height: 54px;
   border: 1.5px solid var(--border-color);
   border-radius: var(--radius-md);
@@ -836,10 +840,10 @@ summary:focus-visible {
   position: relative;
 }
 
-.password-control input {
+.login-card .password-control input {
   width: 100%;
   padding: 12px 16px;
-  padding-inline-end: 92px;
+  padding-right: 92px;
   direction: ltr;
   text-align: left;
 }
@@ -851,7 +855,8 @@ summary:focus-visible {
 
 .password-toggle {
   position: absolute;
-  inset-inline-end: 8px;
+  inset-inline-start: 8px;
+  inset-inline-end: auto;
   top: 50%;
   transform: translateY(-50%);
   min-width: 64px;
@@ -2930,29 +2935,15 @@ select option {
    التجاوب مع الشاشات والأجهزة اللوحية والهواتف (Responsive Media Queries)
    ========================================================================== */
 @media (max-width: 992px) {
-  /* تحويل القائمة الجانبية إلى Drawer منزلق بالهاتف */
+  /* ضبط عرض القائمة المنبثقة على الشاشات الصغيرة */
   .app-sidebar {
-    transform: translateX(100%);
     width: min(320px, 86vw);
     box-shadow: -8px 0 36px rgba(0, 0, 0, 0.3);
-  }
-
-  /* عند الفتح: تنزلق القائمة الجانبية من اليمين في RTL */
-  .app-sidebar.is-open {
-    transform: translateX(0);
-  }
-
-  .sidebar-close-btn {
-    display: flex;
   }
 
   .app-main-layout {
     margin-right: 0 !important;
     width: 100%;
-  }
-
-  .app-mobile-topbar {
-    display: flex;
   }
 
   .main-body {

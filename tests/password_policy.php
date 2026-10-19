@@ -4,12 +4,14 @@ declare(strict_types=1);
 require dirname(__DIR__) . '/app/Security/passwords.php';
 
 $cases = [
-    'minimum ASCII length' => password_validation_error(str_repeat('a', 12)) === null,
-    'minimum Unicode length' => password_validation_error(str_repeat('ع', 12)) === null,
-    'too short rejected' => password_validation_error(str_repeat('a', 11)) !== null,
-    '72 bytes accepted' => password_validation_error(str_repeat('a', 72)) === null,
-    '73 bytes rejected' => password_validation_error(str_repeat('a', 73)) !== null,
-    'Unicode byte cap enforced' => password_validation_error(str_repeat('ع', 37)) !== null,
+    'minimum ASCII length accepted' => password_validation_error(str_repeat('a', 8)) === null,
+    'maximum ASCII length accepted' => password_validation_error(str_repeat('a', 12)) === null,
+    'too short rejected' => password_validation_error(str_repeat('a', 7)) !== null,
+    'over maximum rejected' => password_validation_error(str_repeat('a', 13)) !== null,
+    'ASCII symbols accepted' => password_validation_error('A1!bcdef') === null,
+    'Arabic characters rejected' => password_validation_error('كلمةسر123') !== null,
+    'Unicode emoji rejected' => password_validation_error('abcde😀12') !== null,
+    'spaces rejected' => password_validation_error('abcd 123') !== null,
 ];
 $failed = [];
 foreach ($cases as $name => $passed) {

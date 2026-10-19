@@ -13,7 +13,7 @@
     <div class="notice">
       <span class="notice-icon" aria-hidden="true">🔑</span>
       <p class="notice-text">
-        يرجى تعيين كلمة مرور جديدة قوية (لا تقل عن 12 خانة) لتفعيل حسابك والبدء في استخدام مهامك الإدارية أو التعليمية.
+        يرجى تعيين كلمة مرور من 8 إلى 12 محرفًا إنجليزيًا لتفعيل حسابك والبدء في استخدام مهامك الإدارية أو التعليمية.
       </p>
     </div>
 
@@ -23,13 +23,13 @@
 
       <div class="form-field">
         <label for="password">كلمة المرور الجديدة</label>
-        <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="••••••••••••" required>
-        <small class="field-hint">يجب أن تتكون من 12 خانة على الأقل (أحرف وأرقام).</small>
+        <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="••••••••" required>
+        <small class="field-hint">من 8 إلى 12 محرفًا إنجليزيًا (أحرف أو أرقام أو رموز).</small>
       </div>
 
       <div class="form-field">
         <label for="password_confirmation">تأكيد كلمة المرور</label>
-        <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="أعد إدخال كلمة المرور نفسها" required>
+        <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="أعد إدخال كلمة المرور نفسها" required>
         <small class="field-hint">تأكد من مطابقة كلمة المرور المدخلة أعلاه.</small>
       </div>
 

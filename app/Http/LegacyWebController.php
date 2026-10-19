@@ -49,9 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'أدخل رقم هاتف صحيحًا أو اتركه فارغًا.';
         }
         if ($classId === false || $classId < 1) $errors[] = 'اختر صفك الدراسي.';
-        if (!password_meets_policy($password)) {
-            $errors[] = 'يجب أن تتكون كلمة المرور من 12 حرفًا على الأقل وألا تتجاوز 1024 بايت.';
-        }
+        if (($passwordError = password_validation_error($password)) !== null) $errors[] = $passwordError;
         if (!hash_equals($password, $confirmation)) {
             $errors[] = 'تأكيد كلمة المرور غير مطابق.';
         }
@@ -1086,26 +1084,32 @@ try {
         }
     } elseif ($page === 'search') {
         $user = require_login();
-        $query = $_GET['q'] ?? '';
-        $queryLength = is_string($query) ? preg_match_all('/./us', $query) : false;
-        if (!is_string($query) || $queryLength === false || $queryLength > 120) {
-            throw new InvalidArgumentException('عبارة البحث يجب ألا تتجاوز 120 محرفًا.');
+        if (!user_has_role('admin') && !user_has_role('content_reviewer') && !user_has_role('student')) {
+            http_response_code(403);
+            $title = 'غير مصرح';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } else {
+            $query = $_GET['q'] ?? '';
+            $queryLength = is_string($query) ? preg_match_all('/./us', $query) : false;
+            if (!is_string($query) || $queryLength === false || $queryLength > 120) {
+                throw new InvalidArgumentException('عبارة البحث يجب ألا تتجاوز 120 محرفًا.');
+            }
+            $query = trim($query);
+            $data['searchQuery'] = $query;
+            $data['teachers'] = catalog_search_teachers($query, $user);
+            $data['canSearchLessons'] = user_has_permission('content.read')
+                || user_has_permission('content.publish')
+                || user_has_permission('content.review');
+            if (in_array('student', $user['roles'] ?? [], true)
+                && !student_has_manual_content_access((int) $user['id'])) {
+                $data['canSearchLessons'] = false;
+            }
+            $data['lessons'] = $data['canSearchLessons'] ? catalog_search_lessons($query, $user) : [];
+            $data['popularMedia'] = $data['canSearchLessons'] ? catalog_popular_media($user) : [];
+            $data['latestMedia'] = $data['canSearchLessons'] ? catalog_latest_media($user) : [];
+            $title = 'البحث عن مادة أو أستاذ';
+            $contentView = PROJECT_ROOT . '/app/Views/search.php';
         }
-        $query = trim($query);
-        $data['searchQuery'] = $query;
-        $data['teachers'] = catalog_search_teachers($query, $user);
-        $data['canSearchLessons'] = user_has_permission('content.read')
-            || user_has_permission('content.publish')
-            || user_has_permission('content.review');
-        if (in_array('student', $user['roles'] ?? [], true)
-            && !student_has_manual_content_access((int) $user['id'])) {
-            $data['canSearchLessons'] = false;
-        }
-        $data['lessons'] = $data['canSearchLessons'] ? catalog_search_lessons($query, $user) : [];
-        $data['popularMedia'] = $data['canSearchLessons'] ? catalog_popular_media($user) : [];
-        $data['latestMedia'] = $data['canSearchLessons'] ? catalog_latest_media($user) : [];
-        $title = 'البحث عن أستاذ أو درس';
-        $contentView = PROJECT_ROOT . '/app/Views/search.php';
     } elseif ($page === 'lesson') {
         $user = require_login();
         $lessonId = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -1389,7 +1393,27 @@ try {
         }
     } elseif ($page === 'subjects' || $page === 'home') {
         $user = current_user();
-        if ($page === 'home' && $user) {
+        if ($page === 'subjects'
+            && (!$user || (!user_has_role('admin') && !user_has_role('content_reviewer')
+                && !user_has_role('student') && !user_has_role('teacher')))) {
+            http_response_code(403);
+            $title = 'غير مصرح';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } elseif ($page === 'subjects') {
+            if (user_has_role('admin') || user_has_role('content_reviewer')) {
+                $data['subjects'] = list_class_subjects(50);
+            } elseif (user_has_role('teacher') && !user_has_role('student')) {
+                $data['subjects'] = list_teacher_class_subjects((int) $user['id']);
+            } else {
+                $data['subjects'] = list_student_class_subjects((int) $user['id']);
+            }
+            $data['teacher_subjects_only'] = user_has_role('teacher')
+                && !user_has_role('admin')
+                && !user_has_role('content_reviewer')
+                && !user_has_role('student');
+            $title = $data['teacher_subjects_only'] ? 'موادي الدراسية' : 'المواد الدراسية';
+            $contentView = PROJECT_ROOT . '/app/Views/subjects.php';
+        } elseif ($page === 'home' && $user) {
             $homeCanManageSchedule = in_array('admin', $user['roles'] ?? [], true)
                 && user_has_permission('academics.manage');
             $homeCanReadSchedule = $homeCanManageSchedule
@@ -1434,16 +1458,6 @@ try {
             $data['school_holidays'] = school_schedule_list_holidays(null, 5);
             $data['subjects'] = list_class_subjects(3);
             $data['published_announcements'] = list_published_announcements(null, 5);
-        } elseif ($user && user_has_role('teacher')) {
-            $data['subjects'] = list_teacher_class_subjects((int) $user['id']);
-        } elseif ($user && user_has_role('student')) {
-            $data['subjects'] = list_student_class_subjects((int) $user['id']);
-        } else {
-            $data['subjects'] = list_class_subjects(50);
-        }
-        if ($page === 'subjects') {
-            $title = 'المواد الدراسية';
-            $contentView = PROJECT_ROOT . '/app/Views/subjects.php';
         }
     } elseif ($page === 'subject') {
         $id = filter_input(INPUT_GET, 'id', FILTER_VALIDATE_INT);
@@ -1466,10 +1480,12 @@ try {
                 && student_has_manual_content_access((int) $user['id']);
             $teacherCanRead = $teacherAssigned && user_has_permission('content.read');
             $canViewContent = $user !== null
-                && (user_has_permission('content.publish') || $studentCanRead || $teacherCanRead);
+                && (user_has_permission('content.publish') || user_has_permission('content.review')
+                    || $studentCanRead || $teacherCanRead);
             $outsideAssignedScope = $user
                 && (user_has_role('student') || user_has_role('teacher'))
-                && !(user_has_permission('content.publish') || $studentInClass || $teacherAssigned);
+                && !(user_has_permission('content.publish') || user_has_permission('content.review')
+                    || $studentInClass || $teacherAssigned);
             if ($outsideAssignedScope) {
                 http_response_code(404);
                 $data['subject'] = null;

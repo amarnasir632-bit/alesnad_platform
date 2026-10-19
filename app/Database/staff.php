@@ -216,9 +216,8 @@ function find_staff_invitation(string $token): ?array
 
 function accept_staff_invitation(int $invitationId, string $password): int
 {
-    if ($invitationId < 1 || !password_meets_policy($password)) {
-        throw new InvalidArgumentException('يجب أن تتكون كلمة المرور من 12 حرفًا على الأقل وألا تتجاوز 1024 بايت.');
-    }
+    if ($invitationId < 1) throw new InvalidArgumentException('رابط الدعوة غير صالح.');
+    validate_password_or_throw($password);
     $pdo = database_connection();
     $pdo->beginTransaction();
     try {

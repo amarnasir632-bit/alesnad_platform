@@ -240,7 +240,7 @@ if (user_has_role('admin')) {
           <span class="card-icon" aria-hidden="true">🔐</span>
           <div>
             <h2>الأمان وتغيير كلمة المرور</h2>
-            <p class="card-subtext">تأكد من اختيار كلمة مرور قوية مكونة من 12 حرفاً على الأقل</p>
+            <p class="card-subtext">اختر كلمة مرور جديدة من 8 إلى 12 محرفًا إنجليزيًا.</p>
           </div>
         </div>
 
@@ -256,13 +256,13 @@ if (user_has_role('admin')) {
 
             <div class="form-field">
               <label for="new_pass">كلمة المرور الجديدة <span class="required-mark">*</span></label>
-              <input id="new_pass" name="new_password" type="password" minlength="12" autocomplete="new-password" required>
-              <small style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">يجب ألا تقل عن 12 حرفاً.</small>
+              <input id="new_pass" name="new_password" type="password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" autocomplete="new-password" required>
+              <small style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">من 8 إلى 12 محرفًا إنجليزيًا (أحرف أو أرقام أو رموز).</small>
             </div>
 
             <div class="form-field">
               <label for="confirm_new_pass">تأكيد كلمة المرور الجديدة <span class="required-mark">*</span></label>
-              <input id="confirm_new_pass" name="new_password_confirmation" type="password" minlength="12" autocomplete="new-password" required>
+              <input id="confirm_new_pass" name="new_password_confirmation" type="password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" autocomplete="new-password" required>
             </div>
           </div>
 

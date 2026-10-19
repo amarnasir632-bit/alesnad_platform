@@ -1,7 +1,7 @@
 <section class="section page-section">
   <span class="eyebrow">المكتبة والمنهج الدراسي</span>
-  <h1 class="page-title">المواد الدراسية المقررة</h1>
-  <p class="page-intro">اختر المادة الدراسية لاستعراض قائمة الدروس المعتمدة، الشروحات، والموارد التعليمية المرفقة.</p>
+  <h1 class="page-title"><?= !empty($data['teacher_subjects_only']) ? 'موادي الدراسية' : 'المواد الدراسية المقررة' ?></h1>
+  <p class="page-intro"><?= !empty($data['teacher_subjects_only']) ? 'تظهر هنا المواد المسندة إليك فقط.' : 'اختر المادة الدراسية لاستعراض قائمة الدروس المعتمدة، الشروحات، والموارد التعليمية المرفقة.' ?></p>
 
   <?php if (!empty($data['subjects'])): ?>
     <div class="course-grid">
@@ -29,8 +29,8 @@
   <?php else: ?>
     <div class="empty-state">
       <div class="empty-icon" aria-hidden="true">📚</div>
-      <h3>لا توجد مواد منشورة حاليًا</h3>
-      <p>ستظهر المواد والدروس هنا بعد تسجيلها واعتمادها من إدارة المنصة.</p>
+      <h3><?= !empty($data['teacher_subjects_only']) ? 'لا توجد مواد مسندة إليك' : 'لا توجد مواد منشورة حاليًا' ?></h3>
+      <p><?= !empty($data['teacher_subjects_only']) ? 'راجع إدارة المنصة إذا كنت تتوقع ظهور مادة هنا.' : 'ستظهر المواد والدروس هنا بعد تسجيلها واعتمادها من إدارة المنصة.' ?></p>
     </div>
   <?php endif; ?>
 </section>

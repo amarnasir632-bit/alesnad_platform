@@ -135,8 +135,7 @@ function require_web_permission(string $permissionCode): array
 
 function password_meets_policy(string $password): bool
 {
-    $characterCount = preg_match_all('/./us', $password);
-    return $characterCount !== false && $characterCount >= 12 && strlen($password) <= 1024;
+    return password_validation_error($password) === null;
 }
 
 function register_student(string $fullName, string $email, string $phone, string $password, int $classId): void

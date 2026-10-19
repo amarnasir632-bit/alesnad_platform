@@ -11,10 +11,11 @@
         <p>انسخ الرابط التالي وأرسله للموظف عبر وسيلة تواصل خاصة وآمنة. إذا انتهت صلاحيته (48 ساعة)، يمكنك إنشاء دعوة جديدة:</p>
         <div class="invitation-link-box">
           <input type="text" readonly dir="ltr" value="<?= e($data['new_invitation_link']) ?>" id="invitation-link-input" aria-label="رابط الدعوة الجديد">
-          <button class="button button-primary button-small" type="button" onclick="navigator.clipboard.writeText(document.getElementById('invitation-link-input').value); this.textContent='✓ تم النسخ!';">
+          <button class="button button-primary button-small" type="button" data-copy-invitation-link>
             نسخ الرابط
           </button>
         </div>
+        <p data-invitation-copy-status role="status" aria-live="polite"></p>
       </div>
     </div>
   <?php endif; ?>

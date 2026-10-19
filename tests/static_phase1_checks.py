@@ -28,7 +28,8 @@ check("last active administrator is protected", "ensure_not_last_admin" in accou
 check("session user is refreshed from database", "function refresh_authenticated_user" in authz and "is_active" in authz)
 check("login, registration, and account events are audited", all(event in auth for event in ("auth.login.failed", "auth.login.succeeded", "auth.registered")) and "audit_log('account.created'" in accounts)
 check("student self-registration assigns a valid active class and enters review", "class_id" in (ROOT / "app/Views/register.php").read_text() and "students (user_id, class_id, registration_status)" in auth and "classes c JOIN stages s" in auth and "class_id" in (ROOT / "app/Http/Controllers/AuthController.php").read_text())
-check("password policy caps at 72 bytes", "strlen($password) > 72" in (ROOT / "app/Security/passwords.php").read_text())
+password_policy = (ROOT / "app/Security/passwords.php").read_text()
+check("password policy requires 8 to 12 ASCII characters", r"\x21-\x7E]{8,12}" in password_policy)
 policy_prefixes = ("SESSION_IDLE_TIMEOUT_SECONDS=", "LOGIN_MAX_ATTEMPTS=", "LOGIN_WINDOW_SECONDS=", "LOGIN_LOCKOUT_SECONDS=", "AUTH_THROTTLE_KEY=")
 policy_lines = [line for line in (ROOT / ".env.example").read_text().splitlines() if line.startswith(policy_prefixes)]
 check("all runtime policy settings are blank in sample env", len(policy_lines) == len(policy_prefixes) and all(line.endswith("=") for line in policy_lines))

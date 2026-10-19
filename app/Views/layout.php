@@ -126,17 +126,19 @@ if ($user) {
                 </a>
               </li>
             <?php endif; ?>
-            <li>
-              <a class="nav-item-link <?= ($currentPage === 'subjects' || $currentPage === 'subject') ? 'active' : '' ?>" href="<?= e(url('subjects')) ?>">
-                <span class="nav-icon"><?= ui_icon('book') ?></span>
-                <span class="nav-label">المواد الدراسية</span>
-              </a>
-            </li>
-            <?php if ($user): ?>
+            <?php if ($user && (user_has_role('admin') || user_has_role('content_reviewer') || user_has_role('student') || user_has_role('teacher'))): ?>
+              <li>
+                <a class="nav-item-link <?= ($currentPage === 'subjects' || $currentPage === 'subject') ? 'active' : '' ?>" href="<?= e(url('subjects')) ?>">
+                  <span class="nav-icon"><?= ui_icon('book') ?></span>
+                  <span class="nav-label"><?= user_has_role('teacher') && !user_has_role('admin') && !user_has_role('content_reviewer') && !user_has_role('student') ? 'موادي الدراسية' : 'المواد الدراسية' ?></span>
+                </a>
+              </li>
+            <?php endif; ?>
+            <?php if ($user && (user_has_role('admin') || user_has_role('content_reviewer') || user_has_role('student'))): ?>
               <li>
                 <a class="nav-item-link <?= in_array($currentPage, ['search', 'teacher', 'lesson'], true) ? 'active' : '' ?>" href="<?= e(url('search')) ?>">
                   <span class="nav-icon"><?= ui_icon('search') ?></span>
-                  <span class="nav-label">البحث عن أستاذ أو درس</span>
+                  <span class="nav-label">البحث عن مادة أو أستاذ</span>
                 </a>
               </li>
             <?php endif; ?>

@@ -78,13 +78,13 @@
 
         <div class="form-field">
           <label for="password">كلمة المرور</label>
-          <input id="password" name="password" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="••••••••••••" required>
-          <small class="field-hint">يجب أن تتكون من 12 خانة على الأقل (حروف وأرقام).</small>
+          <input id="password" name="password" type="password" autocomplete="new-password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="••••••••" required>
+          <small class="field-hint">من 8 إلى 12 محرفًا إنجليزيًا (أحرف أو أرقام أو رموز).</small>
         </div>
 
         <div class="form-field">
           <label for="password_confirmation">تأكيد كلمة المرور</label>
-          <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="12" maxlength="1024" placeholder="أعد إدخال كلمة المرور نفسها" required>
+          <input id="password_confirmation" name="password_confirmation" type="password" autocomplete="new-password" minlength="8" maxlength="12" pattern="[!-~]{8,12}" title="استخدم من 8 إلى 12 حرفًا إنجليزيًا أو رقمًا أو رمزًا." lang="en" dir="ltr" autocapitalize="off" spellcheck="false" placeholder="أعد إدخال كلمة المرور نفسها" required>
           <small class="field-hint">أعد إدخال كلمة المرور للتأكد من مطابقتها.</small>
         </div>
 
