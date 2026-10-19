@@ -53,6 +53,7 @@ require_once PROJECT_ROOT . '/app/Database/messages.php';
 require_once PROJECT_ROOT . '/app/Database/library.php';
 require_once PROJECT_ROOT . '/app/Database/quizzes.php';
 require_once PROJECT_ROOT . '/app/Database/announcements.php';
+require_once PROJECT_ROOT . '/app/Database/school_schedule.php';
 require_once PROJECT_ROOT . '/app/Security/authorization.php';
 require_once PROJECT_ROOT . '/app/Security/audit.php';
 require_once PROJECT_ROOT . '/app/Security/login_throttle.php';

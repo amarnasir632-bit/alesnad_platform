@@ -716,6 +716,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             flash('error', 'تعذر تحديث صلاحية الوصول الآن. حاول مرة أخرى لاحقًا.');
         }
         redirect(url('content_access'));
+    } elseif (in_array($action, ['school_schedule_create', 'school_schedule_delete', 'school_holiday_create', 'school_holiday_delete'], true)) {
+        try {
+            $user = require_permission('academics.manage');
+            if ($action === 'school_schedule_create') {
+                school_schedule_create_entry($_POST, (int) $user['id']);
+                flash('success', 'تمت إضافة الموعد إلى الجدول الدراسي.');
+            } elseif ($action === 'school_schedule_delete') {
+                $id = filter_var($_POST['entry_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                if ($id === false) {
+                    throw new InvalidArgumentException('اختر موعدًا صحيحًا للحذف.');
+                }
+                school_schedule_delete_entry($id, (int) $user['id']);
+                flash('success', 'تم حذف الموعد من الجدول.');
+            } elseif ($action === 'school_holiday_create') {
+                school_schedule_create_holiday($_POST, (int) $user['id']);
+                flash('success', 'تم نشر الإجازة ضمن إعلانات المنصة.');
+            } else {
+                $id = filter_var($_POST['holiday_id'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+                if ($id === false) {
+                    throw new InvalidArgumentException('اختر إجازة صحيحة للحذف.');
+                }
+                school_schedule_delete_holiday($id, (int) $user['id']);
+                flash('success', 'تم حذف الإجازة وإعلانها.');
+            }
+        } catch (InvalidArgumentException $error) {
+            flash('error', $error->getMessage());
+        } catch (Throwable $error) {
+            app_log_error('school_schedule_action_failed', $error);
+            flash('error', 'تعذر حفظ التغيير الآن. حاول مرة أخرى لاحقًا.');
+        }
+        redirect(url('school_schedule'));
     } elseif (in_array($action, ['academics_add_stage', 'academics_add_class', 'academics_add_subject'], true)) {
         try {
             $user = require_permission('academics.manage');
@@ -1024,6 +1055,7 @@ try {
             $data['is_admin'] = $isAdmin;
             $data['is_teacher'] = $isTeacher;
             $data['announcements'] = $isAdmin ? list_admin_announcements() : list_teacher_announcements((int) $user['id']);
+            $data['calendar_holidays'] = school_schedule_list_holidays($user, 100);
             $data['teachingAssignments'] = $isTeacher ? academic_teacher_assignments((int) $user['id']) : [];
             $data['allSubjects'] = $isAdmin ? list_active_teaching_subjects() : [];
             $title = 'إدارة الإعلانات المدرسية';
@@ -1040,6 +1072,34 @@ try {
         $data['stages'] = list_academic_structure();
         $title = 'إدارة الهيكل الدراسي';
         $contentView = PROJECT_ROOT . '/app/Views/academics.php';
+    } elseif ($page === 'school_schedule') {
+        $user = require_login();
+        $isAdmin = in_array('admin', $user['roles'] ?? [], true);
+        $isTeacher = in_array('teacher', $user['roles'] ?? [], true);
+        $isStudent = in_array('student', $user['roles'] ?? [], true);
+        $canManageSchedule = $isAdmin && user_has_permission('academics.manage');
+        $canReadSchedule = $canManageSchedule || $isTeacher || $isStudent;
+        if (!$canReadSchedule) {
+            http_response_code(403);
+            $title = 'غير مصرح';
+            $contentView = PROJECT_ROOT . '/app/Views/not_found.php';
+        } else {
+            $data['canManageSchedule'] = $canManageSchedule;
+            $scheduleActor = $user;
+            if (!$canManageSchedule) {
+                $scheduleActor['roles'] = array_values(array_intersect(['student', 'teacher'], $user['roles'] ?? []));
+            }
+            $data['school_schedule_entries'] = school_schedule_list_entries($scheduleActor);
+            $data['school_holidays'] = $canManageSchedule
+                ? school_schedule_list_manager_holidays()
+                : school_schedule_list_holidays($scheduleActor);
+            if ($canManageSchedule) {
+                $data['schedule_classes'] = school_schedule_list_classes();
+                $data['schedule_assignments'] = school_schedule_list_assignments();
+            }
+            $title = 'الجدول الدراسي والإجازات';
+            $contentView = PROJECT_ROOT . '/app/Views/school_schedule.php';
+        }
     } elseif ($page === 'sessions') {
         $user = require_login();
         $data['sessionCanManage'] = user_has_permission('sessions.manage');
@@ -1058,6 +1118,21 @@ try {
     } elseif ($page === 'subjects' || $page === 'home') {
         $user = current_user();
         if ($page === 'home' && $user) {
+            $homeCanManageSchedule = in_array('admin', $user['roles'] ?? [], true)
+                && user_has_permission('academics.manage');
+            $homeCanReadSchedule = $homeCanManageSchedule
+                || in_array('teacher', $user['roles'] ?? [], true)
+                || in_array('student', $user['roles'] ?? [], true);
+            if ($homeCanReadSchedule) {
+                $scheduleActor = $user;
+                if (!$homeCanManageSchedule) {
+                    $scheduleActor['roles'] = array_values(array_intersect(['student', 'teacher'], $user['roles'] ?? []));
+                }
+                $data['school_holidays'] = school_schedule_list_holidays($scheduleActor, 5);
+                $data['school_schedule_entries'] = school_schedule_list_entries($scheduleActor);
+            } else {
+                $data['school_holidays'] = school_schedule_list_holidays(null, 5);
+            }
             if (user_has_role('admin') || user_has_role('content_reviewer')) {
                 $data['published_announcements'] = list_published_announcements(null, 5);
             } elseif (user_has_role('teacher')) {
@@ -1073,6 +1148,7 @@ try {
                 $data['published_announcements'] = list_published_announcements($studentClassId, 5);
             }
         } elseif ($page === 'home') {
+            $data['school_holidays'] = school_schedule_list_holidays(null, 5);
             $data['subjects'] = list_class_subjects(3);
             $data['published_announcements'] = list_published_announcements(null, 5);
         } elseif ($user && user_has_role('teacher')) {

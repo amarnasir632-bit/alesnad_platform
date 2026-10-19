@@ -32,6 +32,9 @@ if ($isAdmin && user_has_permission('quizzes.manage')) {
 if ($isAdmin && user_has_permission('sessions.manage')) {
     $adminActions[] = ['icon' => 'video', 'title' => 'الحصص', 'description' => 'متابعة الحصص والتسجيلات.', 'label' => 'إدارة الحصص', 'page' => 'sessions'];
 }
+if ($isAdmin && user_has_permission('academics.manage')) {
+    $adminActions[] = ['icon' => 'calendar', 'title' => 'الجدول والإجازات', 'description' => 'إضافة حصص وفسح وإجازات وإظهارها للطلاب.', 'label' => 'إدارة الجدول', 'page' => 'school_schedule'];
+}
 if ($isAdmin) {
     $adminActions[] = ['icon' => 'message', 'title' => 'الرسائل الأكاديمية', 'description' => 'الوصول إلى أدوات متابعة الرسائل المتاحة للمدير.', 'label' => 'متابعة الرسائل', 'page' => 'messages'];
 }
@@ -78,6 +81,52 @@ foreach ($data['sessions'] ?? [] as $session) {
   </section>
 <?php endif; ?>
 
+<?php if (!empty($data['school_holidays']) || !empty($data['school_schedule_entries'])): ?>
+  <section class="home-calendar-panel" aria-label="الجدول الدراسي وإعلانات الإجازات">
+    <?php if (!empty($data['school_holidays'])): ?>
+      <div class="home-holiday-list">
+        <h2>إجازات وإعلانات التقويم</h2>
+        <?php foreach (array_slice($data['school_holidays'], 0, 3) as $holiday): ?>
+          <article class="home-holiday-card">
+            <div>
+              <span class="status-chip chip-scheduled">إجازة معلنة</span>
+              <h3><?= e($holiday['title']) ?></h3>
+              <p><?= e(date('Y-m-d', strtotime($holiday['starts_on']))) ?> — <?= e(date('Y-m-d', strtotime($holiday['ends_on']))) ?></p>
+            </div>
+            <?php if ($holiday['class_id'] === null): ?>
+              <span class="scope-tag scope-general">عامة</span>
+            <?php else: ?>
+              <span class="scope-tag"><?= e(($holiday['stage_name'] ?? '') . ' · ' . ($holiday['class_name'] ?? 'الصف')) ?></span>
+            <?php endif; ?>
+          </article>
+        <?php endforeach; ?>
+        <?php if ($user): ?><a class="link-more" href="<?= e(url('school_schedule')) ?>">كل إعلانات التقويم</a><?php endif; ?>
+      </div>
+    <?php endif; ?>
+    <?php if (!empty($data['school_schedule_entries']) && $user): ?>
+      <div class="home-schedule-list">
+        <div class="section-head">
+          <h2>الجدول الدراسي</h2>
+          <a class="link-more" href="<?= e(url('school_schedule')) ?>">عرض الجدول</a>
+        </div>
+        <?php foreach (array_slice($data['school_schedule_entries'], 0, 5) as $entry): ?>
+          <?php
+            $entryDay = $entry['recurrence_type'] === 'WEEKLY'
+                ? (school_schedule_days()[(int) $entry['day_of_week']] ?? '')
+                : date('Y-m-d', strtotime($entry['occurrence_date']));
+          ?>
+          <div class="home-schedule-row">
+            <span class="home-schedule-time"><?= e(substr((string) $entry['starts_at'], 0, 5)) ?>–<?= e(substr((string) $entry['ends_at'], 0, 5)) ?></span>
+            <span><?= e($entryDay) ?></span>
+            <strong><?= e($entry['entry_type'] === 'LESSON' ? ($entry['subject_name'] ?? $entry['title']) : $entry['title']) ?></strong>
+            <span><?= e($entry['class_name'] === null ? 'كل الصفوف' : $entry['class_name']) ?></span>
+          </div>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </section>
+<?php endif; ?>
+
 <?php if ($isAdmin || $isReviewer): ?>
   <section class="dashboard-panel admin-dashboard">
     <div class="dashboard-welcome">
@@ -118,6 +167,7 @@ foreach ($data['sessions'] ?? [] as $session) {
         <p class="dashboard-intro">موادك المسندة والحصص والمهام التعليمية المتاحة لحسابك.</p>
       </div>
       <div class="welcome-actions">
+        <a class="button button-secondary" href="<?= e(url('school_schedule')) ?>">الجدول الدراسي</a>
         <?php if (user_has_permission('questions.manage')): ?>
           <a class="button button-primary" href="<?= e(url('questions')) ?>">إدارة بنك الأسئلة</a>
         <?php endif; ?>
@@ -201,6 +251,7 @@ foreach ($data['sessions'] ?? [] as $session) {
       </div>
       <div class="student-quick-start">
         <a class="button button-primary button-large" href="<?= e(url('subjects')) ?>">موادي الدراسية</a>
+        <a class="button button-secondary" href="<?= e(url('school_schedule')) ?>">جدولي الدراسي</a>
         <?php if (user_has_permission('sessions.join')): ?>
           <a class="button button-secondary" href="<?= e(url('sessions')) ?>">جدول الحصص</a>
         <?php endif; ?>

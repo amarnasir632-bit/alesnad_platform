@@ -146,6 +146,14 @@ if ($user) {
                   </a>
                 </li>
               <?php endif; ?>
+              <?php if (user_has_role('student') || user_has_role('teacher') || (user_has_role('admin') && user_has_permission('academics.manage'))): ?>
+                <li>
+                  <a class="nav-item-link <?= $currentPage === 'school_schedule' ? 'active' : '' ?>" href="<?= e(url('school_schedule')) ?>">
+                    <span class="nav-icon"><?= ui_icon('calendar') ?></span>
+                    <span class="nav-label">الجدول الدراسي والإجازات</span>
+                  </a>
+                </li>
+              <?php endif; ?>
               <?php if ($user && (user_has_permission('messages.use') || user_has_role('admin'))): ?>
                 <li>
                   <a class="nav-item-link <?= $currentPage === 'messages' ? 'active' : '' ?>" href="<?= e(url('messages')) ?>">
@@ -357,6 +365,7 @@ if ($user) {
   <?php if (($page ?? '') === 'quizzes'): ?><script src="/assets/js/quizzes.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'quiz_attempt'): ?><script src="/assets/js/quiz-attempt.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'sessions'): ?><script src="/assets/js/sessions.js" defer></script><?php endif; ?>
+  <?php if (($page ?? '') === 'school_schedule' && !empty($data['canManageSchedule'])): ?><script src="/assets/js/school-schedule.js" defer></script><?php endif; ?>
   <?php if (($page ?? '') === 'accounts'): ?><script src="/assets/js/accounts.js" defer></script><?php endif; ?>
 </body>
 </html>

@@ -12,6 +12,31 @@
       : 'نشر وتوجيه الإعلانات والتنبيهات المدرسية لطلاب المواد والصفوف المسندة إليك فقط.' ?>
   </p>
 
+  <?php if (!empty($data['calendar_holidays'])): ?>
+    <section class="calendar-announcements-preview" aria-labelledby="calendar-announcements-title">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">إعلانات التقويم المدرسي</span>
+          <h2 id="calendar-announcements-title">الإجازات المعلنة</h2>
+        </div>
+        <?php if ($data['is_admin']): ?>
+          <a class="button button-secondary button-small" href="<?= e(url('school_schedule')) ?>">إدارة الجدول والإجازات</a>
+        <?php endif; ?>
+      </div>
+      <div class="holiday-announcements-list">
+        <?php foreach ($data['calendar_holidays'] as $holiday): ?>
+          <article class="holiday-announcement-card">
+            <span class="status-chip chip-scheduled">إجازة معلنة</span>
+            <h3><?= e($holiday['title']) ?></h3>
+            <p><?= e(date('Y-m-d', strtotime($holiday['starts_on']))) ?> — <?= e(date('Y-m-d', strtotime($holiday['ends_on']))) ?></p>
+            <span class="scope-tag"><?= $holiday['class_id'] === null ? 'عامة لكل المنصة' : e(($holiday['stage_name'] ?? '') . ' · ' . ($holiday['class_name'] ?? 'الصف')) ?></span>
+            <?php if ($holiday['description'] !== ''): ?><p><?= nl2br(e($holiday['description'])) ?></p><?php endif; ?>
+          </article>
+        <?php endforeach; ?>
+      </div>
+    </section>
+  <?php endif; ?>
+
   <!-- نموذج نشر إعلان جديد -->
   <form class="detail-card announcement-form-card" method="post" action="<?= e(url('announcements')) ?>">
     <input type="hidden" name="_csrf" value="<?= e(csrf_token()) ?>">

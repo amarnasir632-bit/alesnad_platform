@@ -162,6 +162,7 @@ php -S 127.0.0.1:8000 -t public public/router.php
 - رفع الموارد والامتحانات والأسئلة ومراجعتها ونشرها، وتنزيل الملفات الخاصة للطلاب ذوي المنحة اليدوية النشطة، مع استئناف Range.
 - بدء الاختبارات وإرسال الإجابات وتصحيح الموضوعي آليًا والمقالي يدويًا، وإظهار النتائج بحسب إعداد البيئة.
 - إدارة الحصص من صفحة الحصص وAPI: Cloudflare Live Inputs، مفاتيح بث لا تُحفظ في المنصة، روابط مشاهدة موقعة، ومزامنة التسجيلات الجاهزة. يلزم اختبار حساب Cloudflare فعلي. الرسائل فردية، ويلزم إعداد `MESSAGING_RATE_LIMIT_COUNT` و`MESSAGING_RATE_LIMIT_WINDOW_SECONDS` قبل الإرسال.
+- التقويم المدرسي من `?page=school_schedule`: المدير يضيف حصصًا أسبوعية أو بتاريخ مفرد، وفسحًا عامة أو لصف محدد، وإجازات عامة أو لصف محدد تُعرض تلقائيًا في الصفحة الرئيسية والإعلانات. يتحقق الخادم من إسناد الأستاذ ويمنع تداخل أوقات الصف أو الأستاذ؛ يلزم تطبيق ترحيل `016_school_schedule_and_holidays.sql`.
 - بث Cloudflare Stream المباشر يتكامل مع رفع فيديوهات الموارد التعليمية مباشرة إلى Cloudflare بروابط رفع أحادية الاستخدام؛ لا يمر ملف الفيديو عبر خادم التطبيق، ويصدر التشغيل برابط signed بعد فحص أهلية الطالب واعتماد المحتوى. يلزم إعداد قيم Cloudflare في `.env` وتطبيق ترحيل `012_cloudflare_video_uploads.sql`.
 - الخطط والاشتراكات يمكن إدارتها يدويًا من المدير، وتنتهي حالة الاشتراك آليًا عند انتهاء الفترة. لا توجد أسعار افتراضية ولا بوابة دفع. يمكن تشغيل معالجة الانتهاء يدويًا أو دوريًا عبر `php database/expire_subscriptions.php`.
 - تصنف المحاولات المنتهية بلا تسليم عند تفاعل الطالب معها، ويمكن تشغيل `php database/process_expired_quiz_attempts.php` دوريًا كل دقيقة بواسطة cron على الخادم. لا توفر خطة Render المجانية جدولة دورية دائمة؛ راجع [دليل Render وNeon](docs/FREE_HOSTING_RENDER_NEON.md) للتجربة فقط.
@@ -171,7 +172,7 @@ php -S 127.0.0.1:8000 -t public public/router.php
 
 ## الاختبارات والتحقق
 
-- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/database_url_unit.php`, و`php tests/quiz_policy_unit.php`, و`php tests/session_availability_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
+- شغّل `php tests/password_policy.php`, و`php tests/content_range_unit.php`, و`php tests/database_url_unit.php`, و`php tests/quiz_policy_unit.php`, و`php tests/session_availability_unit.php`, و`php tests/school_schedule_unit.php` لاختبارات الوحدة، ثم `for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done` للفحوصات الساكنة.
 - اختبارات PostgreSQL التكاملية ترفض العمل ما لم يبدأ اسم `DB_DATABASE` بـ`alesnad_test_`. شغّل `php database/migrate.php` قبل `tests/phase1_integration.php` و`tests/phase2_academic_integration.php`.
 - GitHub Actions في `.github/workflows/backend-ci.yml` يوفر PostgreSQL 16 وPHP 8.4، ويشغّل الترحيلات واختبارات DB وHTTP وصلاحيات endpoints والوصول المباشر للملفات وتجربة النسخ والاستعادة.
 - `docs/TRACEABILITY.md` يربط كل FR/NFR بالمكوّن والاختبار والنتيجة المسجلة. عند كتابة هذا التغيير لم يعمل workflow بعد؛ لا يشمل اختبارًا فعليًا للأداء أو UAT أو تكامل مزودي البث/التخزين غير المختارين.

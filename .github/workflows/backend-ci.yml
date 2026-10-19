@@ -87,6 +87,7 @@ jobs:
           php tests/quiz_policy_unit.php
           php tests/mux_video_provider_unit.php
           php tests/session_availability_unit.php
+          php tests/school_schedule_unit.php
           for check in tests/static_phase{1..8}_checks.py; do python3 "$check"; done
 
       - name: Run account and academic integration tests
